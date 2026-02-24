@@ -40,6 +40,23 @@ const linking = {
           code: (code: string) => code?.toUpperCase(),
         },
       },
+      CoachDrawer: {
+        path: 'CoachDrawer',
+        screens: {
+          ReviewQueue: 'ReviewQueue',
+          SendInvite: 'SendInvite',
+          Home: 'Home',
+        },
+      },
+      UserDrawer: {
+        path: 'UserDrawer',
+        screens: {
+          Home: 'Home',
+          Profile: 'Profile',
+        },
+      },
+      Post: 'Post',
+      PostDetail: 'PostDetail',
     },
   },
 };
