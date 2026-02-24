@@ -99,6 +99,11 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Navigator
+        initialRouteName={
+          isLoggedIn 
+            ? (isCoach ? 'CoachDrawer' : 'UserDrawer')
+            : 'Login'
+        }
         screenOptions={{
           headerStyle: {
             backgroundColor: colors.deep,
