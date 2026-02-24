@@ -13,18 +13,16 @@ import { View, ActivityIndicator } from 'react-native';
 import LoginScreen from '../screens/LoginScreen';
 import PostScreen from '../screens/PostScreen';
 import PostDetailScreen from '../screens/PostDetailScreen';
-import CoachDrawerNavigator from './CoachDrawerNavigator';
-import UserDrawerNavigator from './UserDrawerNavigator';
+import MainDrawerNavigator from './MainDrawerNavigator';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
 
 // ── Route param types ────────────────────────
 export type RootStackParamList = {
-  Login:       { code?: string };
-  UserDrawer:  undefined;
-  Post:        undefined;
-  PostDetail:  { post: import('../../../packages/types').Post };
-  CoachDrawer: undefined;
+  Login:      { code?: string };
+  MainDrawer: undefined;
+  Post:       undefined;
+  PostDetail: { post: import('../../../packages/types').Post };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,17 +38,12 @@ const linking = {
           code: (code: string) => code?.toUpperCase(),
         },
       },
-      CoachDrawer: {
-        screens: {
-          ReviewQueue: 'ReviewQueue',
-          SendInvite: 'SendInvite',
-          Home: 'Home',
-        },
-      },
-      UserDrawer: {
+      MainDrawer: {
         screens: {
           Home: '',
           Profile: 'Profile',
+          ReviewQueue: 'ReviewQueue',
+          SendInvite: 'SendInvite',
         },
       },
       Post: 'Post',
@@ -62,8 +55,6 @@ const linking = {
 // ── Navigator component ───────────────────────
 export default function AppNavigator() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
-  const role       = useUserStore((s) => s.role);
-  const isCoach    = role === 'COACH' || role === 'ADMIN';
 
   return (
     <NavigationContainer
@@ -82,11 +73,10 @@ export default function AppNavigator() {
       documentTitle={{
         formatter: (options, route) => {
           const browserTitles: Record<string, string> = {
-            Login:       'PUSO Spaze — Welcome',
-            UserDrawer:  'PUSO Spaze — Feed',
-            CoachDrawer: 'PUSO Spaze — Coach Dashboard',
-            Post:        'PUSO Spaze — Share a Thought',
-            PostDetail:  'PUSO Spaze — Post Details',
+            Login:      'PUSO Spaze — Welcome',
+            MainDrawer: 'PUSO Spaze — Feed',
+            Post:       'PUSO Spaze — Share a Thought',
+            PostDetail: 'PUSO Spaze — Post Details',
           };
 
           // First check if the route has a name in our titles map
@@ -99,11 +89,7 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Navigator
-        initialRouteName={
-          isLoggedIn 
-            ? (isCoach ? 'CoachDrawer' : 'UserDrawer')
-            : 'Login'
-        }
+        initialRouteName={isLoggedIn ? 'MainDrawer' : 'Login'}
         screenOptions={{
           headerStyle: {
             backgroundColor: colors.deep,
@@ -116,23 +102,12 @@ export default function AppNavigator() {
       >
         {isLoggedIn ? (
           <>
-            {/* ── Coach / Admin: drawer first ── */}
-            {isCoach && (
-              <Stack.Screen
-                name="CoachDrawer"
-                component={CoachDrawerNavigator}
-                options={{ headerShown: false, gestureEnabled: false }}
-              />
-            )}
-
-            {/* ── Regular User: drawer first ── */}
-            {!isCoach && (
-              <Stack.Screen
-                name="UserDrawer"
-                component={UserDrawerNavigator}
-                options={{ headerShown: false, gestureEnabled: false }}
-              />
-            )}
+            {/* ── Main Drawer (for all logged-in users) ── */}
+            <Stack.Screen
+              name="MainDrawer"
+              component={MainDrawerNavigator}
+              options={{ headerShown: false, gestureEnabled: false }}
+            />
 
             {/* ── Create Post ── */}
             <Stack.Screen
