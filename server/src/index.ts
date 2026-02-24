@@ -72,7 +72,7 @@ async function main() {
     process.exit(1);
   }
 
-  app.listen(env.PORT, () => {
+  app.listen(env.PORT, '0.0.0.0', () => {
     console.log(
       `[Server] PUSO Spaze API running on http://localhost:${env.PORT}`
     );

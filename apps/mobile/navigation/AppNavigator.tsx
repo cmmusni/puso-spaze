@@ -41,17 +41,15 @@ const linking = {
         },
       },
       CoachDrawer: {
-        path: '',
         screens: {
           ReviewQueue: 'ReviewQueue',
           SendInvite: 'SendInvite',
-          Home: 'feed',
+          Home: 'Home',
         },
       },
       UserDrawer: {
-        path: '',
         screens: {
-          Home: 'feed',
+          Home: '',
           Profile: 'Profile',
         },
       },

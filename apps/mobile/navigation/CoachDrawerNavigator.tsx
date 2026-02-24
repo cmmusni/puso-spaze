@@ -118,7 +118,6 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
       <TouchableOpacity
         onPress={logoutUser}
         style={styles.signOutItem}
-        activeOpacity={0.75}
       >
         <Text style={styles.signOutIcon}>🚪</Text>
         <Text style={styles.signOutText}>Sign Out</Text>
@@ -281,6 +280,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
     gap: 12,
+    backgroundColor: 'rgba(239,68,68,0.1)',
   },
   signOutIcon: {
     fontSize: 18,
