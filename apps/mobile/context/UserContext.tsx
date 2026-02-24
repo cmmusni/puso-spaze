@@ -134,7 +134,7 @@ export const useUserStore = create<UserState>((set) => ({
       console.warn('[UserStore] Could not persist session:', err);
     }
     // Always update in-memory state even if storage fails
-    set({ userId, username, role, isLoggedIn: true });
+    set({ userId, username, role, isLoggedIn: true, isLoading: false });
   },
 
   logoutUser: async () => {
@@ -146,7 +146,7 @@ export const useUserStore = create<UserState>((set) => ({
     } catch (err) {
       console.warn('[UserStore] Could not clear session:', err);
     }
-    set({ userId: null, username: null, role: null, isLoggedIn: false });
+    set({ userId: null, username: null, role: null, isLoggedIn: false, isLoading: false });
   },
 
   updateUsername: async (newUsername: string) => {

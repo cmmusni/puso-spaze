@@ -8,7 +8,7 @@
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
 import MainDrawerNavigator from './MainDrawerNavigator';
@@ -93,16 +93,6 @@ export default function AppNavigator() {
     const unsubscribe = navigationRef.current?.addListener('state', checkAuth);
     return unsubscribe;
   }, [isReady, checkAuth]);
-
-  // Show loading screen while user is being loaded from storage
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.darkest }}>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={{ color: colors.muted5, marginTop: 12, fontSize: 14 }}>Loading...</Text>
-      </View>
-    );
-  }
 
   return (
     <NavigationContainer
