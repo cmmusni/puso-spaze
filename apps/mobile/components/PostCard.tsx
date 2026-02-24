@@ -175,7 +175,7 @@ export default function PostCard({ post }: PostCardProps) {
               <Text style={styles.authorName}>{displayName}</Text>
               <Text style={styles.authorSubtitle}>
                 👤
-                {`Spaze ${post.user?.role === "COACH" ? "Coach" : "Member"}`}
+                {`Spaze ${post.user?.role === "COACH" || post.user?.role === "ADMIN" ? "Coach" : "Member"}`}
               </Text>
             </View>
           </View>
