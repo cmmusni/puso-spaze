@@ -66,7 +66,7 @@ export default function HomeScreen() {
 
       {/* ── Gradient Header ── */}
       <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.ink]}
+        colors={[colors.darkest, colors.deep, colors.fuchsia]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}

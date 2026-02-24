@@ -80,7 +80,7 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
     >
       {/* Gradient fill */}
       <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.ink]}
+        colors={[colors.darkest, colors.deep, colors.fuchsia]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.4, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -135,7 +135,7 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
         style={styles.signOutItem}
         activeOpacity={0.75}
       >
-        <Text style={styles.signOutIcon}>🚪</Text>
+        <Text style={styles.signOutIcon}>⏻</Text>
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
 
@@ -204,15 +204,7 @@ export default function MainDrawerNavigator() {
         component={PostDetailScreen}
         options={{ 
           title: 'PUSO Spaze — Post Detail',
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: colors.deep,
-          },
-          headerTintColor: colors.card,
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            color: colors.card,
-          },
+          headerShown: false,
         }}
       />
     </Drawer.Navigator>
@@ -334,14 +326,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     marginHorizontal: 12,
     borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   signOutIcon: {
     fontSize: 18,
     marginRight: 12,
+    color: colors.hot,
   },
   signOutText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.muted5,
+    color: 'white',
   },
 });
