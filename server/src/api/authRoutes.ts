@@ -1,0 +1,31 @@
+// ─────────────────────────────────────────────
+// src/api/authRoutes.ts
+// POST /api/auth/redeem-invite — coach sign-up
+// ─────────────────────────────────────────────
+
+import { Router } from 'express';
+import { body } from 'express-validator';
+import { validate } from '../middlewares/validate';
+import { redeemInvite } from '../controllers/authController';
+
+const router = Router();
+
+router.post(
+  '/redeem-invite',
+  [
+    body('displayName')
+      .trim()
+      .isLength({ min: 2, max: 30 })
+      .withMessage('displayName must be 2–30 characters')
+      .matches(/^[a-zA-Z0-9 _-]+$/)
+      .withMessage('displayName contains invalid characters'),
+    body('code')
+      .trim()
+      .isLength({ min: 11, max: 11 })
+      .withMessage('code must be in format XXXXX-XXXXX'),
+    validate,
+  ],
+  redeemInvite
+);
+
+export default router;

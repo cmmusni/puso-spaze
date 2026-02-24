@@ -1,0 +1,108 @@
+// ─────────────────────────────────────────────
+// prisma/schema.prisma
+// PUSO Spaze data models: User, Post
+// Run: npx prisma migrate dev
+// ─────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── UserRole enum ─────────────────────────────
+enum UserRole {
+  USER
+  COACH
+  ADMIN
+}
+
+// ── User ─────────────────────────────────────
+model User {
+  id          String   @id @default(uuid())
+  displayName String   @unique
+  role        UserRole @default(USER)
+  createdAt   DateTime @default(now())
+
+  posts     Post[]
+  reactions Reaction[]
+  comments  Comment[]
+
+  @@map("users")
+}
+
+// ── InviteCode ────────────────────────────────
+model InviteCode {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  used      Boolean   @default(false)
+  usedBy    String?
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  @@map("invite_codes")
+}
+
+// ── ModerationStatus enum ─────────────────────
+enum ModerationStatus {
+  SAFE
+  FLAGGED
+  REVIEW
+}
+
+// ── Post ─────────────────────────────────────
+model Post {
+  id               String           @id @default(uuid())
+  content          String
+  userId           String
+  createdAt        DateTime         @default(now())
+  moderationStatus ModerationStatus @default(REVIEW)
+  tags             String[]
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+  comments  Comment[]
+
+  @@map("posts")
+}
+
+// ── ReactionType enum ─────────────────────────
+enum ReactionType {
+  PRAY
+  CARE
+  SUPPORT
+}
+
+// ── Reaction ──────────────────────────────────
+model Reaction {
+  id        String       @id @default(uuid())
+  postId    String
+  userId    String
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One reaction per user per post (toggle by replace)
+  @@unique([postId, userId])
+  @@map("reactions")
+}
+
+// ── Comment ───────────────────────────────────
+model Comment {
+  id               String           @id @default(uuid())
+  postId           String
+  userId           String
+  content          String
+  createdAt        DateTime         @default(now())
+  moderationStatus ModerationStatus @default(REVIEW)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}

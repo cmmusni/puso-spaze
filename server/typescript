@@ -1,0 +1,61 @@
+Script started on Tue Feb 24 05:09:48 2026
+^C[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[JCliffordMark.Musni@MANMYYKX0KLG2K server % [K[?2004h  curl -s http://localhost:4000/api/po [Kssts | head -c 100 || echo "SERVER DOWN"[?2004l
+{"posts":[{"id":"ac3888b6-6f7f-4225-a418-4b7b9db2e58c","content":"Please pray for my family, we're g[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[JCliffordMark.Musni@MANMYYKX0KLG2K server % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[JCliffordMark.Musni@MANMYYKX0KLG2K server % [K[?2004h  python3 /tmp/mod_test.py 2>&1[?2004l
+
+═══════════════════════════════════════════════════════
+  1. SHOULD PASS — legitimate faith / support content
+═══════════════════════════════════════════════════════
+  ✅ PASS | Prayer request
+  ✅ PASS | Lament expression
+  ✅ PASS | Struggle with pornography
+  ❌ FAIL | Dark thoughts (context)  ← got FLAGGED, expected SAFE/REVIEW
+  ✅ PASS | Mental health low
+  ✅ PASS | Tagalog cry for help
+  ✅ PASS | Anger at God
+  ✅ PASS | Recovery share
+
+═══════════════════════════════════════════════════════
+  2. SHOULD BLOCK — clear violations
+═══════════════════════════════════════════════════════
+  ✅ PASS | Direct profanity
+  ✅ PASS | Filipino profanity
+  ✅ PASS | Self-harm slang (kms)
+  ✅ PASS | Suicide euphemism (unalive)
+  ✅ PASS | Tagalog insult combo
+  ✅ PASS | Sexual slang (thirst trap)
+  ✅ PASS | Harassment: off yourself
+  ✅ PASS | Tagalog leet b0b0
+  ✅ PASS | Caps: GAGO
+
+═══════════════════════════════════════════════════════
+  3. OBFUSCATION — leet / asterisk tricks (informational)
+═══════════════════════════════════════════════════════
+  ❌ FAIL | Asterisk f*ck  ← got SAFE/REVIEW, expected FLAGGED
+  ✅ PASS | Spaced f u c k
+  ❌ FAIL | Mid-word sh*t  ← got SAFE/REVIEW, expected FLAGGED
+
+═══════════════════════════════════════════════════════
+  4. CONTEXT-SENSITIVE — known false-positive risks
+═══════════════════════════════════════════════════════
+  ✅ PASS | Cope (healthy use)
+  ✅ PASS | Ratio (math)
+  ❌ FAIL | End it all (faith context)  ← got FLAGGED, expected SAFE/REVIEW
+  ✅ PASS | Rope (idiom)
+  ✅ PASS | Body count (news)
+
+═══════════════════════════════════════════════════════
+  5. EDGE — sensitive disclosures that should pass
+═══════════════════════════════════════════════════════
+  ❌ FAIL | Past self-harm (testimony)  ← got FLAGGED, expected SAFE/REVIEW
+  ❌ FAIL | Abuse disclosure  ← got FLAGGED, expected SAFE/REVIEW
+  ✅ PASS | Violence (world context)
+  ✅ PASS | Addiction share
+  ❌ FAIL | Suicidal ideation (no slang)  ← got FLAGGED, expected SAFE/REVIEW
+
+═══════════════════════════════════════════════════════
+  ✅ Passed: 23 / 30
+  ❌ Failed: 7 / 30
+═══════════════════════════════════════════════════════
+
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[JCliffordMark.Musni@MANMYYKX0KLG2K server % [K[?2004h

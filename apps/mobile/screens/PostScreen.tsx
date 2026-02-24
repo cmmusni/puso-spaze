@@ -1,0 +1,404 @@
+// ─────────────────────────────────────────────
+// screens/PostScreen.tsx
+// Submit a prayer or word of encouragement
+// ─────────────────────────────────────────────
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StyleSheet,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors } from '../constants/theme';
+import { useNavigation } from '@react-navigation/native';
+import { usePosts } from '../hooks/usePosts';
+import { useUser } from '../hooks/useUser';
+import { validatePostContent } from '../utils/validators';
+
+export default function PostScreen() {
+  const navigation = useNavigation();
+  const { userId, username } = useUser();
+  const { submitPost } = usePosts();
+
+  const [content, setContent] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reviewMsg, setReviewMsg] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
+
+  const MAX_CHARS = 500;
+  const charsLeft = MAX_CHARS - content.length;
+  const canSubmit = !loading && content.trim().length >= 3;
+  const MAX_TAGS = 5;
+
+  const addTag = () => {
+    const trimmed = tagInput.trim().toLowerCase();
+    if (!trimmed) return;
+    if (tags.length >= MAX_TAGS) {
+      Alert.alert('Limit reached', `You can add up to ${MAX_TAGS} tags.`);
+      return;
+    }
+    if (tags.includes(trimmed)) {
+      Alert.alert('Duplicate', 'This tag is already added.');
+      return;
+    }
+    setTags([...tags, trimmed]);
+    setTagInput('');
+  };
+
+  const removeTag = (index: number) => {
+    setTags(tags.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    setErrorMsg(null);
+    setReviewMsg(null);
+    const validationErr = validatePostContent(content);
+    if (validationErr) { setErrorMsg(validationErr); return; }
+    if (!userId) { Alert.alert('Session Error', 'User not found. Please log in again.'); return; }
+
+    setLoading(true);
+    try {
+      const { flagged, underReview } = await submitPost({ 
+        userId, 
+        content: content.trim(),
+        tags: tags.length > 0 ? tags : undefined,
+      });
+      if (flagged) {
+        setErrorMsg(
+          'Your message was flagged by our safety system. Please revise and resubmit.'
+        );
+      } else if (underReview) {
+        setReviewMsg('🔍 Your post is under review and will appear in the feed shortly.');
+        setTimeout(() => navigation.goBack(), 2800);
+      } else {
+        setContent('');
+        setTags([]);
+        setTagInput('');
+        navigation.goBack();
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to submit post.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      {/* ── Gradient Header ── */}
+      <LinearGradient
+        colors={[colors.darkest, colors.deep, colors.ink]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.75}
+          style={styles.backBtn}
+        >
+          <Text style={styles.backText}>←</Text>
+          <Text style={styles.backText}>Back to feed</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Share Your Heart ❤︎</Text>
+        <Text style={styles.headerSubtitle}>
+          Posting as{' '}
+          <Text style={styles.headerName}>{username ?? 'Anonymous'}</Text>
+        </Text>
+      </LinearGradient>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.kav}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Writing card ── */}
+          <View style={[styles.writingCard, focused ? styles.writingCardFocused : styles.writingCardDefault]}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Lord, I pray for peace in our community…"
+              placeholderTextColor={colors.muted4}
+              value={content}
+              onChangeText={setContent}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              multiline
+              maxLength={MAX_CHARS}
+              editable={!loading}
+            />
+          </View>
+
+          {/* ── Character counter ── */}
+          <Text style={[styles.charCounter, charsLeft < 50 ? styles.charCounterWarn : styles.charCounterDefault]}>
+            {charsLeft}/{MAX_CHARS}
+          </Text>
+
+          {/* ── Tags input ── */}
+          <View style={styles.tagsSection}>
+            <Text style={styles.tagsLabel}>📌 Tags (optional, up to {MAX_TAGS})</Text>
+            <View style={styles.tagInputRow}>
+              <TextInput
+                style={styles.tagInput}
+                placeholder="e.g. wellness, prayer, support"
+                placeholderTextColor={colors.muted4}
+                value={tagInput}
+                onChangeText={setTagInput}
+                editable={!loading && tags.length < MAX_TAGS}
+              />
+              <TouchableOpacity
+                onPress={addTag}
+                disabled={!tagInput.trim() || loading || tags.length >= MAX_TAGS}
+                style={[styles.addTagBtn, (!tagInput.trim() || tags.length >= MAX_TAGS) && styles.addTagBtnDisabled]}
+              >
+                <Text style={styles.addTagBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            {tags.length > 0 && (
+              <View style={styles.tagsList}>
+                {tags.map((tag, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => removeTag(idx)}
+                    style={styles.tag}
+                  >
+                    <Text style={styles.tagText}>{tag} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* ── Error message ── */}
+          {errorMsg && (
+            <View style={styles.errorBox}>
+              <Text style={styles.bannerIcon}>⚠️</Text>
+              <Text style={styles.errorMsg}>{errorMsg}</Text>
+            </View>
+          )}
+
+          {/* ── Under-review notice ── */}
+          {reviewMsg && (
+            <View style={styles.reviewBox}>
+              <Text style={styles.bannerIcon}>🔍</Text>
+              <Text style={styles.reviewMsg}>{reviewMsg}</Text>
+            </View>
+          )}
+
+          {/* ── Submit ── */}
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+            activeOpacity={0.87}
+            style={styles.submitBtn}
+          >
+            <LinearGradient
+              colors={canSubmit ? [colors.hot, colors.fuchsia, colors.ink, colors.deep] : [colors.muted2, colors.muted4]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.submitGradient}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.submitText}>✨ Post</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* ── Safety notice ── */}
+          <View style={styles.safetyBox}>
+            <Text style={styles.safetyIcon}>🛡️</Text>
+            <Text style={styles.safetyText}>
+              All posts are reviewed by AI before publishing.{' '}
+              Content promoting harm will not be shared.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.canvas },
+
+  // ── Header ───────────────────────────────
+  header: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 },
+  backBtn: {
+    alignSelf: 'flex-start',
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.card,
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 4,
+  },
+  headerName: { color: colors.accent, fontWeight: '700' },
+
+  // ── Body ─────────────────────────────────
+  kav: { flex: 1 },
+  scroll: { flexGrow: 1, padding: 20, paddingBottom: 40 },
+  writingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 28,
+    padding: 20,
+    marginBottom: 12,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
+    borderWidth: 2,
+  },
+  writingCardDefault: { borderColor: colors.muted3 },
+  writingCardFocused: { borderColor: colors.fuchsia },
+  textInput: {
+    fontSize: 16,
+    color: colors.heading,
+    minHeight: 180,
+    lineHeight: 26,
+    textAlignVertical: 'top',
+  },
+  charCounter: { textAlign: 'right', fontSize: 12, fontWeight: '600', marginBottom: 16 },
+  charCounterDefault: { color: colors.muted5 },
+  charCounterWarn: { color: colors.danger },
+
+  // ── Tags ─────────────────────────────────
+  tagsSection: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.muted3,
+  },
+  tagsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.heading,
+    marginBottom: 10,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tagInput: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: colors.heading,
+  },
+  addTagBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addTagBtnDisabled: {
+    backgroundColor: colors.muted4,
+  },
+  addTagBtnText: {
+    fontSize: 20,
+    color: colors.card,
+    fontWeight: '700',
+  },
+  tagsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  tag: {
+    backgroundColor: colors.lightPrimary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // ── Banners ─────────────────────────────
+  errorBox: {
+    backgroundColor: colors.errorBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.errorBorder,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  reviewBox: {
+    backgroundColor: colors.warningBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.warningBorder,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  bannerIcon: { fontSize: 16 },
+  errorMsg: { color: colors.errorText, fontSize: 13, flex: 1, lineHeight: 20 },
+  reviewMsg: { color: colors.warningText, fontSize: 13, flex: 1, lineHeight: 20 },
+
+  // ── Submit button ─────────────────────────
+  submitBtn: { borderRadius: 20, overflow: 'hidden', marginBottom: 16 },
+  submitGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
+  submitText: { color: colors.card, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+
+  // ── Safety notice ────────────────────────
+  safetyBox: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+  },
+  safetyIcon: { fontSize: 20 },
+  safetyText: { fontSize: 12, color: colors.ink, flex: 1, lineHeight: 18 },
+});

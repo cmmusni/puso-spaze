@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────
+# docker-compose.yml — PUSO Spaze local dev
+# Runs a Postgres container matching server/.env
+# Usage: docker compose up -d
+# ─────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: puso_spaze_db
+    restart: unless-stopped
+    ports:
+      - '5433:5432'   # 5432 is taken by another project; map to host port 5433
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: puso_spaze
+    volumes:
+      # Persist data across container restarts
+      - puso_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d puso_spaze']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  puso_postgres_data:
