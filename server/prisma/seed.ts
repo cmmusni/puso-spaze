@@ -14,11 +14,15 @@ async function main() {
 
   // ── Clear existing data ────────────────────
   console.log('🗑️  Clearing existing data...');
-  await prisma.reaction.deleteMany();
-  await prisma.comment.deleteMany();
-  await prisma.post.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.inviteCode.deleteMany();
+  try {
+    await prisma.reaction.deleteMany();
+    await prisma.comment.deleteMany();
+    await prisma.post.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.inviteCode.deleteMany();
+  } catch (error) {
+    console.log('⚠️  Note: Some tables may not exist yet (this is okay for first run)');
+  }
 
   // ── Create Users ───────────────────────────
   console.log('👥 Creating users...');
