@@ -68,6 +68,11 @@ export default function AppNavigator() {
   return (
     <NavigationContainer
       linking={linking}
+      fallback={
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.darkest }}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      }
       documentTitle={{
         formatter: (options, route) => {
           const browserTitles: Record<string, string> = {
