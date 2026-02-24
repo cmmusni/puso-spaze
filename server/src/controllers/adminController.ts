@@ -20,8 +20,11 @@ function getTransporter(): nodemailer.Transporter {
       auth: env.SMTP_USER
         ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
         : undefined,
-      // Force IPv4 (Railway doesn't support IPv6)
+      // Force IPv4 and set timeouts (Railway doesn't support IPv6)
       family: 4,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 5000,    // 5 seconds
+      socketTimeout: 15000,     // 15 seconds
     } as SMTPTransport.Options);
   }
   return _transporter;
@@ -114,6 +117,15 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
 
     // ── Send email ────────────────────────────
     const transporter = getTransporter();
+    console.log('[AdminController] Attempting to send email to:', email);
+    console.log('[AdminController] SMTP config:', {
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      user: env.SMTP_USER,
+      hasPassword: !!env.SMTP_PASS,
+    });
+    
     await transporter.sendMail({
       from: env.SMTP_FROM,
       to: email,
