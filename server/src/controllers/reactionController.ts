@@ -8,6 +8,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { ReactionType } from '@prisma/client';
+import { notifyReaction } from '../services/notificationService';
 
 // ── POST /api/posts/:postId/reactions ─────────
 export async function upsertReaction(req: Request, res: Response): Promise<void> {
@@ -47,6 +48,15 @@ export async function upsertReaction(req: Request, res: Response): Promise<void>
     update: { type: type as ReactionType },
     create: { postId, userId, type: type as ReactionType },
   });
+
+  // Send notification to post author (async, don't await)
+  notifyReaction({
+    postId,
+    postAuthorId: post.userId,
+    reactorId: userId,
+    reactorName: user.displayName,
+    reactionType: type,
+  }).catch((err) => console.error('Failed to send reaction notification:', err));
 
   res.status(201).json({ removed: false, reaction: { id: reaction.id, type: reaction.type } });
 }

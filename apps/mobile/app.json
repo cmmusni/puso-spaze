@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pusospaze.app"
@@ -27,9 +29,14 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": ["expo-secure-store"],
+    "plugins": [
+      "expo-secure-store"
+    ],
     "extra": {
-      "apiUrl": "https://api.puso-spaze.org"
+      "apiUrl": "https://api.puso-spaze.org",
+      "eas": {
+        "projectId": "353a10cc-0fe0-467d-9d70-6161ffa2f637"
+      }
     }
   }
 }

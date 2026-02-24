@@ -41,6 +41,37 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * GET /api/users/:userId
+ * Returns: { user: { id, displayName, role, createdAt } }
+ * Checks if a user exists by ID (useful for debugging).
+ */
+export async function getUserById(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        displayName: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ user });
+  } catch (err) {
+    console.error('[UserController] getUserById error:', err);
+    res.status(500).json({ error: 'Failed to get user.' });
+  }
+}
+
+/**
  * PATCH /api/users/:userId/username
  * Body: { displayName: string }
  * Returns: { success: boolean }

@@ -13,6 +13,8 @@ import postRoutes from './api/postRoutes';
 import authRoutes from './api/authRoutes';
 import adminRoutes from './api/adminRoutes';
 import coachRoutes from './api/coachRoutes';
+import notificationRoutes from './api/notificationRoutes';
+import { startEncouragementScheduler } from './services/encouragementScheduler';
 
 // ── App ───────────────────────────────────────
 const app = express();
@@ -42,6 +44,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/coach', coachRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ── 404 handler ───────────────────────────────
 app.use((_req, res) => {
@@ -71,6 +74,9 @@ async function main() {
     console.error('[DB] Connection failed:', err);
     process.exit(1);
   }
+
+  // Start the hourly encouragement scheduler
+  startEncouragementScheduler();
 
   app.listen(env.PORT, '0.0.0.0', () => {
     console.log(

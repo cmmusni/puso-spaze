@@ -170,13 +170,13 @@ export default function PostCard({ post }: PostCardProps) {
               end={{ x: 1, y: 1 }}
               style={styles.avatar}
             >
-              <Text style={styles.avatarInitial}>{initial}</Text>
+              <Text style={styles.avatarInitial}>{post.userId === 'system-encouragement-bot' ? '🕊️' : initial}</Text>
             </LinearGradient>
             <View>
               <Text style={styles.authorName}>{displayName}</Text>
               <Text style={styles.authorSubtitle}>
                 👤
-                {`Spaze ${post.user?.role === "COACH" || post.user?.role === "ADMIN" ? "Coach" : "Member"}`}
+                {` Spaze ${post.user?.role === "COACH" ? "Coach" : post.user?.role === "ADMIN" ? "Admin" : "Member"}`}
               </Text>
             </View>
           </View>

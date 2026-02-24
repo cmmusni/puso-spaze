@@ -7,6 +7,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import type {
+  Post,
   CreateUserRequest,
   CreateUserResponse,
   CreatePostRequest,
@@ -25,6 +26,14 @@ import type {
   ModeratePostResponse,
   ModerateCommentResponse,
   SendInviteByEmailResponse,
+  GetNotificationsResponse,
+  GetUnreadCountResponse,
+  RegisterPushTokenRequest,
+  RegisterPushTokenResponse,
+  MarkNotificationReadRequest,
+  MarkNotificationReadResponse,
+  MarkAllNotificationsReadRequest,
+  MarkAllNotificationsReadResponse,
 } from '../../../packages/types';
 
 // ── Base URL ─────────────────────────────────
@@ -84,6 +93,15 @@ export async function apiUpdateUsername(
  */
 export async function apiFetchPosts(): Promise<GetPostsResponse> {
   const { data } = await client.get<GetPostsResponse>('/api/posts');
+  return data;
+}
+
+/**
+ * GET /api/posts/:postId
+ * Returns a single post by ID.
+ */
+export async function apiGetPostById(postId: string): Promise<{ post: Post }> {
+  const { data } = await client.get<{ post: Post }>(`/api/posts/${postId}`);
   return data;
 }
 
@@ -231,6 +249,77 @@ export async function apiSendInviteByEmail(
     '/api/admin/invite-codes/send-email',
     { email },
     { headers: { Authorization: `Bearer ${adminSecret}` } }
+  );
+  return data;
+}
+
+// ── Notifications ────────────────────────────
+
+/**
+ * GET /api/notifications?userId=xxx
+ * Get all notifications for a user
+ */
+export async function apiGetNotifications(
+  userId: string
+): Promise<GetNotificationsResponse> {
+  const { data } = await client.get<GetNotificationsResponse>(
+    `/api/notifications?userId=${userId}`
+  );
+  return data;
+}
+
+/**
+ * GET /api/notifications/unread-count?userId=xxx
+ * Get count of unread notifications
+ */
+export async function apiGetUnreadCount(
+  userId: string
+): Promise<GetUnreadCountResponse> {
+  const { data } = await client.get<GetUnreadCountResponse>(
+    `/api/notifications/unread-count?userId=${userId}`
+  );
+  return data;
+}
+
+/**
+ * POST /api/notifications/register-token
+ * Register or update a user's Expo push token
+ */
+export async function apiRegisterPushToken(
+  body: RegisterPushTokenRequest
+): Promise<RegisterPushTokenResponse> {
+  const { data } = await client.post<RegisterPushTokenResponse>(
+    '/api/notifications/register-token',
+    body
+  );
+  return data;
+}
+
+/**
+ * PATCH /api/notifications/:id/read
+ * Mark a notification as read
+ */
+export async function apiMarkNotificationRead(
+  notificationId: string,
+  body: MarkNotificationReadRequest
+): Promise<MarkNotificationReadResponse> {
+  const { data } = await client.patch<MarkNotificationReadResponse>(
+    `/api/notifications/${notificationId}/read`,
+    body
+  );
+  return data;
+}
+
+/**
+ * PATCH /api/notifications/read-all
+ * Mark all notifications as read for a user
+ */
+export async function apiMarkAllNotificationsRead(
+  body: MarkAllNotificationsReadRequest
+): Promise<MarkAllNotificationsReadResponse> {
+  const { data } = await client.patch<MarkAllNotificationsReadResponse>(
+    '/api/notifications/read-all',
+    body
   );
   return data;
 }

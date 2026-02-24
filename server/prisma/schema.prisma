@@ -22,14 +22,16 @@ enum UserRole {
 
 // ── User ─────────────────────────────────────
 model User {
-  id          String   @id @default(uuid())
-  displayName String   @unique
-  role        UserRole @default(USER)
-  createdAt   DateTime @default(now())
+  id            String   @id @default(uuid())
+  displayName   String   @unique
+  role          UserRole @default(USER)
+  expoPushToken String?  // For mobile push notifications
+  createdAt     DateTime @default(now())
 
-  posts     Post[]
-  reactions Reaction[]
-  comments  Comment[]
+  posts         Post[]
+  reactions     Reaction[]
+  comments      Comment[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -105,4 +107,30 @@ model Comment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("comments")
+}
+
+// ── NotificationType enum ─────────────────────
+enum NotificationType {
+  REACTION      // Someone reacted to your post
+  COMMENT       // Someone commented on your post
+  ENCOURAGEMENT // New encouragement post
+  SYSTEM        // System announcements
+}
+
+// ── Notification ──────────────────────────────
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           // Recipient
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?            // Additional metadata (postId, actorId, etc.)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("notifications")
 }

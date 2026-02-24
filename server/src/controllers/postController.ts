@@ -93,3 +93,44 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
     })),
   });
 }
+
+// ── GET /api/posts/:postId ────────────────────
+/**
+ * Returns a single post by ID with counts.
+ */
+export async function getPostById(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    include: {
+      user: { select: { displayName: true, role: true } },
+      _count: { select: { reactions: true, comments: true } },
+    },
+  });
+
+  if (!post) {
+    res.status(404).json({ error: 'Post not found.' });
+    return;
+  }
+
+  // Only return SAFE or REVIEW posts (not FLAGGED)
+  if (post.moderationStatus === 'FLAGGED') {
+    res.status(404).json({ error: 'Post not found.' });
+    return;
+  }
+
+  res.json({
+    post: {
+      id: post.id,
+      content: post.content,
+      userId: post.userId,
+      user: post.user,
+      createdAt: post.createdAt.toISOString(),
+      moderationStatus: post.moderationStatus,
+      tags: post.tags,
+      commentCount: post._count.comments,
+      reactionCount: post._count.reactions,
+    },
+  });
+}

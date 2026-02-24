@@ -6,7 +6,7 @@
 
 import { Router } from 'express';
 import { body, param } from 'express-validator';
-import { createUser, updateUsername } from '../controllers/userController';
+import { createUser, getUserById, updateUsername } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
@@ -23,6 +23,15 @@ router.post(
     validate,
   ],
   createUser
+);
+
+router.get(
+  '/:userId',
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  getUserById
 );
 
 router.patch(

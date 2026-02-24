@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
+import { notifyComment } from '../services/notificationService';
 
 // ── POST /api/posts/:postId/comments ─────────
 export async function createComment(req: Request, res: Response): Promise<void> {
@@ -26,9 +27,6 @@ export async function createComment(req: Request, res: Response): Promise<void> 
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) { res.status(404).json({ error: 'Post not found.' }); return; }
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) { res.status(404).json({ error: 'User not found.' }); return; }
-
   // ── AI Moderation ────────────────────────
   let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
   try {
@@ -37,27 +35,48 @@ export async function createComment(req: Request, res: Response): Promise<void> 
     moderationStatus = 'REVIEW';
   }
 
-  const comment = await prisma.comment.create({
-    data: { postId, userId, content: content.trim(), moderationStatus },
-    include: { user: { select: { displayName: true } } },
-  });
+  try {
+    const comment = await prisma.comment.create({
+      data: { postId, userId, content: content.trim(), moderationStatus },
+      include: { user: { select: { displayName: true } } },
+    });
 
-  const flagged = moderationStatus === 'FLAGGED';
-  const underReview = moderationStatus === 'REVIEW';
+    // Send notification to post author (async, don't await)
+    if (moderationStatus === 'SAFE') {
+      notifyComment({
+        postId,
+        postAuthorId: post.userId,
+        commenterId: userId,
+        commenterName: comment.user.displayName,
+        commentPreview: content.trim(),
+      }).catch((err) => console.error('Failed to send comment notification:', err));
+    }
 
-  res.status(201).json({
-    comment: {
-      id: comment.id,
-      postId: comment.postId,
-      userId: comment.userId,
-      content: comment.content,
-      createdAt: comment.createdAt.toISOString(),
-      moderationStatus: comment.moderationStatus,
-      user: comment.user,
-    },
-    flagged,
-    underReview,
-  });
+    const flagged = moderationStatus === 'FLAGGED';
+    const underReview = moderationStatus === 'REVIEW';
+
+    res.status(201).json({
+      comment: {
+        id: comment.id,
+        postId: comment.postId,
+        userId: comment.userId,
+        content: comment.content,
+        createdAt: comment.createdAt.toISOString(),
+        moderationStatus: comment.moderationStatus,
+        user: comment.user,
+      },
+      flagged,
+      underReview,
+    });
+  } catch (error: any) {
+    // Handle foreign key constraint error (user doesn't exist)
+    if (error.code === 'P2003') {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Failed to create comment.' });
+  }
 }
 
 // ── GET /api/posts/:postId/comments ──────────

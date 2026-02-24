@@ -22,6 +22,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
+import { useNotifications } from "../hooks/useNotifications";
 import PostCard from "../components/PostCard";
 import type { Post } from "../../../packages/types";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
@@ -30,16 +31,20 @@ type HomeNavigationProp = DrawerNavigationProp<MainDrawerParamList, "Home">;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { username, role } = useUser();
+  const { username, role, userId } = useUser();
   const isCoach = role === 'COACH' || role === 'ADMIN';
   const { posts, loading, error, fetchPosts } = usePosts();
+  
+  // Initialize push notifications and get unread count
+  const { unreadCount, refreshUnreadCount } = useNotifications(userId);
 
   // Refresh the feed every time this screen comes into focus —
   // covers initial mount AND returning from PostScreen after submitting.
   useFocusEffect(
     useCallback(() => {
       fetchPosts();
-    }, [fetchPosts]),
+      refreshUnreadCount();
+    }, [fetchPosts, refreshUnreadCount]),
   );
 
   const renderItem: ListRenderItem<Post> = useCallback(
@@ -89,6 +94,22 @@ export default function HomeScreen() {
               <Text style={styles.greetingName}>{`Hey, ${isCoach ? "Coach" : ""} ${username ?? "…"}`}</Text>
             </Text>
           </View>
+
+          {/* Notification bell */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Notifications")}
+            activeOpacity={0.7}
+            style={styles.notificationBtn}
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Refresh button for web */}
           <TouchableOpacity
@@ -198,6 +219,33 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   greetingName: { color: colors.accent, fontWeight: "700" },
+  notificationBtn: {
+    padding: 8,
+    position: 'relative',
+  },
+  bellIcon: {
+    fontSize: 22,
+    color: colors.card,
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: colors.hot,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: colors.deep,
+  },
+  badgeText: {
+    color: colors.card,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   refreshBtn: {
     padding: 8,
     marginRight: -4,

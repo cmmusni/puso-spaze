@@ -9,6 +9,8 @@ export type ReactionType = 'PRAY' | 'CARE' | 'SUPPORT';
 
 export type UserRole = 'USER' | 'COACH' | 'ADMIN';
 
+export type NotificationType = 'REACTION' | 'COMMENT' | 'ENCOURAGEMENT' | 'SYSTEM';
+
 export const REACTION_EMOJI: Record<ReactionType, string> = {
   PRAY:  '🙇',
   CARE: '❤️‍🩹',
@@ -43,6 +45,17 @@ export interface Comment {
   moderationStatus?: ModerationStatus;
   user?: Pick<User, 'displayName' | 'role'>;
   post?: Pick<Post, 'id' | 'content'>;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data?: any;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface InviteCode {
@@ -102,3 +115,13 @@ export interface GenerateInviteCodesResponse { codes: string[]; }
 export interface ListInviteCodesResponse { codes: InviteCode[]; }
 export interface SendInviteByEmailRequest { email: string; adminSecret: string; }
 export interface SendInviteByEmailResponse { code: string; email: string; }
+
+// Notifications
+export interface GetNotificationsResponse { notifications: Notification[]; }
+export interface GetUnreadCountResponse { count: number; }
+export interface RegisterPushTokenRequest { userId: string; expoPushToken: string; }
+export interface RegisterPushTokenResponse { success: boolean; }
+export interface MarkNotificationReadRequest { userId: string; }
+export interface MarkNotificationReadResponse { notification: Notification; }
+export interface MarkAllNotificationsReadRequest { userId: string; }
+export interface MarkAllNotificationsReadResponse { success: boolean; }

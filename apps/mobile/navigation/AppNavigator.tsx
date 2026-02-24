@@ -43,6 +43,7 @@ const linking = {
           SendInvite: 'SendInvite',
           Post: 'Post',
           PostDetail: 'PostDetail',
+          Notifications: 'Notifications',
         },
       },
     },

@@ -8,6 +8,7 @@ import { body } from 'express-validator';
 import { validate } from '../middlewares/validate';
 import { generateInviteCodes, listInviteCodes, sendInviteCodeByEmail } from '../controllers/adminController';
 import { env } from '../config/env';
+import { triggerEncouragementNow } from '../services/encouragementScheduler';
 
 const router = Router();
 
@@ -43,5 +44,16 @@ router.post(
   ],
   sendInviteCodeByEmail
 );
+
+// POST /api/admin/encouragement/trigger
+// Manually trigger an encouragement post (for testing)
+router.post('/encouragement/trigger', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    await triggerEncouragementNow();
+    res.json({ success: true, message: 'Encouragement post created successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create encouragement post' });
+  }
+});
 
 export default router;

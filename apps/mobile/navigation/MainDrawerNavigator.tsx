@@ -4,48 +4,53 @@
 // Shows/hides navigation items based on user role
 // ─────────────────────────────────────────────
 
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
-} from 'react-native';
+} from "react-native";
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
   type DrawerContentComponentProps,
-} from '@react-navigation/drawer';
-import { LinearGradient } from 'expo-linear-gradient';
+} from "@react-navigation/drawer";
+import { LinearGradient } from "expo-linear-gradient";
 
-import HomeScreen from '../screens/HomeScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import CoachDashboard from '../screens/CoachDashboard';
-import SendInviteScreen from '../screens/SendInviteScreen';
-import PostScreen from '../screens/PostScreen';
-import PostDetailScreen from '../screens/PostDetailScreen';
-import { useUserStore } from '../context/UserContext';
-import { colors } from '../constants/theme';
-import type { Post } from '../../../packages/types';
+import HomeScreen from "../screens/HomeScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import CoachDashboard from "../screens/CoachDashboard";
+import SendInviteScreen from "../screens/SendInviteScreen";
+import PostScreen from "../screens/PostScreen";
+import PostDetailScreen from "../screens/PostDetailScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
+import { useUserStore } from "../context/UserContext";
+import { colors } from "../constants/theme";
+import type { Post } from "../../../packages/types";
 
 // ── Param list ────────────────────────────────
 export type MainDrawerParamList = {
-  Home:        undefined;
-  Profile:     undefined;
+  Home: undefined;
+  Profile: undefined;
   ReviewQueue: undefined;
-  SendInvite:  undefined;
-  Post:        undefined;
-  PostDetail:  { post: Post };
+  SendInvite: undefined;
+  Post: undefined;
+  PostDetail: { post: Post };
+  Notifications: undefined;
 };
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
 
 // ── Custom drawer content ─────────────────────
-function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps) {
+function CustomDrawerContent({
+  navigation,
+  state,
+}: DrawerContentComponentProps) {
   const { username, role, logoutUser } = useUserStore();
-  const isCoach = role === 'COACH' || role === 'ADMIN';
-  const isAdmin = role === 'ADMIN';
+  const isCoach = role === "COACH" || role === "ADMIN";
+  const isAdmin = role === "ADMIN";
   const currentRoute = state.routes[state.index].name;
 
   const NavItem = ({
@@ -90,16 +95,28 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
       <View style={styles.userHeader}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarLetter}>
-            {(username ?? '?').charAt(0).toUpperCase()}
+            {(username ?? "?").charAt(0).toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.userName} numberOfLines={1}>{username ?? 'User'}</Text>
-        <View style={[
-          styles.roleBadge,
-          isAdmin ? styles.roleBadgeAdmin : isCoach ? styles.roleBadgeCoach : styles.roleBadgeUser,
-        ]}>
+        <Text style={styles.userName} numberOfLines={1}>
+          {username ?? "User"}
+        </Text>
+        <View
+          style={[
+            styles.roleBadge,
+            isAdmin
+              ? styles.roleBadgeAdmin
+              : isCoach
+                ? styles.roleBadgeCoach
+                : styles.roleBadgeUser,
+          ]}
+        >
           <Text style={styles.roleBadgeText}>
-            {isAdmin ? '⭐ Admin' : isCoach ? '🛡️ Coach' : '👤 Community Member'}
+            {isAdmin
+              ? "⭐ Admin"
+              : isCoach
+                ? "🛡️ Coach"
+                : "👤 Community Member"}
           </Text>
         </View>
       </View>
@@ -108,20 +125,17 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
 
       {/* ── Navigation items ── */}
       <View style={styles.navSection}>
+        {/* Common items */}
+        <NavItem icon="👤" label="Profile" routeName="Profile" />
+        <NavItem icon="🔔" label="Notifications" routeName="Notifications" />
+        <NavItem icon="🕊️" label="Community Feed" routeName="Home" />
+
         {/* Coach/Admin items */}
         {isCoach && (
           <NavItem icon="📋" label="Review Queue" routeName="ReviewQueue" />
         )}
         {isAdmin && (
           <NavItem icon="📧" label="Send Invite" routeName="SendInvite" />
-        )}
-        
-        {/* Common items */}
-        <NavItem icon="🕊️" label="Community Feed" routeName="Home" />
-        
-        {/* Regular user items */}
-        {!isCoach && (
-          <NavItem icon="👤" label="Profile" routeName="Profile" />
         )}
       </View>
 
@@ -140,7 +154,7 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
       </TouchableOpacity>
 
       {/* Bottom safe-area padding */}
-      <View style={{ height: Platform.OS === 'ios' ? 24 : 12 }} />
+      <View style={{ height: Platform.OS === "ios" ? 24 : 12 }} />
     </DrawerContentScrollView>
   );
 }
@@ -148,17 +162,17 @@ function CustomDrawerContent({ navigation, state }: DrawerContentComponentProps)
 // ── Drawer navigator ──────────────────────────
 export default function MainDrawerNavigator() {
   const role = useUserStore((s) => s.role);
-  const isCoach = role === 'COACH' || role === 'ADMIN';
+  const isCoach = role === "COACH" || role === "ADMIN";
 
   return (
     <Drawer.Navigator
-      initialRouteName={isCoach ? 'ReviewQueue' : 'Home'}
+      initialRouteName={isCoach ? "ReviewQueue" : "Home"}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
-        drawerStyle: { width: 280, backgroundColor: 'transparent' },
-        overlayColor: 'rgba(0,0,0,0.55)',
-        drawerType: 'slide',
+        drawerStyle: { width: 280, backgroundColor: "transparent" },
+        overlayColor: "rgba(0,0,0,0.55)",
+        drawerType: "slide",
         swipeEdgeWidth: 60,
       }}
     >
@@ -166,44 +180,52 @@ export default function MainDrawerNavigator() {
       <Drawer.Screen
         name="Home"
         component={HomeScreen}
-        options={{ title: 'PUSO Spaze — Feed' }}
+        options={{ title: "PUSO Spaze — Feed" }}
       />
       <Drawer.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'PUSO Spaze — Profile' }}
+        options={{ title: "PUSO Spaze — Profile" }}
       />
       <Drawer.Screen
         name="ReviewQueue"
         component={CoachDashboard}
-        options={{ title: 'PUSO Spaze — Coach Dashboard' }}
+        options={{ title: "PUSO Spaze — Coach Dashboard" }}
       />
       <Drawer.Screen
         name="SendInvite"
         component={SendInviteScreen}
-        options={{ title: 'PUSO Spaze — Send Invite' }}
+        options={{ title: "PUSO Spaze — Send Invite" }}
       />
       <Drawer.Screen
         name="Post"
         component={PostScreen}
-        options={{ 
-          title: 'PUSO Spaze — Create Post',
+        options={{
+          title: "PUSO Spaze — Create Post",
           headerShown: true,
           headerStyle: {
             backgroundColor: colors.deep,
           },
           headerTintColor: colors.card,
           headerTitleStyle: {
-            fontWeight: 'bold',
+            fontWeight: "bold",
             color: colors.card,
           },
         }}
       />
       <Drawer.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          title: "PUSO Spaze — Notifications",
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
         name="PostDetail"
         component={PostDetailScreen}
-        options={{ 
-          title: 'PUSO Spaze — Post Detail',
+        options={{
+          title: "PUSO Spaze — Post Detail",
           headerShown: false,
         }}
       />
@@ -215,14 +237,14 @@ export default function MainDrawerNavigator() {
 const styles = StyleSheet.create({
   drawerRoot: {
     flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 48 : 32,
+    paddingTop: Platform.OS === "ios" ? 48 : 32,
   },
 
   // ── User header ──────────────────────────
   userHeader: {
     paddingHorizontal: 20,
     paddingBottom: 20,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     gap: 6,
   },
   avatarCircle: {
@@ -230,41 +252,41 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 27,
     backgroundColor: colors.fuchsia,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 4,
   },
   avatarLetter: {
     color: colors.card,
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   userName: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.card,
     maxWidth: 220,
   },
-  
+
   roleBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   roleBadgeAdmin: {
-    backgroundColor: colors.hot + '33',
+    backgroundColor: colors.hot + "33",
   },
   roleBadgeCoach: {
-    backgroundColor: colors.fuchsia + '33',
+    backgroundColor: colors.fuchsia + "33",
   },
   roleBadgeUser: {
-    backgroundColor: colors.primary + '33',
+    backgroundColor: colors.primary + "33",
     borderWidth: 1,
-    borderColor: colors.primary + '80',
+    borderColor: colors.primary + "80",
   },
   roleBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.card,
   },
 
@@ -281,34 +303,34 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 10,
-    position: 'relative',
+    position: "relative",
   },
   navItemActive: {
-    backgroundColor: colors.fuchsia + '26',
+    backgroundColor: colors.fuchsia + "26",
   },
   navItemIcon: {
     fontSize: 18,
     marginRight: 12,
     width: 24,
-    textAlign: 'center',
+    textAlign: "center",
   },
   navItemText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.muted5,
     flex: 1,
   },
   navItemTextActive: {
     color: colors.card,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   activeIndicator: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     width: 4,
     height: 24,
@@ -320,13 +342,13 @@ const styles = StyleSheet.create({
 
   // ── Sign out ─────────────────────────────
   signOutItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 28,
     marginHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   signOutIcon: {
     fontSize: 18,
@@ -335,7 +357,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
   },
 });

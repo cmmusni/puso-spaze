@@ -20,4 +20,25 @@ config.resolver.nodeModulesPaths = [
 // NativeWind v2: ensure CSS/PostCSS transforms don't run through Babel on web
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs', 'cjs'];
 
+// Prioritize React Native and browser versions over Node.js versions
+config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
+
+// Provide empty shims for Node.js built-in modules that don't exist in React Native
+// This forces packages like axios to use their browser/React Native compatible builds
+const emptyShim = path.resolve(__dirname, 'metro-shims/empty.js');
+config.resolver.extraNodeModules = {
+  crypto: emptyShim,
+  stream: emptyShim,
+  http: emptyShim,
+  https: emptyShim,
+  zlib: emptyShim,
+  url: emptyShim,
+  net: emptyShim,
+  tls: emptyShim,
+  fs: emptyShim,
+  path: emptyShim,
+  'form-data': emptyShim,
+  'proxy-from-env': emptyShim,
+};
+
 module.exports = config;

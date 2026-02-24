@@ -9,8 +9,8 @@
 // ─────────────────────────────────────────────
 
 import { Router } from 'express';
-import { body } from 'express-validator';
-import { createPost, getPosts } from '../controllers/postController';
+import { body, param } from 'express-validator';
+import { createPost, getPosts, getPostById } from '../controllers/postController';
 import { upsertReaction, getReactions } from '../controllers/reactionController';
 import { createComment, getComments } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
@@ -19,6 +19,16 @@ const router = Router();
 
 // ── GET /api/posts ─────────────────────────
 router.get('/', getPosts);
+
+// ── GET /api/posts/:postId ─────────────────
+router.get(
+  '/:postId',
+  [
+    param('postId').isUUID().withMessage('postId must be a valid UUID'),
+    validate,
+  ],
+  getPostById
+);
 
 // ── POST /api/posts ────────────────────────
 router.post(
