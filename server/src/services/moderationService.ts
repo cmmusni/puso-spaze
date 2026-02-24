@@ -102,6 +102,69 @@ const BLOCKED_WORDS = [
   "incel",         // misogynist subculture label
   "copium",        // dismisses someone's pain as delusion
   "l + ratio",     // compound humiliation attack
+
+  // ── Discrimination & hate speech ──────────────────────────────────────────
+  // Racial/ethnic slurs
+  "chink",
+  "gook",
+  "spic",
+  "wetback",
+  "beaner",
+  "towelhead",
+  "sandnigger",
+  "raghead",
+  "paki",
+  "jungle bunny",
+  "coon",
+  "jigaboo",
+  "kike",
+  "hymie",
+  "kyke",
+  
+  // Gender discrimination
+  "feminazi",
+  "femoid",
+  "roastie",      // incel term for women
+  "becky",        // derogatory for basic women
+  "karen",        // when used as slur (context matters)
+  
+  // Religious discrimination
+  "kafir",        // derogatory for non-Muslims
+  "infidel",      // when used derogatorily
+  
+  // Sexual orientation discrimination
+  "dyke",
+  "fag",
+  "homo",
+  "sodomite",
+  "tranny",
+  "shemale",
+  "heshe",
+  "it",           // when referring to trans people
+  
+  // Disability discrimination
+  "spaz",
+  "cripple",
+  "gimp",
+  "mongoloid",
+  "autistic",     // when used as insult
+  "autist",       // when used as insult
+  
+  // Class/socioeconomic discrimination
+  "trailer trash",
+  "white trash",
+  "ghetto",       // when used derogatorily
+  "peasant",      // when used derogatorily
+  "welfare queen",
+  
+  // Filipino discrimination terms
+  "indio",        // colonial-era slur for Filipinos
+  "intsik",       // derogatory for Chinese-Filipinos
+  "bumbay",       // derogatory for Indians
+  "negro",        // racial slur
+  "moro",         // derogatory for Muslims (in PH context)
+  "bakla",        // when used as slur for LGBTQ+
+  "tomboy",       // when used derogatorily
 ];
 
 const BLOCKED_PATTERN = new RegExp(
@@ -137,8 +200,10 @@ function normalizeObfuscation(text: string): string {
     .replace(/\bsl[\*\.\_@!-]t\b/gi, "slut")
     // k*ll
     .replace(/\bk[\*\.\_@!-]ll\b/gi, "kill")
-    // n*gger / n*gga
-    .replace(/\bn[\*\.\_@!-]gg[ae]r?\b/gi, "nigger")
+    // n*gger / n*gga / n1gger
+    .replace(/\bn[\*\.\_@!1]gg[ae]r?\b/gi, "nigger")
+    // f*g / f@g
+    .replace(/\bf[\*\.\_@!-]g\b/gi, "fag")
     // Tagalog: g*go / g@go
     .replace(/\bg[\*\.\_@!-]go\b/gi, "gago")
     // t*nga / t@nga
@@ -151,7 +216,8 @@ function normalizeObfuscation(text: string): string {
     .replace(/\bb\s+i\s+t\s+c\s+h\b/gi, "bitch")
     .replace(/\bc\s+u\s+n\s+t\b/gi, "cunt")
     .replace(/\bd\s+i\s+c\s+k\b/gi, "dick")
-    .replace(/\bp\s+u\s+s\s+s\s*y\b/gi, "pussy");
+    .replace(/\bp\s+u\s+s\s+s\s*y\b/gi, "pussy")
+    .replace(/\bf\s+a\s+g\b/gi, "fag");
 }
 
 /**
