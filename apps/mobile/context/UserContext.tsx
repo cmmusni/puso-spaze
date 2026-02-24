@@ -46,6 +46,7 @@ export interface UserState {
   username: string | null;
   role: UserRole | null;
   isLoggedIn: boolean;
+  isLoading: boolean;
 
   /** Load persisted session from SecureStore */
   loadUser: () => Promise<void>;
@@ -78,21 +79,25 @@ export const useUserStore = create<UserState>((set) => ({
   username: null,
   role: null,
   isLoggedIn: false,
+  isLoading: true,
 
   loadUser: async () => {
+    set({ isLoading: true });
     try {
       const userId   = await storage.getItem(USER_ID_KEY);
       const username = await storage.getItem(USERNAME_KEY);
       const role     = (await storage.getItem(ROLE_KEY)) as UserRole | null;
       console.log('[UserStore] Loading user:', { userId: userId?.slice(0, 8), username, role });
       if (userId && username) {
-        set({ userId, username, role: role ?? 'USER', isLoggedIn: true });
+        set({ userId, username, role: role ?? 'USER', isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
       } else {
         console.log('[UserStore] No saved session found');
+        set({ isLoading: false });
       }
     } catch (err) {
       console.warn('[UserStore] Could not restore session:', err);
+      set({ isLoading: false });
     }
   },
 

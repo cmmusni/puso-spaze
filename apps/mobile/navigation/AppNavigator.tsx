@@ -8,7 +8,7 @@
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
 import MainDrawerNavigator from './MainDrawerNavigator';
@@ -52,12 +52,17 @@ const linking = {
 // ── Navigator component ───────────────────────
 export default function AppNavigator() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const isLoading = useUserStore((s) => s.isLoading);
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [isReady, setIsReady] = React.useState(false);
 
   // ── Navigation guard: redirect to Login if not authenticated ──
   const checkAuth = React.useCallback(() => {
-    if (!isReady || !navigationRef.current) return;
+    // Don't check auth while user is still loading from storage
+    if (!isReady || !navigationRef.current || isLoading) {
+      console.log('[Navigation Guard] Skipping - ready:', isReady, 'loading:', isLoading);
+      return;
+    }
     
     const currentRoute = navigationRef.current.getCurrentRoute();
     console.log('[Navigation Guard] Checking auth - route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
@@ -72,7 +77,7 @@ export default function AppNavigator() {
         routes: [{ name: 'Login' }],
       });
     }
-  }, [isLoggedIn, isReady]);
+  }, [isLoggedIn, isReady, isLoading]);
 
   useEffect(() => {
     // Check auth when ready or when isLoggedIn changes
@@ -88,6 +93,16 @@ export default function AppNavigator() {
     const unsubscribe = navigationRef.current?.addListener('state', checkAuth);
     return unsubscribe;
   }, [isReady, checkAuth]);
+
+  // Show loading screen while user is being loaded from storage
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.darkest }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={{ color: colors.muted5, marginTop: 12, fontSize: 14 }}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer

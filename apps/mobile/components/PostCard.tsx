@@ -48,7 +48,8 @@ function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-type CardNavProp = NativeStackNavigationProp<RootStackParamList, "Home">;
+// PostCard is used inside drawer screens, so we use any for navigation type
+type CardNavProp = any;
 
 export default function PostCard({ post }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
