@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { prisma } from '../config/db';
 import { env } from '../config/env';
 
@@ -12,7 +13,7 @@ import { env } from '../config/env';
 let _transporter: nodemailer.Transporter | null = null;
 function getTransporter(): nodemailer.Transporter {
   if (!_transporter) {
-    _transporter = nodemailer.createTransport({
+    const options: SMTPTransport.Options = {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE,
@@ -20,8 +21,11 @@ function getTransporter(): nodemailer.Transporter {
         ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
         : undefined,
       // Force IPv4 (Railway doesn't support IPv6)
-      family: 4,
-    });
+      tls: {
+        family: 4,
+      },
+    };
+    _transporter = nodemailer.createTransport(options);
   }
   return _transporter;
 }
