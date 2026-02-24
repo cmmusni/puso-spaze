@@ -20,16 +20,20 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { showAlert } from '../utils/alertPlatform';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
-type LoginScreenRouteProp = RouteProp<{ Login: { code?: string } }, 'Login'>;
+type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const route = useRoute<LoginScreenRouteProp>();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
   const { loginWithUsername, loginAnonymously, loginAsCoach } = useUser();
   const [customName, setCustomName]           = useState('');
   const [loading, setLoading]                 = useState(false);
@@ -74,6 +78,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await loginWithUsername(customName.trim());
+      navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg = err?.message ?? 'Could not connect to server. Please try again.';
       showAlert('Login Failed', msg);
@@ -86,6 +91,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await loginAnonymously();
+      navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg = err?.message ?? 'Something went wrong. Please try again.';
       showAlert('Login Failed', msg);
@@ -108,6 +114,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await loginAsCoach(coachName.trim(), trimmedCode);
+      navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg = err?.message ?? err?.response?.data?.error ?? 'Invalid or already-used invite code.';
       showAlert('Coach Login Failed', msg);
