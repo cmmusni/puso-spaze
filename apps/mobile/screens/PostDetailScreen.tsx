@@ -38,9 +38,9 @@ import type {
   REACTION_EMOJI,
 } from "../../../packages/types";
 import { REACTION_EMOJI as EMOJI } from "../../../packages/types";
-import type { RootStackParamList } from "../navigation/AppNavigator";
+import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 
-type PostDetailRouteProp = RouteProp<RootStackParamList, "PostDetail">;
+type PostDetailRouteProp = RouteProp<MainDrawerParamList, "PostDetail">;
 
 // Gradient avatar (same logic as PostCard)
 function avatarColors(initial: string): [string, string] {
@@ -311,7 +311,7 @@ export default function PostDetailScreen() {
 
                 {post.tags && post.tags.length > 0 && (
                   <View style={styles.tagsRow}>
-                    {post.tags.map((tag) => (
+                    {post.tags.map((tag: string) => (
                       <View key={tag} style={styles.tagChip}>
                         <Text style={styles.tagText}>#{tag}</Text>
                       </View>

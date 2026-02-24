@@ -26,9 +26,9 @@ import { useUserStore } from '../context/UserContext';
 import { apiGetReviewQueue, apiModeratePost, apiModerateComment } from '../services/api';
 import { showAlert } from '../utils/alertPlatform';
 import type { Post, Comment } from '../../../packages/types';
-import type { CoachDrawerParamList } from '../navigation/CoachDrawerNavigator';
+import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
 
-type Nav = DrawerNavigationProp<CoachDrawerParamList>;
+type Nav = DrawerNavigationProp<MainDrawerParamList>;
 
 type Tab = 'posts' | 'comments';
 

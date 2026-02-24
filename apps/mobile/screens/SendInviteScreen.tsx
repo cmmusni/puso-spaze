@@ -22,10 +22,10 @@ import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { colors } from '../constants/theme';
 import { apiSendInviteByEmail } from '../services/api';
 import { showAlert } from '../utils/alertPlatform';
-import type { CoachDrawerParamList } from '../navigation/CoachDrawerNavigator';
+import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
 
 export default function SendInviteScreen() {
-  const navigation = useNavigation<DrawerNavigationProp<CoachDrawerParamList>>();
+  const navigation = useNavigation<DrawerNavigationProp<MainDrawerParamList>>();
   const [inviteEmail, setInviteEmail]               = useState('');
   const [adminSecret, setAdminSecret]               = useState('');
   const [inviteEmailFocused, setInviteEmailFocused] = useState(false);

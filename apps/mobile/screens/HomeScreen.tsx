@@ -25,11 +25,9 @@ import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
 import PostCard from "../components/PostCard";
 import type { Post } from "../../../packages/types";
-import type { UserDrawerParamList } from "../navigation/UserDrawerNavigator";
-import type { CoachDrawerParamList } from "../navigation/CoachDrawerNavigator";
+import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 
-// Accept either drawer navigator (coaches or users)
-type HomeNavigationProp = DrawerNavigationProp<UserDrawerParamList | CoachDrawerParamList, "Home">;
+type HomeNavigationProp = DrawerNavigationProp<MainDrawerParamList, "Home">;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();

@@ -27,6 +27,7 @@ import PostScreen from '../screens/PostScreen';
 import PostDetailScreen from '../screens/PostDetailScreen';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
+import type { Post } from '../../../packages/types';
 
 // ── Param list ────────────────────────────────
 export type MainDrawerParamList = {
@@ -35,7 +36,7 @@ export type MainDrawerParamList = {
   ReviewQueue: undefined;
   SendInvite:  undefined;
   Post:        undefined;
-  PostDetail:  undefined;
+  PostDetail:  { post: Post };
 };
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();

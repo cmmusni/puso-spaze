@@ -26,9 +26,9 @@ import { colors } from '../constants/theme';
 import { useUserStore } from '../context/UserContext';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
 import { apiUpdateUsername } from '../services/api';
-import type { UserDrawerParamList } from '../navigation/UserDrawerNavigator';
+import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
 
-type Nav = DrawerNavigationProp<UserDrawerParamList>;
+type Nav = DrawerNavigationProp<MainDrawerParamList>;
 
 const storage = {
   async getItem(key: string): Promise<string | null> {
