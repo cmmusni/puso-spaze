@@ -38,9 +38,8 @@ import type {
   REACTION_EMOJI,
 } from "../../../packages/types";
 import { REACTION_EMOJI as EMOJI } from "../../../packages/types";
-import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 
-type PostDetailRouteProp = RouteProp<MainDrawerParamList, "PostDetail">;
+type PostDetailRouteProp = RouteProp<{ PostDetail: { post: Post } }, "PostDetail">;
 
 // Gradient avatar (same logic as PostCard)
 function avatarColors(initial: string): [string, string] {

@@ -189,6 +189,14 @@ export default function MainDrawerNavigator() {
         options={{ 
           title: 'PUSO Spaze — Create Post',
           headerShown: true,
+          headerStyle: {
+            backgroundColor: colors.deep,
+          },
+          headerTintColor: colors.card,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            color: colors.card,
+          },
         }}
       />
       <Drawer.Screen
@@ -197,6 +205,14 @@ export default function MainDrawerNavigator() {
         options={{ 
           title: 'PUSO Spaze — Post Detail',
           headerShown: true,
+          headerStyle: {
+            backgroundColor: colors.deep,
+          },
+          headerTintColor: colors.card,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            color: colors.card,
+          },
         }}
       />
     </Drawer.Navigator>
