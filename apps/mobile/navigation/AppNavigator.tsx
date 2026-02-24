@@ -60,11 +60,11 @@ export default function AppNavigator() {
       const currentRoute = navigationRef.current?.getCurrentRoute();
       console.log('[Navigation Guard] Current route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
       
-      // Protected routes (MainDrawer contains all protected screens)
-      const protectedRoutes = ['MainDrawer'];
+      // All routes except Login require authentication
+      const publicRoutes = ['Login'];
       
-      if (!isLoggedIn && currentRoute && protectedRoutes.includes(currentRoute.name)) {
-        console.log('[Navigation Guard] Redirecting to Login');
+      if (!isLoggedIn && currentRoute && !publicRoutes.includes(currentRoute.name)) {
+        console.log('[Navigation Guard] Redirecting to Login - route:', currentRoute.name);
         navigationRef.current?.reset({
           index: 0,
           routes: [{ name: 'Login' }],
