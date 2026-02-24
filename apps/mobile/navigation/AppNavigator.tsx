@@ -35,7 +35,7 @@ const linking = {
   config: {
     screens: {
       Login: {
-        path: 'coach-signup',
+        path: 'signup',
         parse: {
           code: (code: string) => code?.toUpperCase(),
         },
