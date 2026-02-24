@@ -20,7 +20,7 @@ import { colors } from '../constants/theme';
 
 // ── Route param types ────────────────────────
 export type RootStackParamList = {
-  Login:       undefined;
+  Login:       { code?: string };
   UserDrawer:  undefined;
   Post:        undefined;
   PostDetail:  { post: import('../../../packages/types').Post };
@@ -28,6 +28,21 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// ── Linking configuration for deep links ─────
+const linking = {
+  prefixes: ['https://puso-spaze.org', 'https://www.puso-spaze.org', 'pusospaze://'],
+  config: {
+    screens: {
+      Login: {
+        path: 'coach-signup',
+        parse: {
+          code: (code: string) => code?.toUpperCase(),
+        },
+      },
+    },
+  },
+};
 
 // ── Navigator component ───────────────────────
 export default function AppNavigator() {
@@ -37,6 +52,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer
+      linking={linking}
       documentTitle={{
         formatter: (options, route) => {
           const browserTitles: Record<string, string> = {

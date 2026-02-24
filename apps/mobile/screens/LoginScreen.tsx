@@ -5,7 +5,7 @@
 // OR simply use their username (returning coaches)
 // ─────────────────────────────────────────────
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,12 +20,16 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { colors } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { showAlert } from '../utils/alertPlatform';
 
+type LoginScreenRouteProp = RouteProp<{ Login: { code?: string } }, 'Login'>;
+
 export default function LoginScreen() {
+  const route = useRoute<LoginScreenRouteProp>();
   const { loginWithUsername, loginAnonymously, loginAsCoach } = useUser();
   const [customName, setCustomName]           = useState('');
   const [loading, setLoading]                 = useState(false);
@@ -37,6 +41,15 @@ export default function LoginScreen() {
   const [coachCode, setCoachCode]             = useState('');
   const [coachNameFocused, setCoachNameFocused] = useState(false);
   const [coachCodeFocused, setCoachCodeFocused] = useState(false);
+
+  // ── Auto-fill code from deep link ─────────
+  useEffect(() => {
+    const codeParam = route.params?.code;
+    if (codeParam) {
+      setShowCoachPanel(true);
+      setCoachCode(codeParam.toUpperCase());
+    }
+  }, [route.params?.code]);
 
   // ── Handlers ──────────────────────────────
 
