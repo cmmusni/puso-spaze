@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -77,6 +78,7 @@ export default function PostDetailScreen() {
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -122,6 +124,13 @@ export default function PostDetailScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // ── Refresh handler ───────────────────────────
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   // ── Toggle reaction ───────────────────────────
   const handleReaction = async (type: ReactionType) => {
@@ -360,6 +369,14 @@ export default function PostDetailScreen() {
                 </Text>
               )}
             </View>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
           }
         />
 

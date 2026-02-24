@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
   StyleSheet,
   Platform,
   TextInput,
@@ -50,24 +51,34 @@ export default function ProfileScreen() {
   const { username, userId, updateUsername, logoutUser } = useUserStore();
   const [deviceOwner, setDeviceOwner] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [editedUsername, setEditedUsername] = useState(username ?? '');
   const [savingUsername, setSavingUsername] = useState(false);
 
+  const loadDeviceOwner = async () => {
+    try {
+      const owner = await storage.getItem('puso_device_owner');
+      setDeviceOwner(owner);
+    } catch (err) {
+      console.warn('[ProfileScreen] Could not load device owner:', err);
+    }
+  };
+
   useEffect(() => {
-    const loadDeviceOwner = async () => {
-      try {
-        const owner = await storage.getItem('puso_device_owner');
-        setDeviceOwner(owner);
-      } catch (err) {
-        console.warn('[ProfileScreen] Could not load device owner:', err);
-      } finally {
-        setLoading(false);
-      }
+    const load = async () => {
+      await loadDeviceOwner();
+      setLoading(false);
     };
-    loadDeviceOwner();
+    load();
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDeviceOwner();
+    setRefreshing(false);
+  };
 
   const handleClearDeviceBinding = async () => {
     const confirmed = await showConfirm(
@@ -157,7 +168,18 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scroll} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         {/* ── Current Session ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Current Session</Text>
