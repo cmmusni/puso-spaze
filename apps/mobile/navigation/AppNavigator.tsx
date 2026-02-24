@@ -73,6 +73,12 @@ export default function AppNavigator() {
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
       }
+      onReady={() => {
+        console.log('[Navigation] Ready');
+      }}
+      onStateChange={(state) => {
+        console.log('[Navigation] State changed:', state?.routes?.[state?.index]?.name);
+      }}
       documentTitle={{
         formatter: (options, route) => {
           const browserTitles: Record<string, string> = {
