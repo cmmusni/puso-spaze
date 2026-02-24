@@ -1,1 +1,1 @@
-web: npm run build && npx prisma migrate deploy && npx prisma db seed && npm start
+web: npm run build && npx prisma migrate resolve --rolled-back 20260224191643_seed_data || true && npx prisma migrate deploy && npx prisma db seed && npm start
