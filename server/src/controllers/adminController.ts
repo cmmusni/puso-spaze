@@ -4,30 +4,17 @@
 // ─────────────────────────────────────────────
 
 import { Request, Response } from 'express';
-import nodemailer from 'nodemailer';
-import type SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { Resend } from 'resend';
 import { prisma } from '../config/db';
 import { env } from '../config/env';
 
-// ── Nodemailer transporter (lazy singleton) ───
-let _transporter: nodemailer.Transporter | null = null;
-function getTransporter(): nodemailer.Transporter {
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      auth: env.SMTP_USER
-        ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
-        : undefined,
-      // Force IPv4 and set timeouts (Railway doesn't support IPv6)
-      family: 4,
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 5000,    // 5 seconds
-      socketTimeout: 15000,     // 15 seconds
-    } as SMTPTransport.Options);
+// ── Resend client (lazy singleton) ───
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(env.RESEND_API_KEY);
   }
-  return _transporter;
+  return _resend;
 }
 
 // ── Helpers ───────────────────────────────────
@@ -115,35 +102,14 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
     }
     const record = await prisma.inviteCode.create({ data: { code } });
 
-    // ── Send email ────────────────────────────
-    const transporter = getTransporter();
+    // ── Send email via Resend ────────────────────────────
+    const resend = getResend();
     console.log('[AdminController] Attempting to send email to:', email);
-    console.log('[AdminController] SMTP config:', {
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      user: env.SMTP_USER,
-      hasPassword: !!env.SMTP_PASS,
-    });
     
-    await transporter.sendMail({
-      from: env.SMTP_FROM,
+    await resend.emails.send({
+      from: 'PUSO Spaze <onboarding@resend.dev>',
       to: email,
       subject: '🛡️ Your PUSO Spaze Coach Invite Code',
-      text: [
-        'Hello,',
-        '',
-        'You have been invited to join PUSO Spaze as a Coach.',
-        '',
-        `Your invite code is:  ${record.code}`,
-        '',
-        'Open the PUSO Spaze app by clicking this link: http://localhost:8081/',
-        'Tap "PUSO Coach? Enter invite code", enter your name and this code to get started.',
-        '',
-        'This code can only be used once.',
-        '',
-        '— The PUSO Spaze Team',
-      ].join('\n'),
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:auto">
           <h2 style="color:#7c3aed">🛡️ PUSO Spaze Coach Invitation</h2>
@@ -153,7 +119,7 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
             <p style="margin:0 0 8px;color:#6b7280;font-size:13px">YOUR INVITE CODE</p>
             <p style="margin:0;font-size:28px;font-weight:900;letter-spacing:4px;color:#7c3aed">${record.code}</p>
           </div>
-          <p>Open the <strong>PUSO Spaze</strong> app by clicking this link: <a href="http://localhost:8081/" style="color:#7c3aed;text-decoration:none">http://localhost:8081/</a></p>
+          <p>Open the <strong>PUSO Spaze</strong> app by clicking this link: <a href="https://puso-spaze.org" style="color:#7c3aed;text-decoration:none">https://puso-spaze.org</a></p>
           <p>Tap <em>"PUSO Coach? Enter invite code"</em>, enter your name and this code to get started.</p>
           <p style="color:#9ca3af;font-size:12px">This code can only be used once.</p>
           <hr style="border:none;border-top:1px solid #e5e7eb">

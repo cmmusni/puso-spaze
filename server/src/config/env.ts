@@ -31,15 +31,7 @@ export const env = {
   )
     .split(',')
     .map((s) => s.trim()),
-  // ── Email / SMTP ────────────────────────────────────────────────────
-  /** SMTP host, e.g. smtp.gmail.com or smtp.mailtrap.io */
-  SMTP_HOST: optional('SMTP_HOST', 'smtp.gmail.com'),
-  /** SMTP port — 587 (STARTTLS) is the common default */
-  SMTP_PORT: parseInt(optional('SMTP_PORT', '587'), 10),
-  /** Whether to use TLS on the initial connection (port 465) */
-  SMTP_SECURE: optional('SMTP_SECURE', 'false') === 'true',
-  SMTP_USER: optional('SMTP_USER', 'cliffordmarkmusni@gmail.com'),
-  SMTP_PASS: optional('SMTP_PASS', 'bmcc hkhp kjku bnnl'),
-  /** From address shown in the sent email */
-  SMTP_FROM: optional('SMTP_FROM', 'PUSO Spaze <no-reply@puso-spaze.app>'),
+  // ── Email (Resend) ──────────────────────────────────────────────────
+  /** Resend API key for transactional emails */
+  RESEND_API_KEY: optional('RESEND_API_KEY', ''),
 } as const;
