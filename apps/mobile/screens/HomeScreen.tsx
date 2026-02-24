@@ -15,7 +15,7 @@ import {
   ListRenderItem,
   StatusBar,
   StyleSheet,
-  Image,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../constants/theme";
@@ -90,6 +90,20 @@ export default function HomeScreen() {
               <Text style={styles.greetingName}>{`Hey, ${isCoach ? "Coach" : ""} ${username ?? "…"}`}</Text>
             </Text>
           </View>
+
+          {/* Refresh button for web */}
+          <TouchableOpacity
+            onPress={fetchPosts}
+            activeOpacity={0.7}
+            style={styles.refreshBtn}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.card} />
+            ) : (
+              <Text style={styles.refreshIcon}>🔄</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -185,6 +199,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   greetingName: { color: colors.accent, fontWeight: "700" },
+  refreshBtn: {
+    padding: 8,
+    marginRight: -8,
+  },
+  refreshIcon: {
+    fontSize: 20,
+    color: colors.card,
+  },
 
   // ── Error banner ─────────────────────────
   errorBanner: {
