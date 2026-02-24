@@ -19,6 +19,8 @@ function getTransporter(): nodemailer.Transporter {
       auth: env.SMTP_USER
         ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
         : undefined,
+      // Force IPv4 (Railway doesn't support IPv6)
+      family: 4,
     });
   }
   return _transporter;
