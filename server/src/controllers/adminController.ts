@@ -13,7 +13,7 @@ import { env } from '../config/env';
 let _transporter: nodemailer.Transporter | null = null;
 function getTransporter(): nodemailer.Transporter {
   if (!_transporter) {
-    const options: SMTPTransport.Options & { family?: number } = {
+    _transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE,
@@ -22,8 +22,7 @@ function getTransporter(): nodemailer.Transporter {
         : undefined,
       // Force IPv4 (Railway doesn't support IPv6)
       family: 4,
-    };
-    _transporter = nodemailer.createTransport(options);
+    } as SMTPTransport.Options);
   }
   return _transporter;
 }
