@@ -151,71 +151,75 @@ export default function LoginScreen() {
             <Text style={styles.cardTitle}>Welcome to PUSO Spaze 👋</Text>
             <Text style={styles.cardSubtitle}>Choose a name or slip in anonymously.</Text>
 
-            <Text style={styles.inputLabel}>Your Name</Text>
+            {!showCoachPanel && (
+              <>
+                <Text style={styles.inputLabel}>Your Name</Text>
 
-            {/* Input */}
-            <View style={[styles.inputWrapper, focused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
-              <Text style={styles.inputIcon}>✏️</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. GracefulSoul"
-                placeholderTextColor={colors.muted5}
-                value={customName}
-                onChangeText={setCustomName}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={30}
-                editable={!loading}
-              />
-              {customName.length > 0 && (
-                <TouchableOpacity onPress={() => setCustomName('')} activeOpacity={0.7}>
-                  <Text style={styles.clearBtn}>✕</Text>
+                {/* Input */}
+                <View style={[styles.inputWrapper, focused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
+                  <Text style={styles.inputIcon}>✏️</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. GracefulSoul"
+                    placeholderTextColor={colors.muted5}
+                    value={customName}
+                    onChangeText={setCustomName}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={30}
+                    editable={!loading}
+                  />
+                  {customName.length > 0 && (
+                    <TouchableOpacity onPress={() => setCustomName('')} activeOpacity={0.7}>
+                      <Text style={styles.clearBtn}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Primary CTA */}
+                <TouchableOpacity
+                  onPress={handleLoginWithUsername}
+                  disabled={!canSubmit}
+                  activeOpacity={0.87}
+                  style={styles.ctaBtn}
+                >
+                  <LinearGradient
+                    colors={canSubmit ? [colors.hot, colors.fuchsia, colors.ink, colors.deep] : [colors.muted2, colors.muted4]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.ctaGradient}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.ctaText}>
+                        Enter as{' '}
+                        <Text style={styles.ctaNameHighlight}>{customName.trim() || '…'}</Text>
+                      </Text>
+                    )}
+                  </LinearGradient>
                 </TouchableOpacity>
-              )}
-            </View>
 
-            {/* Primary CTA */}
-            <TouchableOpacity
-              onPress={handleLoginWithUsername}
-              disabled={!canSubmit}
-              activeOpacity={0.87}
-              style={styles.ctaBtn}
-            >
-              <LinearGradient
-                colors={canSubmit ? [colors.hot, colors.fuchsia, colors.ink, colors.deep] : [colors.muted2, colors.muted4]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.ctaGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.ctaText}>
-                    Enter as{' '}
-                    <Text style={styles.ctaNameHighlight}>{customName.trim() || '…'}</Text>
-                  </Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Anonymous Button */}
-            <TouchableOpacity
-              onPress={handleLoginAnonymously}
-              disabled={loading}
-              activeOpacity={0.87}
-              style={styles.anonBtn}
-            >
-              <Text style={styles.anonBtnText}>🎭 Enter Anonymously</Text>
-            </TouchableOpacity>
+                {/* Anonymous Button */}
+                <TouchableOpacity
+                  onPress={handleLoginAnonymously}
+                  disabled={loading}
+                  activeOpacity={0.87}
+                  style={styles.anonBtn}
+                >
+                  <Text style={styles.anonBtnText}>🎭 Enter Anonymously</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* ── Coach toggle ── */}
             <TouchableOpacity
@@ -224,7 +228,7 @@ export default function LoginScreen() {
               style={styles.coachToggle}
             >
               <Text style={styles.coachToggleText}>
-                {showCoachPanel ? '▲ Hide' : '🛡️ PUSO Coach? Enter invite code'}
+                {showCoachPanel ? '▲ Anonymous User' : '🛡️ PUSO Coach? Enter invite code'}
               </Text>
             </TouchableOpacity>
 
