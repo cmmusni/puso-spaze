@@ -5,8 +5,8 @@
 // Regular users land on UserDrawer (Home + Profile)
 // ─────────────────────────────────────────────
 
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -55,9 +55,32 @@ const linking = {
 // ── Navigator component ───────────────────────
 export default function AppNavigator() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+
+  // ── Navigation guard: redirect to Login if not authenticated ──
+  useEffect(() => {
+    const unsubscribe = navigationRef.current?.addListener('state', () => {
+      const currentRoute = navigationRef.current?.getCurrentRoute();
+      console.log('[Navigation Guard] Current route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
+      
+      // Protected routes
+      const protectedRoutes = ['MainDrawer', 'Post', 'PostDetail'];
+      
+      if (!isLoggedIn && currentRoute && protectedRoutes.includes(currentRoute.name)) {
+        console.log('[Navigation Guard] Redirecting to Login');
+        navigationRef.current?.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [isLoggedIn]);
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       linking={linking}
       fallback={
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.darkest }}>
@@ -100,39 +123,36 @@ export default function AppNavigator() {
           animation: 'slide_from_right',
         }}
       >
-        {isLoggedIn ? (
-          <>
-            {/* ── Main Drawer (for all logged-in users) ── */}
-            <Stack.Screen
-              name="MainDrawer"
-              component={MainDrawerNavigator}
-              options={{ headerShown: false, gestureEnabled: false }}
-            />
+        {/* ── Login Screen ── */}
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ headerShown: false }}
+        />
 
-            {/* ── Create Post ── */}
-            <Stack.Screen
-              name="Post"
-              component={PostScreen}
-              options={{
-                title: 'Post',
-                headerShown: false,
-              }}
-            />
+        {/* ── Main Drawer (for all logged-in users) ── */}
+        <Stack.Screen
+          name="MainDrawer"
+          component={MainDrawerNavigator}
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
 
-            {/* ── Post Detail ── */}
-            <Stack.Screen
-              name="PostDetail"
-              component={PostDetailScreen}
-              options={{ headerShown: false }}
-            />
-          </>
-        ) : (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-        )}
+        {/* ── Create Post ── */}
+        <Stack.Screen
+          name="Post"
+          component={PostScreen}
+          options={{
+            title: 'Post',
+            headerShown: false,
+          }}
+        />
+
+        {/* ── Post Detail ── */}
+        <Stack.Screen
+          name="PostDetail"
+          component={PostDetailScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
