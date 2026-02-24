@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────
 
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef, getStateFromPath } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -23,27 +23,6 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
-// ── Custom getStateFromPath to block unauthorized deep links ──
-const customGetStateFromPath = (path: string, options: any) => {
-  // Get default state from path
-  const state = getStateFromPath(path, options);
-  
-  // Check if user is logged in (from Zustand store)
-  const isLoggedIn = useUserStore.getState().isLoggedIn;
-  
-  console.log('[Deep Link] Path:', path, 'isLoggedIn:', isLoggedIn, 'state:', state);
-  
-  // If not logged in and trying to access protected route, redirect to Login
-  if (!isLoggedIn && state?.routes?.[0]?.name !== 'Login') {
-    console.log('[Deep Link] Blocking unauthorized deep link, redirecting to Login');
-    return {
-      routes: [{ name: 'Login' }],
-    };
-  }
-  
-  return state;
-};
 
 // ── Linking configuration for deep links ─────
 const linking = {
@@ -68,41 +47,47 @@ const linking = {
       },
     },
   },
-  getStateFromPath: customGetStateFromPath,
 };
 
 // ── Navigator component ───────────────────────
 export default function AppNavigator() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [isReady, setIsReady] = React.useState(false);
 
   // ── Navigation guard: redirect to Login if not authenticated ──
+  const checkAuth = React.useCallback(() => {
+    if (!isReady || !navigationRef.current) return;
+    
+    const currentRoute = navigationRef.current.getCurrentRoute();
+    console.log('[Navigation Guard] Checking auth - route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
+    
+    // All routes except Login require authentication
+    const publicRoutes = ['Login'];
+    
+    if (!isLoggedIn && currentRoute && !publicRoutes.includes(currentRoute.name)) {
+      console.log('[Navigation Guard] Redirecting to Login from:', currentRoute.name);
+      navigationRef.current.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    }
+  }, [isLoggedIn, isReady]);
+
   useEffect(() => {
-    // Check immediately on mount and when isLoggedIn changes
-    const checkAuth = () => {
-      const currentRoute = navigationRef.current?.getCurrentRoute();
-      console.log('[Navigation Guard] Checking auth - route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
-      
-      // All routes except Login require authentication
-      const publicRoutes = ['Login'];
-      
-      if (!isLoggedIn && currentRoute && !publicRoutes.includes(currentRoute.name)) {
-        console.log('[Navigation Guard] Redirecting to Login from:', currentRoute.name);
-        navigationRef.current?.reset({
-          index: 0,
-          routes: [{ name: 'Login' }],
-        });
-      }
-    };
+    // Check auth when ready or when isLoggedIn changes
+    if (isReady) {
+      checkAuth();
+    }
+  }, [isLoggedIn, isReady, checkAuth]);
 
-    // Check immediately
-    setTimeout(checkAuth, 100);
-
+  useEffect(() => {
+    if (!isReady) return;
+    
     // Also listen for navigation state changes
     const unsubscribe = navigationRef.current?.addListener('state', checkAuth);
-
     return unsubscribe;
-  }, [isLoggedIn]);
+  }, [isReady, checkAuth]);
 
   return (
     <NavigationContainer
@@ -115,6 +100,7 @@ export default function AppNavigator() {
       }
       onReady={() => {
         console.log('[Navigation] Ready');
+        setIsReady(true);
       }}
       onStateChange={(state) => {
         console.log('[Navigation] State changed:', state?.routes?.[state?.index]?.name);
