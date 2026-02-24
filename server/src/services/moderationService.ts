@@ -256,7 +256,10 @@ if (env.OPENAI_API_KEY) {
 export async function moderateContent(text: string): Promise<ModerationResult> {
   // ── 1. Local keyword check (fast, no API) ────
   const localResult = localKeywordCheck(text);
-  if (localResult) return localResult;
+  if (localResult) {
+    console.log("[Moderation] FLAGGED by local keyword check");
+    return localResult;
+  }
 
   // ── 2. Placeholder mode (no API key configured) ──
   if (!openai) {
@@ -268,12 +271,14 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
   }
 
   try {
+    console.log("[Moderation] Calling OpenAI Moderation API...");
     const response = await openai.moderations.create({ input: text });
     const result = response.results[0];
 
     if (!result) return "REVIEW";
 
     if (result.flagged) {
+      console.log("[Moderation] OpenAI flagged content:", result.categories);
       // ── Hard-reject: content that is genuinely dangerous or bigoted regardless
       //    of context.
       //
@@ -296,7 +301,9 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
         categories["harassment/threatening"] ||
         categories["self-harm/instructions"];
 
-      return isHardFlagged ? "FLAGGED" : "REVIEW";
+      const verdict = isHardFlagged ? "FLAGGED" : "REVIEW";
+      console.log(`[Moderation] OpenAI verdict: ${verdict}`);
+      return verdict;
     }
 
     // ── Score-based soft threshold (REVIEW zone) ──
@@ -307,7 +314,9 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
       (score) => score > reviewThreshold,
     );
 
-    return needsReview ? "REVIEW" : "SAFE";
+    const verdict = needsReview ? "REVIEW" : "SAFE";
+    console.log(`[Moderation] OpenAI verdict: ${verdict}`);
+    return verdict;
   } catch (err) {
     console.error("[Moderation] OpenAI API error:", err);
     // On API failure → mark for human REVIEW rather than blocking
