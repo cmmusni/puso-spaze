@@ -65,28 +65,37 @@ export default function AppNavigator() {
     }
     
     const currentRoute = navigationRef.current.getCurrentRoute();
-    console.log('[Navigation Guard] Checking auth - route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
+    if (!currentRoute) {
+      console.log('[Navigation Guard] No current route found');
+      return;
+    }
+    
+    console.log('[Navigation Guard] Checking auth - route:', currentRoute.name, 'isLoggedIn:', isLoggedIn);
     
     // Public routes that don't require authentication
     const publicRoutes = ['Login'];
     
     // If logged in and on Login screen, redirect to MainDrawer
-    if (isLoggedIn && currentRoute && currentRoute.name === 'Login') {
+    if (isLoggedIn && currentRoute.name === 'Login') {
       console.log('[Navigation Guard] User logged in, redirecting to MainDrawer');
-      navigationRef.current.reset({
-        index: 0,
-        routes: [{ name: 'MainDrawer' }],
-      });
+      setTimeout(() => {
+        navigationRef.current?.reset({
+          index: 0,
+          routes: [{ name: 'MainDrawer' }],
+        });
+      }, 100);
       return;
     }
     
     // If not logged in and trying to access protected route, redirect to Login
-    if (!isLoggedIn && currentRoute && !publicRoutes.includes(currentRoute.name)) {
+    if (!isLoggedIn && currentRoute.name && !publicRoutes.includes(currentRoute.name)) {
       console.log('[Navigation Guard] Redirecting to Login from:', currentRoute.name);
-      navigationRef.current.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
+      setTimeout(() => {
+        navigationRef.current?.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }, 100);
     }
   }, [isLoggedIn, isReady, isLoading]);
 
