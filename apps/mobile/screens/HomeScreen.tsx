@@ -15,7 +15,6 @@ import {
   ListRenderItem,
   StatusBar,
   StyleSheet,
-  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../constants/theme";
@@ -101,7 +100,7 @@ export default function HomeScreen() {
             {loading ? (
               <ActivityIndicator size="small" color={colors.card} />
             ) : (
-              <Text style={styles.refreshIcon}>🔄</Text>
+              <Text style={styles.refreshIcon}>↻</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -201,10 +200,10 @@ const styles = StyleSheet.create({
   greetingName: { color: colors.accent, fontWeight: "700" },
   refreshBtn: {
     padding: 8,
-    marginRight: -8,
+    marginRight: -4,
   },
   refreshIcon: {
-    fontSize: 20,
+    fontSize: 24,
     color: colors.card,
   },
 
