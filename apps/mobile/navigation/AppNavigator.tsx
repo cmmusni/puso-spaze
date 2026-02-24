@@ -67,9 +67,20 @@ export default function AppNavigator() {
     const currentRoute = navigationRef.current.getCurrentRoute();
     console.log('[Navigation Guard] Checking auth - route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
     
-    // All routes except Login require authentication
+    // Public routes that don't require authentication
     const publicRoutes = ['Login'];
     
+    // If logged in and on Login screen, redirect to MainDrawer
+    if (isLoggedIn && currentRoute && currentRoute.name === 'Login') {
+      console.log('[Navigation Guard] User logged in, redirecting to MainDrawer');
+      navigationRef.current.reset({
+        index: 0,
+        routes: [{ name: 'MainDrawer' }],
+      });
+      return;
+    }
+    
+    // If not logged in and trying to access protected route, redirect to Login
     if (!isLoggedIn && currentRoute && !publicRoutes.includes(currentRoute.name)) {
       console.log('[Navigation Guard] Redirecting to Login from:', currentRoute.name);
       navigationRef.current.reset({
@@ -129,7 +140,7 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Navigator
-        initialRouteName={isLoggedIn ? 'MainDrawer' : 'Login'}
+        initialRouteName="Login"
         screenOptions={{
           headerStyle: {
             backgroundColor: colors.deep,
