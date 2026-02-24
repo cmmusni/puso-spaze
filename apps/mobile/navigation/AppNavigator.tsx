@@ -11,8 +11,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
-import PostScreen from '../screens/PostScreen';
-import PostDetailScreen from '../screens/PostDetailScreen';
 import MainDrawerNavigator from './MainDrawerNavigator';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
@@ -21,8 +19,7 @@ import { colors } from '../constants/theme';
 export type RootStackParamList = {
   Login:      { code?: string };
   MainDrawer: undefined;
-  Post:       undefined;
-  PostDetail: { post: import('../../../packages/types').Post };
+
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,10 +41,10 @@ const linking = {
           Profile: 'Profile',
           ReviewQueue: 'ReviewQueue',
           SendInvite: 'SendInvite',
+          Post: 'Post',
+          PostDetail: 'PostDetail',
         },
       },
-      Post: 'Post',
-      PostDetail: 'PostDetail',
     },
   },
 };
@@ -63,8 +60,8 @@ export default function AppNavigator() {
       const currentRoute = navigationRef.current?.getCurrentRoute();
       console.log('[Navigation Guard] Current route:', currentRoute?.name, 'isLoggedIn:', isLoggedIn);
       
-      // Protected routes
-      const protectedRoutes = ['MainDrawer', 'Post', 'PostDetail'];
+      // Protected routes (MainDrawer contains all protected screens)
+      const protectedRoutes = ['MainDrawer'];
       
       if (!isLoggedIn && currentRoute && protectedRoutes.includes(currentRoute.name)) {
         console.log('[Navigation Guard] Redirecting to Login');
@@ -135,23 +132,6 @@ export default function AppNavigator() {
           name="MainDrawer"
           component={MainDrawerNavigator}
           options={{ headerShown: false, gestureEnabled: false }}
-        />
-
-        {/* ── Create Post ── */}
-        <Stack.Screen
-          name="Post"
-          component={PostScreen}
-          options={{
-            title: 'Post',
-            headerShown: false,
-          }}
-        />
-
-        {/* ── Post Detail ── */}
-        <Stack.Screen
-          name="PostDetail"
-          component={PostDetailScreen}
-          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

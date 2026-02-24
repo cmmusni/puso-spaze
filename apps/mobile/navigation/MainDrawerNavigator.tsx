@@ -23,6 +23,8 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CoachDashboard from '../screens/CoachDashboard';
 import SendInviteScreen from '../screens/SendInviteScreen';
+import PostScreen from '../screens/PostScreen';
+import PostDetailScreen from '../screens/PostDetailScreen';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
 
@@ -32,6 +34,8 @@ export type MainDrawerParamList = {
   Profile:     undefined;
   ReviewQueue: undefined;
   SendInvite:  undefined;
+  Post:        undefined;
+  PostDetail:  undefined;
 };
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
@@ -177,6 +181,22 @@ export default function MainDrawerNavigator() {
         name="SendInvite"
         component={SendInviteScreen}
         options={{ title: 'PUSO Spaze — Send Invite' }}
+      />
+      <Drawer.Screen
+        name="Post"
+        component={PostScreen}
+        options={{ 
+          title: 'PUSO Spaze — Create Post',
+          headerShown: true,
+        }}
+      />
+      <Drawer.Screen
+        name="PostDetail"
+        component={PostDetailScreen}
+        options={{ 
+          title: 'PUSO Spaze — Post Detail',
+          headerShown: true,
+        }}
       />
     </Drawer.Navigator>
   );
