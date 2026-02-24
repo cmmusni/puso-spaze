@@ -44,10 +44,22 @@ export default function LoginScreen() {
 
   // ── Auto-fill code from deep link ─────────
   useEffect(() => {
+    // Check route params first (from React Navigation deep linking)
     const codeParam = route.params?.code;
     if (codeParam) {
       setShowCoachPanel(true);
       setCoachCode(codeParam.toUpperCase());
+      return;
+    }
+
+    // On web, also check URL query params directly
+    if (Platform.OS === 'web') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const codeFromUrl = urlParams.get('code');
+      if (codeFromUrl) {
+        setShowCoachPanel(true);
+        setCoachCode(codeFromUrl.toUpperCase());
+      }
     }
   }, [route.params?.code]);
 

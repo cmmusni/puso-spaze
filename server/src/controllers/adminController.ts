@@ -117,7 +117,7 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
           <p>You have been invited to join <strong>PUSO Spaze</strong> as a Coach.</p>
           <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
             <p style="margin:0 0 16px;color:#6b7280;font-size:13px">Click the button below to get started:</p>
-            <a href="https://puso-spaze.org/coach-signup?code=${record.code}" style="display:inline-block;background:#7c3aed;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">Accept Invitation</a>
+            <a href="https://puso-spaze.org?code=${record.code}" style="display:inline-block;background:#7c3aed;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">Accept Invitation</a>
           </div>
           <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:12px 16px;margin:24px 0;border-radius:4px">
             <p style="margin:0;color:#92400e;font-size:14px"><strong>Note:</strong> If the button doesn't work, you can manually enter this code in the app:</p>
