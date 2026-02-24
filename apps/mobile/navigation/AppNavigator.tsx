@@ -45,13 +45,13 @@ const linking = {
         screens: {
           ReviewQueue: 'ReviewQueue',
           SendInvite: 'SendInvite',
-          Home: '',
+          Home: 'feed',
         },
       },
       UserDrawer: {
         path: '',
         screens: {
-          Home: '',
+          Home: 'feed',
           Profile: 'Profile',
         },
       },
