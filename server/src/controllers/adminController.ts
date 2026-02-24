@@ -107,7 +107,7 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
     console.log('[AdminController] Attempting to send email to:', email);
     
     await resend.emails.send({
-      from: 'PUSO Spaze <onboarding@resend.dev>',
+      from: 'PUSO Spaze <noreply@puso-spaze.org>',
       to: email,
       subject: '🛡️ Your PUSO Spaze Coach Invite Code',
       html: `
