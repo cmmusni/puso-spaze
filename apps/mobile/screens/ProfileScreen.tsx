@@ -135,6 +135,7 @@ export default function ProfileScreen() {
     try {
       await apiUpdateUsername(userId, editedUsername);
       await updateUsername(editedUsername);
+      await loadDeviceOwner(); // Refresh device owner display
       showAlert('Success', `Username updated to "${editedUsername}".`);
       setIsEditingUsername(false);
     } catch (err: any) {

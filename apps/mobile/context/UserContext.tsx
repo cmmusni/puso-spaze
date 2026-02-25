@@ -74,7 +74,7 @@ export interface UserState {
 }
 
 // ── Zustand store ────────────────────────────
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create<UserState>((set, get) => ({
   userId: null,
   username: null,
   role: null,
@@ -151,10 +151,39 @@ export const useUserStore = create<UserState>((set) => ({
 
   updateUsername: async (newUsername: string) => {
     try {
-      await storage.setItem(USERNAME_KEY, newUsername);
-      set((state) => ({ username: newUsername }));
+      console.log('[UserStore] ═══════════ UPDATE USERNAME START ═══════════');
+      console.log('[UserStore] Platform:', Platform.OS);
+      console.log('[UserStore] New username:', newUsername);
+      
+      // Update both USERNAME_KEY and DEV_OWNER_KEY
+      if (Platform.OS === 'web') {
+        await AsyncStorage.setItem(USERNAME_KEY, newUsername);
+        await AsyncStorage.setItem(DEV_OWNER_KEY, newUsername);
+        console.log('[UserStore] ✓ Updated both keys (web)');
+        
+        // Verify
+        const verifyUsername = await AsyncStorage.getItem(USERNAME_KEY);
+        const verifyDeviceOwner = await AsyncStorage.getItem(DEV_OWNER_KEY);
+        console.log('[UserStore] Verified USERNAME_KEY:', verifyUsername);
+        console.log('[UserStore] Verified DEV_OWNER_KEY:', verifyDeviceOwner);
+      } else {
+        await SecureStore.setItemAsync(USERNAME_KEY, newUsername);
+        await SecureStore.setItemAsync(DEV_OWNER_KEY, newUsername);
+        console.log('[UserStore] ✓ Updated both keys (native)');
+        
+        // Verify immediately after setting
+        const verifyUsername = await SecureStore.getItemAsync(USERNAME_KEY);
+        const verifyDeviceOwner = await SecureStore.getItemAsync(DEV_OWNER_KEY);
+        console.log('[UserStore] Verified USERNAME_KEY:', verifyUsername);
+        console.log('[UserStore] Verified DEV_OWNER_KEY:', verifyDeviceOwner);
+      }
+      
+      // Update state
+      set({ username: newUsername });
+      console.log('[UserStore] ✓ State updated to:', newUsername);
+      console.log('[UserStore] ═══════════ UPDATE USERNAME END ═══════════');
     } catch (err) {
-      console.warn('[UserStore] Could not update username:', err);
+      console.error('[UserStore] ✗ ERROR updating username:', err);
       throw err;
     }
   },
