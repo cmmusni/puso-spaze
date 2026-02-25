@@ -471,9 +471,26 @@
             font-weight: 500;
         }
 
+        a.try-it-out {
+            background: linear-gradient(135deg, #9333EA, #C026D3);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            box-shadow: 0 8px 20px rgba(147, 51, 234, 0.4);
+        }
+
         a:hover {
             border-bottom-color: #9333EA;
             color: #7E22CE;
+        }
+
+        a.try-it-out:hover {
+            color: #ffc70f;
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
 
         .nav-link {
@@ -657,11 +674,8 @@
                 <a href="#overview" class="nav-link">Overview</a>
                 <a href="#features" class="nav-link">Features</a>
                 <a href="#updates" class="nav-link">Latest Updates</a>
-                <a href="#tech-stack" class="nav-link">Tech Stack</a>
-                <a href="#architecture" class="nav-link">Architecture</a>
-                <a href="#deployment" class="nav-link">Deployment</a>
                 <a href="#future" class="nav-link">Future Plans</a>
-                <a href="#team" class="nav-link">Team</a>
+                <a href="#try" class="nav-link try-it-out">Try It Out</a>
             </div>
         </div>
 
@@ -669,11 +683,7 @@
         <section id="overview" class="section">
             <h2>📋 Overview</h2>
             
-            <p><strong>PUSO Spaze</strong> (from Filipino "Puso" meaning "Heart") is a compassionate mental health support platform that provides a safe, anonymous space for individuals to share their struggles, receive encouragement, and find hope through community support and AI-powered biblical encouragement.</p>
-
-            <div class="success-box">
-                <strong>✅ Live Now:</strong> Mobile app available via Expo Go and Production builds. Backend API deployed on Railway.
-            </div>
+            <p><strong>PUSO Spaze</strong> is a compassionate mental health support platform that provides a safe, anonymous space for individuals to share their struggles, receive encouragement, and find hope through community support and AI-powered biblical encouragement.</p>
 
             <h3>🎯 What Can You Do?</h3>
             <ul>
@@ -681,7 +691,6 @@
                 <li><strong>Receive Hourly Hope:</strong> Get AI-generated biblical encouragement posts every hour from our 🕊️ Hourly Hope system</li>
                 <li><strong>Engage Safely:</strong> React with emojis and comment on posts to support others</li>
                 <li><strong>Stay Notified:</strong> Receive push notifications for reactions, comments, and new encouragement posts</li>
-                <li><strong>Manage Your Identity:</strong> Device-bound accounts ensure privacy while allowing username customization</li>
                 <li><strong>Coach Access:</strong> Special dashboard for mental health coaches to send invites and monitor community health</li>
             </ul>
         </section>
@@ -691,12 +700,6 @@
             <h2>✨ Features</h2>
 
             <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🔐</div>
-                    <div class="feature-title">Device-Bound Security</div>
-                    <p class="feature-desc">Your account is securely tied to your device. No passwords to remember, no email required.</p>
-                </div>
-
                 <div class="feature-card">
                     <div class="feature-icon">😶‍🌫️</div>
                     <div class="feature-title">Anonymous Posting</div>
@@ -722,27 +725,15 @@
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <div class="feature-title">Beautiful UI</div>
-                    <p class="feature-desc">Gradient brand colors, smooth animations, and intuitive navigation with drawer menu.</p>
-                </div>
-
-                <div class="feature-card">
                     <div class="feature-icon">👨‍⚕️</div>
                     <div class="feature-title">Coach Dashboard</div>
                     <p class="feature-desc">Special interface for mental health coaches to send invites and oversee community wellness.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📱</div>
-                    <div class="feature-title">Cross-Platform</div>
-                    <p class="feature-desc">Built with React Native and Expo - works seamlessly on iOS, Android, and Web.</p>
                 </div>
             </div>
         </section>
 
         <!-- LATEST UPDATES -->
-        <section id="updates" class="section">
+        <!-- <section id="updates" class="section">
             <h2>🆕 Latest Updates - Version 1.0.0</h2>
             
             <div class="update-section">
@@ -785,283 +776,7 @@
                     <li>getPostById endpoint for notification navigation</li>
                 </ul>
             </div>
-        </section>
-
-        <!-- TECH STACK -->
-        <section id="tech-stack" class="section">
-            <h2>💻 Tech Stack</h2>
-
-            <h3>Frontend (Mobile App)</h3>
-            <div class="tech-stack">
-                <span class="tech-badge">React Native</span>
-                <span class="tech-badge">Expo SDK 50</span>
-                <span class="tech-badge">TypeScript</span>
-                <span class="tech-badge">Zustand (State Management)</span>
-                <span class="tech-badge">React Navigation</span>
-                <span class="tech-badge">Expo Secure Store</span>
-                <span class="tech-badge">Expo Linear Gradient</span>
-                <span class="tech-badge">Expo Notifications</span>
-            </div>
-
-            <h3>Backend (API Server)</h3>
-            <div class="tech-stack">
-                <span class="tech-badge">Node.js</span>
-                <span class="tech-badge">Express.js</span>
-                <span class="tech-badge">TypeScript</span>
-                <span class="tech-badge">Prisma ORM 5.9.1</span>
-                <span class="tech-badge">PostgreSQL</span>
-                <span class="tech-badge">ts-node-dev</span>
-            </div>
-
-            <h3>External Services & APIs</h3>
-            <div class="tech-stack">
-                <span class="tech-badge">OpenAI GPT-4o-mini</span>
-                <span class="tech-badge">Expo Server SDK</span>
-                <span class="tech-badge">Railway (Hosting)</span>
-                <span class="tech-badge">EAS (Mobile Builds)</span>
-            </div>
-
-            <h3>Development & Deployment</h3>
-            <div class="tech-stack">
-                <span class="tech-badge">Git & GitHub</span>
-                <span class="tech-badge">EAS Build & Update</span>
-                <span class="tech-badge">Expo Go</span>
-                <span class="tech-badge">node-cron</span>
-            </div>
-        </section>
-
-        <!-- ARCHITECTURE -->
-        <section id="architecture" class="section">
-            <h2>🏗️ Architecture</h2>
-
-            <h3>Project Structure</h3>
-            <pre><code>puso-spaze/
-├── apps/
-│   └── mobile/                    # React Native Expo app
-│       ├── components/            # Reusable components (PostCard)
-│       ├── context/               # Zustand stores (UserContext)
-│       ├── hooks/                 # Custom hooks (usePosts, useNotifications)
-│       ├── navigation/            # Navigation setup (Drawer)
-│       ├── screens/               # App screens
-│       ├── services/              # API client
-│       └── utils/                 # Helper functions
-├── packages/
-│   ├── core/                      # Shared utilities
-│   └── types/                     # TypeScript type definitions
-├── server/
-│   ├── src/
-│   │   ├── api/                   # Route handlers
-│   │   ├── controllers/           # Business logic
-│   │   ├── services/              # Core services
-│   │   │   ├── biblicalEncouragementService.ts
-│   │   │   ├── encouragementScheduler.ts
-│   │   │   ├── notificationService.ts
-│   │   │   └── moderationService.ts
-│   │   ├── middlewares/           # Express middlewares
-│   │   └── config/                # Configuration
-│   └── prisma/
-│       ├── schema.prisma          # Database schema
-│       └── migrations/            # Database migrations
-└── overview/                      # Project documentation
-</code></pre>
-
-            <h3>Database Schema</h3>
-            <p>The application uses PostgreSQL with the following key models:</p>
-            <ul>
-                <li><strong>User:</strong> User accounts with role, displayName, expoPushToken</li>
-                <li><strong>Post:</strong> User posts with content, tags, moderationStatus</li>
-                <li><strong>Comment:</strong> Comments on posts</li>
-                <li><strong>Reaction:</strong> Emoji reactions (HEART, PRAY, STRONG, STAR, SMILE)</li>
-                <li><strong>Notification:</strong> Push notifications (NEW_COMMENT, NEW_REACTION, NEW_ENCOURAGEMENT)</li>
-            </ul>
-
-            <h3>API Endpoints</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Route</th>
-                        <th>Method</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>/api/auth/register</td>
-                        <td>POST</td>
-                        <td>Register new user (device binding)</td>
-                    </tr>
-                    <tr>
-                        <td>/api/posts</td>
-                        <td>GET</td>
-                        <td>Get all posts with pagination</td>
-                    </tr>
-                    <tr>
-                        <td>/api/posts/:id</td>
-                        <td>GET</td>
-                        <td>Get single post by ID</td>
-                    </tr>
-                    <tr>
-                        <td>/api/posts</td>
-                        <td>POST</td>
-                        <td>Create new post</td>
-                    </tr>
-                    <tr>
-                        <td>/api/posts/:id/comments</td>
-                        <td>POST</td>
-                        <td>Add comment to post</td>
-                    </tr>
-                    <tr>
-                        <td>/api/posts/:id/reactions</td>
-                        <td>POST</td>
-                        <td>Add reaction to post</td>
-                    </tr>
-                    <tr>
-                        <td>/api/notifications</td>
-                        <td>GET</td>
-                        <td>Get user notifications</td>
-                    </tr>
-                    <tr>
-                        <td>/api/notifications/:id/read</td>
-                        <td>PATCH</td>
-                        <td>Mark notification as read</td>
-                    </tr>
-                    <tr>
-                        <td>/api/users/:id</td>
-                        <td>PATCH</td>
-                        <td>Update username</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h3>Key Features Implementation</h3>
-            
-            <h4>🕊️ Hourly Hope System</h4>
-            <ul>
-                <li><strong>Scheduler:</strong> node-cron runs every hour (<code>'0 * * * *'</code>)</li>
-                <li><strong>AI Generation:</strong> OpenAI GPT-4o-mini creates 280-character encouragement posts</li>
-                <li><strong>Fallback System:</strong> 8 pre-written verses ensure posts even if API fails</li>
-                <li><strong>System User:</strong> Posts created by 'system-encouragement-bot' user with COACH role</li>
-                <li><strong>Notifications:</strong> All users notified when new encouragement is posted</li>
-            </ul>
-
-            <h4>🔔 Notification System</h4>
-            <ul>
-                <li><strong>Push Delivery:</strong> Expo Server SDK sends push notifications to devices</li>
-                <li><strong>ES Module Fix:</strong> Dynamic import for expo-server-sdk compatibility with CommonJS</li>
-                <li><strong>Notification Types:</strong> NEW_COMMENT, NEW_REACTION, NEW_ENCOURAGEMENT</li>
-                <li><strong>Clickable Navigation:</strong> Tapping notification opens the related post</li>
-                <li><strong>Unread Tracking:</strong> Badge counter shows unread notifications</li>
-            </ul>
-
-            <h4>🔐 Device-Bound Authentication</h4>
-            <ul>
-                <li><strong>Device Owner:</strong> First username on device is permanently bound</li>
-                <li><strong>Secure Storage:</strong> SecureStore (native) or AsyncStorage (web)</li>
-                <li><strong>Username Updates:</strong> Allowed, automatically updates device owner too</li>
-                <li><strong>Validation:</strong> Prevents different usernames from using same device</li>
-            </ul>
-        </section>
-
-        <!-- DEPLOYMENT -->
-        <section id="deployment" class="section">
-            <h2>🚀 Deployment</h2>
-
-            <h3>Backend - Railway</h3>
-            <div class="info-box">
-                <p><strong>🌐 API URL:</strong> <a href="https://api.puso-spaze.org" target="_blank">https://api.puso-spaze.org</a></p>
-                <p><strong>Platform:</strong> Railway.app</p>
-                <p><strong>Database:</strong> Railway PostgreSQL</p>
-                <p><strong>Process:</strong> Automatic deployment on git push to main branch</p>
-            </div>
-
-            <h4>Environment Variables (Railway)</h4>
-            <pre><code>DATABASE_URL=postgresql://[user]:[pass]@[host]:[port]/[db]
-NODE_ENV=production
-PORT=4000
-OPENAI_API_KEY=sk-proj-...
-GMAIL_USER=your-email@gmail.com
-GMAIL_PASS=app-password-here</code></pre>
-
-            <h3>Mobile App - Expo EAS</h3>
-            <div class="info-box">
-                <p><strong>📱 Platform:</strong> Expo Application Services (EAS)</p>
-                <p><strong>Project ID:</strong> 353a10cc-0fe0-467d-9d70-6161ffa2f637</p>
-                <p><strong>Builds:</strong> Android (APK/AAB) and iOS</p>
-            </div>
-
-            <h4>Build Commands</h4>
-            <pre><code># Build production Android app
-eas build --platform android --profile production
-
-# Build production iOS app (requires interactive credentials)
-eas build --platform ios --profile production
-
-# Publish OTA update to existing builds
-eas update --branch production --message "description"</code></pre>
-
-            <h4>EAS Configuration (eas.json)</h4>
-            <pre><code>{
-  "build": {
-    "production": {
-      "android": {
-        "buildType": "app-bundle"
-      }
-    },
-    "preview": {
-      "android": {
-        "buildType": "apk"
-      },
-      "distribution": "internal"
-    }
-  }
-}</code></pre>
-
-            <h3>Deployment Checklist</h3>
-            <ol>
-                <li>✅ Commit all changes to git</li>
-                <li>✅ Push to GitHub main branch (triggers Railway deployment)</li>
-                <li>✅ Wait for Railway build to complete</li>
-                <li>✅ Run database migrations if schema changed</li>
-                <li>✅ Build mobile app via EAS</li>
-                <li>✅ Test production API endpoints</li>
-                <li>✅ Verify push notifications work in production</li>
-                <li>✅ Check Hourly Hope scheduler is running</li>
-            </ol>
-        </section>
-
-        <!-- PRIVACY & DATA -->
-        <section id="privacy" class="section">
-            <h2>🔒 Privacy & Data</h2>
-
-            <h3>What Information We Store</h3>
-            
-            <h4>Account Information</h4>
-            <ul>
-                <li><strong>Device Owner:</strong> Username bound to device (cannot be shared)</li>
-                <li><strong>Display Name:</strong> Customizable username (can be updated)</li>
-                <li><strong>User Role:</strong> USER, COACH, or ADMIN</li>
-                <li><strong>Expo Push Token:</strong> For sending notifications</li>
-            </ul>
-
-            <h4>Content Data</h4>
-            <ul>
-                <li><strong>Posts:</strong> Your shared thoughts and struggles</li>
-                <li><strong>Comments:</strong> Your responses to others' posts</li>
-                <li><strong>Reactions:</strong> Emoji reactions you've given</li>
-                <li><strong>Moderation Status:</strong> Automated content safety check</li>
-            </ul>
-
-            <h4>Notification Data</h4>
-            <ul>
-                <li><strong>Notification History:</strong> Record of notifications sent to you</li>
-                <li><strong>Read Status:</strong> Which notifications you've viewed</li>
-                <li><strong>Related Content:</strong> Links to posts/comments that triggered notifications</li>
-            </ul>
-
-            <div class="success-box">
-                <strong>✅ Your Privacy Matters:</strong> We never sell your personal information. All data is encrypted and stored securely. Anonymous posting ensures your identity stays private. Device binding prevents unauthorized access to your account.
-            </div>
-        </section>
+        </section> -->
 
         <!-- FUTURE PLANS -->
         <section id="future" class="section">
@@ -1069,147 +784,89 @@ eas update --branch production --message "description"</code></pre>
 
             <div class="feature-grid">
                 <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <div class="feature-title">AI Instant Encouragement</div>
+                    <p class="feature-desc">Receive automatic AI-generated positive biblical encouragement as a comment immediately after posting, providing instant comfort and hope.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <div class="feature-title">Spaze Buddy Chat</div>
+                    <p class="feature-desc">Private AI chat companion for confidential support, biblical advice, and active listening whenever you need someone to talk to.</p>
+                </div>
+
+                <div class="feature-card">
                     <div class="feature-icon">🌙</div>
                     <div class="feature-title">Dark Mode</div>
-                    <p class="feature-desc">Eye-friendly dark theme for comfortable nighttime use.</p>
+                    <p class="feature-desc">Eye-friendly dark theme for comfortable nighttime use and reduced eye strain.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">📧</div>
                     <div class="feature-title">Email Notifications</div>
-                    <p class="feature-desc">Optional email digests of community activity and encouragement.</p>
+                    <p class="feature-desc">Optional email digests of community activity and daily encouragement messages.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🏷️</div>
                     <div class="feature-title">Post Categories</div>
-                    <p class="feature-desc">Tag posts by topic (anxiety, depression, hope, victory, etc.)</p>
+                    <p class="feature-desc">Tag posts by topic (anxiety, depression, hope, victory, grief) for better organization.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🔍</div>
                     <div class="feature-title">Search & Filter</div>
-                    <p class="feature-desc">Find posts by keywords, tags, or date range.</p>
+                    <p class="feature-desc">Find posts by keywords, tags, or date range to discover relevant content.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">📊</div>
                     <div class="feature-title">Mood Tracking</div>
-                    <p class="feature-desc">Track your emotional well-being over time with visual charts.</p>
+                    <p class="feature-desc">Track your emotional well-being over time with visual charts and insights.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🤝</div>
                     <div class="feature-title">Prayer Requests</div>
-                    <p class="feature-desc">Dedicated section for prayer requests and testimonies.</p>
+                    <p class="feature-desc">Dedicated section for prayer requests and sharing answered prayers and testimonies.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🎙️</div>
                     <div class="feature-title">Voice Posts</div>
-                    <p class="feature-desc">Record and share audio messages for more personal connection.</p>
+                    <p class="feature-desc">Record and share audio messages for more personal and emotional connection.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">👥</div>
                     <div class="feature-title">Support Groups</div>
-                    <p class="feature-desc">Create or join topic-specific support communities.</p>
+                    <p class="feature-desc">Create or join topic-specific support communities for shared experiences.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">📚</div>
                     <div class="feature-title">Resource Library</div>
-                    <p class="feature-desc">Curated mental health resources, articles, and coping strategies.</p>
+                    <p class="feature-desc">Curated mental health resources, biblical articles, and coping strategies.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🔔</div>
                     <div class="feature-title">Custom Notifications</div>
-                    <p class="feature-desc">Personalize notification preferences and quiet hours.</p>
+                    <p class="feature-desc">Personalize notification preferences, quiet hours, and notification types.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🌍</div>
                     <div class="feature-title">Multi-Language</div>
-                    <p class="feature-desc">Support for Filipino, Spanish, and other languages.</p>
+                    <p class="feature-desc">Support for Filipino (Tagalog), Spanish, and other languages.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🎨</div>
                     <div class="feature-title">Customizable Themes</div>
-                    <p class="feature-desc">Choose from multiple color schemes and fonts.</p>
+                    <p class="feature-desc">Choose from multiple color schemes, fonts, and visual styles.</p>
                 </div>
             </div>
-        </section>
-
-        <!-- GETTING STARTED -->
-        <section id="getting-started" class="section">
-            <h2>🏁 Getting Started</h2>
-
-            <h3>For Users</h3>
-            
-            <div class="warning-box">
-                <strong>⚠️ Development Note:</strong> The app is currently in active development. Production builds are available via EAS, and development testing is available through Expo Go.
-            </div>
-
-            <h4>Step 1: Download the App</h4>
-            <ul>
-                <li><strong>Android:</strong> Download APK from EAS build link or Google Play Store (coming soon)</li>
-                <li><strong>iOS:</strong> TestFlight link or App Store (coming soon)</li>
-                <li><strong>Web:</strong> Visit the web app URL (coming soon)</li>
-            </ul>
-
-            <h4>Step 2: First Launch</h4>
-            <p>The app will automatically generate an anonymous username for you (e.g., "silentwhale142"). This username is bound to your device.</p>
-
-            <h4>Step 3: Start Sharing</h4>
-            <ul>
-                <li>Read encouragement posts from 🕊️ Hourly Hope</li>
-                <li>Share your thoughts anonymously</li>
-                <li>React and comment on posts to support others</li>
-                <li>Customize your username in the Profile screen</li>
-            </ul>
-
-            <h3>For Developers</h3>
-
-            <h4>Local Development Setup</h4>
-            <pre><code># Clone repository
-git clone https://github.com/cmmusni/puso-spaze.git
-cd puso-spaze
-
-# Setup backend
-cd server
-npm install
-cp .env.example .env
-# Edit .env with your credentials
-npx prisma generate
-npx prisma migrate dev
-npm run dev
-
-# Setup mobile app (new terminal)
-cd apps/mobile
-npm install
-npx expo start</code></pre>
-
-            <h4>Required Environment Variables</h4>
-            <pre><code># Backend (.env)
-DATABASE_URL=postgresql://user:pass@localhost:5432/puso_spaze
-NODE_ENV=development
-PORT=4000
-OPENAI_API_KEY=sk-proj-your-key-here
-
-# Mobile App (app.json - extra.apiUrl)
-"apiUrl": "http://localhost:4000"  # or your Railway URL for production</code></pre>
-
-            <h4>Running Tests</h4>
-            <pre><code># Test API health
-curl http://localhost:4000/health
-
-# Test posts endpoint
-curl http://localhost:4000/api/posts
-
-# Test encouragement generation
-# Wait for the next hour or manually trigger in code</code></pre>
         </section>
 
         <!-- TEAM -->
