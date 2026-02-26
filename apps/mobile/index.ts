@@ -1,3 +1,4 @@
+import 'react-native-get-random-values'; // ← Polyfill for crypto.getRandomValues (UUID)
 import 'react-native-gesture-handler'; // ← MUST be first for Drawer Navigator
 import { registerRootComponent } from 'expo';
 import App from './App';
