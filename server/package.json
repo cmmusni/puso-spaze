@@ -11,7 +11,6 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "ts-node-dev prisma/seed.ts",
-    "fix-migration": "tsx fix-migration.ts",
     "lint": "eslint . --ext .ts"
   },
   "prisma": {
