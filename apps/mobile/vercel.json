@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && cp -r ../../overview dist/overview",
+  "buildCommand": "npm run build && mkdir -p dist/overview/assets && cp -r ../../overview dist/ && cp assets/icon.png dist/overview/assets/",
   "outputDirectory": "dist",
   "routes": [
     {
