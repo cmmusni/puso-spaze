@@ -8,7 +8,7 @@ PUSO Spaze is a compassionate mental health support platform that provides a saf
 
 ## 📖 Project Overview
 
-**👉 [View Interactive Project Overview](https://www.puso-spaze.org/overview/index.html)** (Live)  
+**👉 [View Interactive Project Overview](https://cmmusni.github.io/puso-spaze/)** (Live on GitHub Pages)  
 **👉 [View Local Overview](overview/index.html)** (Open in browser)
 
 Explore the comprehensive project documentation at:
