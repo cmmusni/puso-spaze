@@ -6,7 +6,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middlewares/validate';
-import { generateInviteCodes, listInviteCodes, sendInviteCodeByEmail } from '../controllers/adminController';
+import { generateInviteCodes, listInviteCodes, sendInviteCodeByEmail, pinPost, unpinPost } from '../controllers/adminController';
 import { env } from '../config/env';
 import { triggerEncouragementNow } from '../services/encouragementScheduler';
 
@@ -55,5 +55,11 @@ router.post('/encouragement/trigger', requireAdmin, async (_req: Request, res: R
     res.status(500).json({ error: 'Failed to create encouragement post' });
   }
 });
+
+// POST /api/admin/posts/:postId/pin
+router.post('/posts/:postId/pin', requireAdmin, pinPost);
+
+// POST /api/admin/posts/:postId/unpin
+router.post('/posts/:postId/unpin', requireAdmin, unpinPost);
 
 export default router;

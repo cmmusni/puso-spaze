@@ -84,7 +84,7 @@ export default function ProfileScreen() {
     const confirmed = await showConfirm(
       'Clear Device Binding?',
       'This will allow a different username to be used on this device.\n\n' +
-      'Current username will be disconnected permanently. This action cannot be undone.'
+      'Current username will be disconnected permanently.'
     );
 
     if (!confirmed) return;

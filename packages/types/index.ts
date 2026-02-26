@@ -32,6 +32,7 @@ export interface Post {
   createdAt: string;
   moderationStatus: ModerationStatus;
   tags?: string[];
+  pinned?: boolean;
   commentCount?: number;
   reactionCount?: number;
 }

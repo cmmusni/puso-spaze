@@ -63,6 +63,7 @@ model Post {
   createdAt        DateTime         @default(now())
   moderationStatus ModerationStatus @default(REVIEW)
   tags             String[]
+  pinned           Boolean          @default(false)
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   reactions Reaction[]

@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { validate } from '../middlewares/validate';
-import { getReviewQueue, moderatePost, moderateComment } from '../controllers/coachController';
+import { getReviewQueue, moderatePost, moderateComment, flagPost } from '../controllers/coachController';
 
 const router = Router();
 
@@ -23,6 +23,17 @@ router.patch(
     validate,
   ],
   moderatePost
+);
+
+// PATCH /api/coach/posts/:id/flag
+router.patch(
+  '/posts/:id/flag',
+  [
+    param('id').isUUID().withMessage('Invalid post id'),
+    body('coachId').isUUID().withMessage('coachId is required'),
+    validate,
+  ],
+  flagPost
 );
 
 // PATCH /api/coach/comments/:id/moderate

@@ -58,6 +58,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
       createdAt: post.createdAt.toISOString(),
       moderationStatus: post.moderationStatus,
       tags: post.tags,
+      pinned: post.pinned,
     },
     flagged,
     underReview,
@@ -66,13 +67,16 @@ export async function createPost(req: Request, res: Response): Promise<void> {
 
 // ── GET /api/posts ────────────────────────────
 /**
- * Returns all SAFE posts, newest first.
+ * Returns all SAFE posts, pinned posts first, then newest first.
  * Includes author displayName.
  */
 export async function getPosts(_req: Request, res: Response): Promise<void> {
   const posts = await prisma.post.findMany({
     where: { moderationStatus: { in: ['SAFE', 'REVIEW'] } },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [
+      { pinned: 'desc' },  // Pinned posts first
+      { createdAt: 'desc' }, // Then newest first
+    ],
     include: {
       user: { select: { displayName: true, role: true } },
       _count: { select: { reactions: true, comments: true } },
@@ -88,6 +92,7 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
       createdAt: p.createdAt.toISOString(),
       moderationStatus: p.moderationStatus,
       tags: p.tags,
+      pinned: p.pinned,
       commentCount: p._count.comments,
       reactionCount: p._count.reactions,
     })),
@@ -129,8 +134,63 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
       createdAt: post.createdAt.toISOString(),
       moderationStatus: post.moderationStatus,
       tags: post.tags,
+      pinned: post.pinned,
       commentCount: post._count.comments,
       reactionCount: post._count.reactions,
     },
   });
+}
+
+// ── DELETE /api/posts/:postId ─────────────────
+/**
+ * Deletes a post. Requires userId in body.
+ * Users can delete their own posts, admins can delete any post.
+ */
+export async function deletePost(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+  const { userId } = req.body as { userId: string };
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required.' });
+    return;
+  }
+
+  // ── Find the post ────────────────────────
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+  });
+
+  if (!post) {
+    res.status(404).json({ error: 'Post not found.' });
+    return;
+  }
+
+  // ── Get user role ────────────────────────
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (!user) {
+    res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+
+  // ── Permission check ─────────────────────
+  // Users can delete their own posts, admins can delete any post
+  const isOwner = post.userId === userId;
+  const isAdmin = user.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    res.status(403).json({ error: 'You do not have permission to delete this post.' });
+    return;
+  }
+
+  // ── Delete the post ──────────────────────
+  // Cascade delete will handle reactions and comments
+  await prisma.post.delete({
+    where: { id: postId },
+  });
+
+  res.json({ success: true, message: 'Post deleted successfully.' });
 }

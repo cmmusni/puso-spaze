@@ -136,3 +136,99 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
     res.status(500).json({ error: 'Failed to generate or send invite code.' });
   }
 }
+
+/**
+ * POST /api/admin/posts/:postId/pin
+ * Header: Authorization: Bearer <ADMIN_SECRET>
+ * 
+ * Pins a post to the top of the feed.
+ * Returns: { post }
+ */
+export async function pinPost(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+
+  try {
+    // ── Check if post exists ─────────────────
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      res.status(404).json({ error: 'Post not found.' });
+      return;
+    }
+
+    // ── Pin the post ─────────────────────────
+    const updatedPost = await prisma.post.update({
+      where: { id: postId },
+      data: { pinned: true },
+      include: {
+        user: { select: { displayName: true, role: true } },
+      },
+    });
+
+    res.json({
+      post: {
+        id: updatedPost.id,
+        content: updatedPost.content,
+        userId: updatedPost.userId,
+        user: updatedPost.user,
+        createdAt: updatedPost.createdAt.toISOString(),
+        moderationStatus: updatedPost.moderationStatus,
+        tags: updatedPost.tags,
+        pinned: updatedPost.pinned,
+      },
+    });
+  } catch (err) {
+    console.error('[AdminController] pinPost error:', err);
+    res.status(500).json({ error: 'Failed to pin post.' });
+  }
+}
+
+/**
+ * POST /api/admin/posts/:postId/unpin
+ * Header: Authorization: Bearer <ADMIN_SECRET>
+ * 
+ * Unpins a post.
+ * Returns: { post }
+ */
+export async function unpinPost(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+
+  try {
+    // ── Check if post exists ─────────────────
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      res.status(404).json({ error: 'Post not found.' });
+      return;
+    }
+
+    // ── Unpin the post ───────────────────────
+    const updatedPost = await prisma.post.update({
+      where: { id: postId },
+      data: { pinned: false },
+      include: {
+        user: { select: { displayName: true, role: true } },
+      },
+    });
+
+    res.json({
+      post: {
+        id: updatedPost.id,
+        content: updatedPost.content,
+        userId: updatedPost.userId,
+        user: updatedPost.user,
+        createdAt: updatedPost.createdAt.toISOString(),
+        moderationStatus: updatedPost.moderationStatus,
+        tags: updatedPost.tags,
+        pinned: updatedPost.pinned,
+      },
+    });
+  } catch (err) {
+    console.error('[AdminController] unpinPost error:', err);
+    res.status(500).json({ error: 'Failed to unpin post.' });
+  }
+}

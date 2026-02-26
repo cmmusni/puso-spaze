@@ -117,6 +117,21 @@ export async function apiCreatePost(
   return data;
 }
 
+/**
+ * DELETE /api/posts/:postId
+ * Deletes a post. Users can delete their own posts, admins can delete any post.
+ */
+export async function apiDeletePost(
+  postId: string,
+  userId: string
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await client.delete<{ success: boolean; message: string }>(
+    `/api/posts/${postId}`,
+    { data: { userId } }
+  );
+  return data;
+}
+
 // ── Reaction endpoints ───────────────────────
 
 /**
@@ -232,6 +247,21 @@ export async function apiModerateComment(
   const { data } = await client.patch<ModerateCommentResponse>(
     `/api/coach/comments/${commentId}/moderate`,
     body
+  );
+  return data;
+}
+
+/**
+ * PATCH /api/coach/posts/:id/flag
+ * Flag a post for review (Coaches/Admins only).
+ */
+export async function apiFlagPost(
+  postId: string,
+  coachId: string
+): Promise<{ post: any; message: string }> {
+  const { data } = await client.patch<{ post: any; message: string }>(
+    `/api/coach/posts/${postId}/flag`,
+    { coachId }
   );
   return data;
 }

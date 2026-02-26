@@ -23,14 +23,16 @@ import type {
 } from "../../../packages/types";
 import { REACTION_EMOJI as EMOJI } from "../../../packages/types";
 import type { RootStackParamList } from "../navigation/AppNavigator";
-import { apiGetReactions, apiUpsertReaction } from "../services/api";
+import { apiGetReactions, apiUpsertReaction, apiDeletePost, apiFlagPost } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { colors } from "../constants/theme";
+import { showAlert, showConfirm } from "../utils/alertPlatform";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
 
 interface PostCardProps {
   post: Post;
+  onDelete?: (postId: string) => void;
 }
 
 /**
@@ -51,9 +53,9 @@ function formatRelativeTime(dateStr: string): string {
 // PostCard is used inside drawer screens, so we use any for navigation type
 type CardNavProp = any;
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onDelete }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
-  const { userId } = useUser();
+  const { userId, role } = useUser();
 
   const displayName = post.user?.displayName ?? "Anonymous";
   const timeAgo = formatRelativeTime(post.createdAt);
@@ -81,6 +83,10 @@ export default function PostCard({ post }: PostCardProps) {
   const [showPicker, setShowPicker] = useState(false);
   const pickerAnim = useRef(new Animated.Value(0)).current;
 
+  // ── 3-dot menu ────────────────────────────────
+  const [showMenu, setShowMenu] = useState(false);
+  const menuAnim = useRef(new Animated.Value(0)).current;
+
   const openPicker = () => {
     setShowPicker(true);
     Animated.spring(pickerAnim, {
@@ -107,6 +113,70 @@ export default function PostCard({ post }: PostCardProps) {
       useNativeDriver: true,
     }).start(() => setShowPicker(false));
   };
+
+  const openMenu = () => {
+    setShowMenu(true);
+    Animated.spring(menuAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 120,
+      friction: 7,
+    }).start();
+  };
+
+  const closeMenu = () => {
+    Animated.timing(menuAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => setShowMenu(false));
+  };
+
+  const handleViewComments = () => {
+    closeMenu();
+    navigation.getParent()?.navigate("PostDetail", { post });
+  };
+
+  const handleDeletePost = async () => {
+    closeMenu();
+    const confirmed = await showConfirm(
+      "Delete Post",
+      "Are you sure you want to delete this post?"
+    );
+    
+    if (confirmed) {
+      if (!userId) return;
+      try {
+        await apiDeletePost(post.id, userId);
+        onDelete?.(post.id);
+      } catch (error) {
+        showAlert("Error", "Failed to delete post. Please try again.");
+      }
+    }
+  };
+
+  const handleFlagPost = async () => {
+    closeMenu();
+    const confirmed = await showConfirm(
+      "Flag this post",
+      "This will flag the post as inappropriate. Are you sure?"
+    );
+    
+    if (confirmed) {
+      if (!userId) return;
+      try {
+        await apiFlagPost(post.id, userId);
+        showAlert("Success", "Post has been flagged.");
+        onDelete?.(post.id); // Refresh the feed
+      } catch (error) {
+        showAlert("Error", "Failed to flag post. Please try again.");
+      }
+    }
+  };
+
+  // ── Permission check ──────────────────────────
+  const canDelete = userId === post.userId || role === "ADMIN";
+  const canFlag = role === "COACH" || role === "ADMIN";
 
   const handleReaction = async (type: ReactionType) => {
     if (!userId) return;
@@ -180,8 +250,18 @@ export default function PostCard({ post }: PostCardProps) {
               </Text>
             </View>
           </View>
-          <View style={styles.timePill}>
-            <Text style={styles.timeText}>{timeAgo}</Text>
+          <View style={styles.headerRight}>
+            <View style={styles.timePill}>
+              <Text style={styles.timeText}>{timeAgo}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={openMenu}
+              activeOpacity={0.7}
+              style={styles.menuButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.menuDots}>⋮</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -209,7 +289,7 @@ export default function PostCard({ post }: PostCardProps) {
           <View style={styles.footerLeft}>
             {topEmojis.length > 0 ? (
               <TouchableOpacity
-                onPress={openPicker}
+                onPress={() => handleReaction('PRAY')}
                 onLongPress={openPicker}
                 delayLongPress={300}
                 activeOpacity={0.75}
@@ -221,9 +301,16 @@ export default function PostCard({ post }: PostCardProps) {
                 <Text style={styles.emojiCount}>{localTotal}</Text>
               </TouchableOpacity>
             ) : (
-              <Text style={styles.footerCount}>
-                {reactionLoading ? "…" : `🙇 ${localTotal}`}
-              </Text>
+              <TouchableOpacity
+                onPress={() => handleReaction('PRAY')}
+                onLongPress={openPicker}
+                delayLongPress={300}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.footerCount}>
+                  {reactionLoading ? "…" : `🙇 ${localTotal}`}
+                </Text>
+              </TouchableOpacity>
             )}
             <Text style={styles.footerCount}>💬 {post.commentCount ?? 0}</Text>
           </View>
@@ -238,58 +325,127 @@ export default function PostCard({ post }: PostCardProps) {
         statusBarTranslucent
         onRequestClose={closePicker}
       >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={closePicker}
+          />
+          <View style={styles.modalCenter} pointerEvents="box-none">
+            <Animated.View
+              style={[
+                styles.pickerPill,
+                {
+                  opacity: pickerAnim,
+                  transform: [
+                    {
+                      scale: pickerAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.6, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {REACTION_TYPES.map((type) => {
+                  const active = userReaction === type;
+                  const count = counts[type] ?? 0;
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => handleReaction(type)}
+                      activeOpacity={0.75}
+                      style={[styles.reactionOption, active ? styles.reactionOptionActive : styles.reactionOptionDefault]}
+                    >
+                      <Text style={styles.reactionEmoji}>{EMOJI[type]}</Text>
+                      <Text style={[styles.reactionLabel, active ? styles.reactionLabelActive : styles.reactionLabelDefault]}>
+                        {type.toLowerCase().charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
+                      </Text>
+                      {count > 0 && (
+                        <Text style={styles.reactionCount}>{count}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+            </Animated.View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── 3-Dot Menu Modal ── */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={closeMenu}
+      >
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}
-          onPress={closePicker}
+          onPress={closeMenu}
         >
-          <View style={styles.modalCenter}>
+          <View style={styles.menuModalContainer}>
             <TouchableOpacity activeOpacity={1}>
               <Animated.View
                 style={[
-                  styles.pickerPill,
+                  styles.menuDropdown,
                   {
-                    opacity: pickerAnim,
+                    opacity: menuAnim,
                     transform: [
                       {
-                        scale: pickerAnim.interpolate({
+                        scale: menuAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0.6, 1],
+                          outputRange: [0.8, 1],
                         }),
                       },
                       {
-                        translateY: pickerAnim.interpolate({
+                        translateY: menuAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [24, 0],
+                          outputRange: [-10, 0],
                         }),
                       },
                     ],
                   },
                 ]}
               >
-                {REACTION_TYPES.map((type) => {
-                    const active = userReaction === type;
-                    const count = counts[type] ?? 0;
-                    return (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => handleReaction(type)}
-                        activeOpacity={0.75}
-                        style={[styles.reactionOption, active ? styles.reactionOptionActive : styles.reactionOptionDefault]}
-                      >
-                        <Text style={styles.reactionEmoji}>{EMOJI[type]}</Text>
-                        <Text style={[styles.reactionLabel, active ? styles.reactionLabelActive : styles.reactionLabelDefault]}>
-                          {type.toLowerCase().charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
-                        </Text>
-                        {count > 0 && (
-                          <Text style={styles.reactionCount}>{count}</Text>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                <TouchableOpacity
+                  onPress={handleViewComments}
+                  activeOpacity={0.7}
+                  style={styles.menuOption}
+                >
+                  <Text style={styles.menuOptionIcon}>💬</Text>
+                  <Text style={styles.menuOptionText}>View Comments</Text>
+                </TouchableOpacity>
+                {canFlag && (
+                  <>
+                    <View style={styles.menuDivider} />
+                    <TouchableOpacity
+                      onPress={handleFlagPost}
+                      activeOpacity={0.7}
+                      style={styles.menuOption}
+                    >
+                      <Text style={styles.menuOptionIcon}>🚩</Text>
+                      <Text style={[styles.menuOptionText, styles.menuOptionTextWarning]}>Flag this post</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {canDelete && (
+                  <>
+                    <View style={styles.menuDivider} />
+                    <TouchableOpacity
+                      onPress={handleDeletePost}
+                      activeOpacity={0.7}
+                      style={styles.menuOption}
+                    >
+                      <Text style={styles.menuOptionIcon}>🗑️</Text>
+                      <Text style={[styles.menuOptionText, styles.menuOptionTextDanger]}>Delete Post</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </Animated.View>
             </TouchableOpacity>
-            <Text style={styles.dismissHint}>Tap outside to dismiss</Text>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -333,6 +489,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   avatar: {
     width: 38,
     height: 38,
@@ -375,6 +536,20 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 11,
     fontWeight: "600",
+  },
+  menuButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuDots: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 18,
   },
 
   // ── Body ──────────────────────────────────
@@ -482,10 +657,13 @@ const styles = StyleSheet.create({
   // ── Modal / Picker ────────────────────────
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   modalCenter: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -546,5 +724,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 24,
     fontWeight: "500",
+  },
+
+  // ── 3-Dot Menu ────────────────────────────
+  menuModalContainer: {
+    flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 80,
+    paddingRight: 20,
+  },
+  menuDropdown: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingVertical: 8,
+    minWidth: 200,
+    shadowColor: colors.darkest,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: colors.muted2,
+  },
+  menuOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.muted2,
+    marginVertical: 4,
+  },
+  menuOptionIcon: {
+    fontSize: 20,
+  },
+  menuOptionText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  menuOptionTextWarning: {
+    color: "#ff9944",
+  },
+  menuOptionTextDanger: {
+    color: "#ff4444",
   },
 });

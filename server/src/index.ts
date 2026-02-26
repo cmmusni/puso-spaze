@@ -25,7 +25,7 @@ app.use(logger);
 app.use(
   cors({
     origin: env.ALLOWED_ORIGINS,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );

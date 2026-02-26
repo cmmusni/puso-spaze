@@ -47,9 +47,13 @@ export default function HomeScreen() {
     }, [fetchPosts, refreshUnreadCount]),
   );
 
+  const handleDeletePost = useCallback(() => {
+    fetchPosts(); // Refresh the feed after deletion
+  }, [fetchPosts]);
+
   const renderItem: ListRenderItem<Post> = useCallback(
-    ({ item }) => <PostCard post={item} />,
-    [],
+    ({ item }) => <PostCard post={item} onDelete={handleDeletePost} />,
+    [handleDeletePost],
   );
 
   const keyExtractor = useCallback((item: Post) => item.id, []);

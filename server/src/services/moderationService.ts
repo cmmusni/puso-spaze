@@ -227,7 +227,13 @@ function normalizeObfuscation(text: string): string {
  */
 function localKeywordCheck(text: string): ModerationResult | null {
   const normalized = normalizeObfuscation(text);
-  return BLOCKED_PATTERN.test(normalized) ? "FLAGGED" : null;
+  const matched = BLOCKED_PATTERN.test(normalized);
+  if (matched) {
+    console.log("[Moderation] ⚠️ Local keyword match detected");
+    console.log("[Moderation] Original text (first 100 chars):", text.substring(0, 100));
+    console.log("[Moderation] Normalized text (first 100 chars):", normalized.substring(0, 100));
+  }
+  return matched ? "FLAGGED" : null;
 }
 
 // ── OpenAI client (lazy-init) ─────────────────
@@ -254,6 +260,8 @@ if (env.OPENAI_API_KEY) {
  *          'REVIEW'  — edge-case scores require human review
  */
 export async function moderateContent(text: string): Promise<ModerationResult> {
+  console.log("[Moderation] Checking text (length:", text.length, "chars)");
+  
   // ── 1. Local keyword check (fast, no API) ────
   const localResult = localKeywordCheck(text);
   if (localResult) {
@@ -307,12 +315,18 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
     }
 
     // ── Score-based soft threshold (REVIEW zone) ──
-    // Flag for human review if any score exceeds 0.5 even if not auto-flagged
+    // Flag for human review if any score exceeds 0.7 even if not auto-flagged
     const scores = result.category_scores as unknown as Record<string, number>;
-    const reviewThreshold = 0.5;
+    const reviewThreshold = 0.7;
     const needsReview = Object.values(scores).some(
       (score) => score > reviewThreshold,
     );
+
+    if (needsReview) {
+      console.log("[Moderation] Scores triggering review:", 
+        Object.entries(scores).filter(([_, score]) => score > reviewThreshold)
+      );
+    }
 
     const verdict = needsReview ? "REVIEW" : "SAFE";
     console.log(`[Moderation] OpenAI verdict: ${verdict}`);

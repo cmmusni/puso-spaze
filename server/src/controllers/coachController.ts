@@ -115,3 +115,39 @@ export async function moderateComment(req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to moderate comment.' });
   }
 }
+
+/**
+ * PATCH /api/coach/posts/:id/flag
+ * Body: { coachId: string }
+ *
+ * Flag a SAFE post (moves it to FLAGGED status)
+ */
+export async function flagPost(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  const { coachId } = req.body as { coachId: string };
+
+  if (!(await verifyCoach(coachId))) {
+    res.status(403).json({ error: 'Access denied. PUSO Coach account required.' });
+    return;
+  }
+
+  try {
+    const post = await prisma.post.findUnique({ where: { id } });
+    
+    if (!post) {
+      res.status(404).json({ error: 'Post not found.' });
+      return;
+    }
+
+    // Update post to FLAGGED status
+    const updatedPost = await prisma.post.update({
+      where: { id },
+      data: { moderationStatus: 'FLAGGED' },
+    });
+
+    res.json({ post: updatedPost, message: 'Post flagged successfully.' });
+  } catch (err) {
+    console.error('[CoachController] flagPost error:', err);
+    res.status(500).json({ error: 'Failed to flag post.' });
+  }
+}

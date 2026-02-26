@@ -1,16 +1,17 @@
 // ─────────────────────────────────────────────
 // src/api/postRoutes.ts
-// POST /api/posts            — create post
-// GET  /api/posts            — fetch posts
-// GET  /api/posts/:id/reactions  — get reaction counts
-// POST /api/posts/:id/reactions  — toggle reaction
-// GET  /api/posts/:id/comments   — get comments
-// POST /api/posts/:id/comments   — add comment
+// POST   /api/posts            — create post
+// GET    /api/posts            — fetch posts
+// DELETE /api/posts/:id        — delete post (owner or admin)
+// GET    /api/posts/:id/reactions  — get reaction counts
+// POST   /api/posts/:id/reactions  — toggle reaction
+// GET    /api/posts/:id/comments   — get comments
+// POST   /api/posts/:id/comments   — add comment
 // ─────────────────────────────────────────────
 
 import { Router } from 'express';
 import { body, param } from 'express-validator';
-import { createPost, getPosts, getPostById } from '../controllers/postController';
+import { createPost, getPosts, getPostById, deletePost } from '../controllers/postController';
 import { upsertReaction, getReactions } from '../controllers/reactionController';
 import { createComment, getComments } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
@@ -49,6 +50,17 @@ router.post(
     validate,
   ],
   createPost
+);
+
+// ── DELETE /api/posts/:postId ──────────────
+router.delete(
+  '/:postId',
+  [
+    param('postId').isUUID().withMessage('postId must be a valid UUID'),
+    body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  deletePost
 );
 
 // ── Reactions ──────────────────────────────
