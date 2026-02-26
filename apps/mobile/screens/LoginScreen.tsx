@@ -179,7 +179,7 @@ export default function LoginScreen() {
                       </View>
                       <View style={styles.anonTextContainer}>
                         <Text style={styles.anonBtnText}>Enter Anonymously</Text>
-                        <Text style={styles.anonSubtext}>✨ 100% private · No name needed · Safe</Text>
+                        <Text style={styles.anonSubtext}>✨ 100% private · No name needed</Text>
                       </View>
                       <Text style={styles.anonArrow}>→</Text>
                     </View>
@@ -463,8 +463,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
   },
   ctaNameHighlight: {
-    color: '#c084fc',
-    fontWeight: '700',
+    color: '#f0abfc',
+    fontWeight: '900',
   },
   dividerRow: {
     flexDirection: 'row',
