@@ -156,11 +156,44 @@ export default function LoginScreen() {
           {/* ── Frosted card ── */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Welcome to PUSO Spaze 👋</Text>
-            <Text style={styles.cardSubtitle}>A safe space for your heart</Text>
+            <Text style={styles.cardSubtitle}>Your safe space awaits. Choose how to enter.</Text>
 
             {!showCoachPanel && (
               <>
-                <Text style={styles.inputLabel}>Your Name</Text>
+                {/* Anonymous Button - Primary Option */}
+                <TouchableOpacity
+                  onPress={handleLoginAnonymously}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                  style={styles.anonBtn}
+                >
+                  <LinearGradient
+                    colors={['#9333EA', '#C026D3', '#7E22CE']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.anonGradient}
+                  >
+                    <View style={styles.anonContent}>
+                      <View style={styles.anonIconContainer}>
+                        <Text style={styles.anonIcon}>🎭</Text>
+                      </View>
+                      <View style={styles.anonTextContainer}>
+                        <Text style={styles.anonBtnText}>Enter Anonymously</Text>
+                        <Text style={styles.anonSubtext}>✨ 100% private · No name needed · Safe</Text>
+                      </View>
+                      <Text style={styles.anonArrow}>→</Text>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or choose a name</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <Text style={styles.inputLabel}>Your Name (Optional)</Text>
 
                 {/* Input */}
                 <View style={[styles.inputWrapper, focused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
@@ -185,7 +218,7 @@ export default function LoginScreen() {
                   )}
                 </View>
 
-                {/* Primary CTA */}
+                {/* Username CTA */}
                 <TouchableOpacity
                   onPress={handleLoginWithUsername}
                   disabled={!canSubmit}
@@ -193,7 +226,7 @@ export default function LoginScreen() {
                   style={styles.ctaBtn}
                 >
                   <LinearGradient
-                    colors={canSubmit ? [colors.hot, colors.fuchsia, colors.ink, colors.deep] : [colors.muted2, colors.muted4]}
+                    colors={canSubmit ? ['rgba(192, 132, 252, 0.2)', 'rgba(168, 85, 247, 0.2)'] : [colors.muted2, colors.muted4]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.ctaGradient}
@@ -201,41 +234,11 @@ export default function LoginScreen() {
                     {loading ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.ctaText}>
+                      <Text style={[styles.ctaText, !canSubmit && styles.ctaTextDisabled]}>
                         Enter as{' '}
                         <Text style={styles.ctaNameHighlight}>{customName.trim() || '…'}</Text>
                       </Text>
                     )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Divider */}
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or skip it</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                {/* Anonymous Button */}
-                <TouchableOpacity
-                  onPress={handleLoginAnonymously}
-                  disabled={loading}
-                  activeOpacity={0.87}
-                  style={styles.anonBtn}
-                >
-                  <LinearGradient
-                    colors={['rgba(147, 51, 234, 0.15)', 'rgba(192, 38, 211, 0.15)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.anonGradient}
-                  >
-                    <View style={styles.anonContent}>
-                      <Text style={styles.anonIcon}>🎭</Text>
-                      <View style={styles.anonTextContainer}>
-                        <Text style={styles.anonBtnText}>Enter Anonymously</Text>
-                        <Text style={styles.anonSubtext}>100% private, no name needed</Text>
-                      </View>
-                    </View>
                   </LinearGradient>
                 </TouchableOpacity>
               </>
