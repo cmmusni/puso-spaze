@@ -156,7 +156,7 @@ export default function LoginScreen() {
           {/* ── Frosted card ── */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Welcome to PUSO Spaze 👋</Text>
-            <Text style={styles.cardSubtitle}>Choose a name or slip in anonymously.</Text>
+            <Text style={styles.cardSubtitle}>A safe space for your heart</Text>
 
             {!showCoachPanel && (
               <>
@@ -212,7 +212,7 @@ export default function LoginScreen() {
                 {/* Divider */}
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or</Text>
+                  <Text style={styles.dividerText}>or skip it</Text>
                   <View style={styles.dividerLine} />
                 </View>
 
@@ -223,7 +223,20 @@ export default function LoginScreen() {
                   activeOpacity={0.87}
                   style={styles.anonBtn}
                 >
-                  <Text style={styles.anonBtnText}>🎭 Enter Anonymously</Text>
+                  <LinearGradient
+                    colors={['rgba(147, 51, 234, 0.15)', 'rgba(192, 38, 211, 0.15)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.anonGradient}
+                  >
+                    <View style={styles.anonContent}>
+                      <Text style={styles.anonIcon}>🎭</Text>
+                      <View style={styles.anonTextContainer}>
+                        <Text style={styles.anonBtnText}>Enter Anonymously</Text>
+                        <Text style={styles.anonSubtext}>100% private, no name needed</Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
                 </TouchableOpacity>
               </>
             )}
@@ -464,18 +477,37 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
   anonBtn: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.2)',
     borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    overflow: 'hidden',
     marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(192, 132, 252, 0.3)',
+  },
+  anonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  anonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  anonIcon: {
+    fontSize: 24,
+  },
+  anonTextContainer: {
+    flex: 1,
   },
   anonBtnText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#ffffff',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  anonSubtext: {
+    color: 'rgba(192, 132, 252, 0.7)',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
   },
   coachToggle: {
     marginTop: 16,
