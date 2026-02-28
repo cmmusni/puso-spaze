@@ -397,7 +397,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
               >
                 {topReactions.map((type, i) => (
                   <View key={i} style={styles.iconChip}>
-                    {renderReactionIcon(type, 20, colors.card)}
+                    {renderReactionIcon(type, 15, colors.card)}
                   </View>
                 ))}
                 <Text style={styles.emojiCount}>{localTotal}</Text>
@@ -494,7 +494,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                     <View style={styles.reactionIconCircle}>
                       {renderReactionIcon(
                         type,
-                        type === "PRAY" ? 34 : 20,
+                        32,
                         colors.card,
                       )}
                     </View>
