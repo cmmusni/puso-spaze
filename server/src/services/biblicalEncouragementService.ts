@@ -69,6 +69,51 @@ Examples:
 }
 
 /**
+ * Generates a contextual biblical encouragement reply based on a user's post.
+ * Intended for Hourly Hope auto-comments.
+ */
+export async function generateContextualEncouragement(postContent: string): Promise<string> {
+  const cleaned = postContent.trim().slice(0, 700);
+
+  if (!env.OPENAI_API_KEY) {
+    return getContextualFallbackEncouragement(cleaned);
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are Hourly Hope, a compassionate Filipino Christian community guide.
+Write a short encouragement comment in Taglish in direct response to a user's post.
+
+Rules:
+- 1-2 sentences only (max 220 characters)
+- Warm, pastoral, and personal (address their situation)
+- Biblically grounded (you may include a short verse reference)
+- No preaching tone, no judgment, no medical/legal advice
+- Keep it wholesome and hopeful for Gen Z Filipino audience`,
+        },
+        {
+          role: 'user',
+          content: `Create one encouragement comment for this post:\n\n"${cleaned}"`,
+        },
+      ],
+      max_tokens: 120,
+      temperature: 0.8,
+    });
+
+    const message = completion.choices[0]?.message?.content?.trim();
+    if (!message) return getContextualFallbackEncouragement(cleaned);
+    return message;
+  } catch (error) {
+    console.error('❌ Error generating contextual encouragement:', error);
+    return getContextualFallbackEncouragement(cleaned);
+  }
+}
+
+/**
  * Fallback encouragements when AI is unavailable (Taglish for Gen Z)
  */
 function getFallbackEncouragement(): string {
@@ -85,4 +130,22 @@ function getFallbackEncouragement(): string {
 
   const randomIndex = Math.floor(Math.random() * fallbacks.length);
   return fallbacks[randomIndex];
+}
+
+function getContextualFallbackEncouragement(postContent: string): string {
+  const lower = postContent.toLowerCase();
+
+  if (/(anx|worry|panic|stress|overwhelm|takot|kabado|pagod|burnout)/.test(lower)) {
+    return "Naririnig ka ni Lord kahit heavy ang heart mo ngayon. 'Cast all your anxiety on Him because He cares for you.' (1 Peter 5:7) One step at a time, kasama mo Siya.";
+  }
+
+  if (/(alone|lonely|mag-isa|walang kasama|iniwan|rejected)/.test(lower)) {
+    return "Salamat sa pag-share—hindi ka nag-iisa sa laban. 'The Lord is close to the brokenhearted.' (Psalm 34:18) Nandito Siya, at nandito rin kami for you.";
+  }
+
+  if (/(guilty|sin|kasalanan|shame|nahihiya|failure|failed)/.test(lower)) {
+    return "Thank you sa honesty mo. May grace si Lord for today: 'His mercies are new every morning.' (Lamentations 3:23) May bagong simula ka ulit ngayon.";
+  }
+
+  return "Salamat sa brave mong pag-share. Nakikita ni Lord ang heart mo, at may hope pa rin for you today. 'For I know the plans I have for you.' (Jeremiah 29:11)";
 }

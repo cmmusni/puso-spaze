@@ -42,7 +42,12 @@ const linking = {
           ReviewQueue: 'ReviewQueue',
           SendInvite: 'SendInvite',
           Post: 'Post',
-          PostDetail: 'PostDetail',
+          PostDetail: {
+            path: 'PostDetail/:postId?',
+            parse: {
+              postId: (postId: string) => postId,
+            },
+          },
           Notifications: 'Notifications',
         },
       },

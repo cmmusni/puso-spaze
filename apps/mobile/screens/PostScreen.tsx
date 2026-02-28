@@ -18,6 +18,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/theme';
 import { useNavigation } from '@react-navigation/native';
 import { usePosts } from '../hooks/usePosts';
@@ -80,7 +81,7 @@ export default function PostScreen() {
           'Your message was flagged by our safety system. Please revise and resubmit.'
         );
       } else if (underReview) {
-        setReviewMsg('🔍 Your post is under review and will appear in the feed shortly.');
+          setReviewMsg('Your post is under review and will appear in the feed shortly.');
         setTimeout(() => navigation.goBack(), 2800);
       } else {
         setContent('');
@@ -109,10 +110,13 @@ export default function PostScreen() {
           activeOpacity={0.75}
           style={styles.backBtn}
         >
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back-outline" size={16} color="rgba(255,255,255,0.7)" />
           <Text style={styles.backText}>Back to feed</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Share Your Heart ❤︎</Text>
+        <View style={styles.headerTitleRow}>
+          <Ionicons name="heart-outline" size={22} color={colors.card} />
+          <Text style={styles.headerTitle}>Share Your Heart</Text>
+        </View>
         <Text style={styles.headerSubtitle}>
           Posting as{' '}
           <Text style={styles.headerName}>{username ?? 'Anonymous'}</Text>
@@ -177,7 +181,10 @@ export default function PostScreen() {
                     onPress={() => removeTag(idx)}
                     style={styles.tag}
                   >
-                    <Text style={styles.tagText}>{tag} ✕</Text>
+                    <View style={styles.tagRow}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                      <Ionicons name="close" size={12} color={colors.primary} />
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -187,7 +194,7 @@ export default function PostScreen() {
           {/* ── Error message ── */}
           {errorMsg && (
             <View style={styles.errorBox}>
-              <Text style={styles.bannerIcon}>⚠️</Text>
+              <Ionicons name="warning-outline" size={16} color={colors.errorText} />
               <Text style={styles.errorMsg}>{errorMsg}</Text>
             </View>
           )}
@@ -195,7 +202,7 @@ export default function PostScreen() {
           {/* ── Under-review notice ── */}
           {reviewMsg && (
             <View style={styles.reviewBox}>
-              <Text style={styles.bannerIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={16} color={colors.warningText} />
               <Text style={styles.reviewMsg}>{reviewMsg}</Text>
             </View>
           )}
@@ -216,14 +223,17 @@ export default function PostScreen() {
               {loading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.submitText}>✨ Post</Text>
+                <View style={styles.submitRow}>
+                  <Ionicons name="sparkles-outline" size={16} color={colors.card} />
+                  <Text style={styles.submitText}>Post</Text>
+                </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           {/* ── Safety notice ── */}
           <View style={styles.safetyBox}>
-            <Text style={styles.safetyIcon}>🛡️</Text>
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.ink} />
             <Text style={styles.safetyText}>
               All posts are reviewed by AI before publishing.{' '}
               Content promoting harm will not be shared.
@@ -251,6 +261,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     fontSize: 26,
     fontWeight: '800',
@@ -357,6 +372,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
 
   // ── Banners ─────────────────────────────
   errorBox: {
@@ -381,13 +401,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
   },
-  bannerIcon: { fontSize: 16 },
   errorMsg: { color: colors.errorText, fontSize: 13, flex: 1, lineHeight: 20 },
   reviewMsg: { color: colors.warningText, fontSize: 13, flex: 1, lineHeight: 20 },
 
   // ── Submit button ─────────────────────────
   submitBtn: { borderRadius: 20, overflow: 'hidden', marginBottom: 16 },
   submitGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
+  submitRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   submitText: { color: colors.card, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
   // ── Safety notice ────────────────────────
@@ -399,6 +419,5 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: 'center',
   },
-  safetyIcon: { fontSize: 20 },
   safetyText: { fontSize: 12, color: colors.ink, flex: 1, lineHeight: 18 },
 });

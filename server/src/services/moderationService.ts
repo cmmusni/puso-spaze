@@ -12,8 +12,8 @@ export type ModerationResult = "SAFE" | "FLAGGED" | "REVIEW";
 
 // ── Local keyword blocklist (first-pass, no API needed) ───────────────────────
 // Catches obvious profanity and slurs before calling OpenAI.
-// Add words in lowercase — matching is case-insensitive and whole-word aware.
-const BLOCKED_WORDS = [
+// Add terms in lowercase — matching is case-insensitive and whole-word aware.
+const BLOCKED_TERMS = [
   // ── English profanity ──────────────────────────────────────────────────────
   "fuck",
   "shit",
@@ -126,11 +126,9 @@ const BLOCKED_WORDS = [
   "femoid",
   "roastie",      // incel term for women
   "becky",        // derogatory for basic women
-  "karen",        // when used as slur (context matters)
   
   // Religious discrimination
   "kafir",        // derogatory for non-Muslims
-  "infidel",      // when used derogatorily
   
   // Sexual orientation discrimination
   "dyke",
@@ -140,21 +138,17 @@ const BLOCKED_WORDS = [
   "tranny",
   "shemale",
   "heshe",
-  "it",           // when referring to trans people
   
   // Disability discrimination
   "spaz",
   "cripple",
   "gimp",
   "mongoloid",
-  "autistic",     // when used as insult
   "autist",       // when used as insult
   
   // Class/socioeconomic discrimination
   "trailer trash",
   "white trash",
-  "ghetto",       // when used derogatorily
-  "peasant",      // when used derogatorily
   "welfare queen",
   
   // Filipino discrimination terms
@@ -163,16 +157,29 @@ const BLOCKED_WORDS = [
   "bumbay",       // derogatory for Indians
   "negro",        // racial slur
   "moro",         // derogatory for Muslims (in PH context)
-  "bakla",        // when used as slur for LGBTQ+
-  "tomboy",       // when used derogatorily
+  "bakla",        // often slur in local context
 ];
 
-const BLOCKED_PATTERN = new RegExp(
-  BLOCKED_WORDS.map(
+const BLOCKED_TERMS_PATTERN = new RegExp(
+  BLOCKED_TERMS.map(
     (w) => `\\b${w.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`,
   ).join("|"),
   "i",
 );
+
+// Contextual/ambiguous language that should only match in explicit hostile phrases.
+const BLOCKED_PHRASE_PATTERNS: RegExp[] = [
+  /\bl\s*\+\s*ratio\b/i,
+  /\b(?:you\s+are|you're|u\s+r)\s+(?:such\s+a\s+)?karen\b/i,
+  /\b(?:so|too)\s+autistic\b/i,
+  /\b(?:you\s+are|you're|u\s+r)\s+autistic\b/i,
+  /\bautistic\s+(?:idiot|moron|retard|loser)\b/i,
+  /\bghetto\s+(?:trash|rat|bitch|ass)\b/i,
+  /\b(?:you\s+are|you're|u\s+r)\s+(?:a\s+)?peasant\b/i,
+  /\binfidel\s+(?:dog|pig|scum)\b/i,
+  /\b(?:you\s+are|you're|u\s+r)\s+tomboy\b/i,
+  /\btomboy\s+ka\b/i,
+];
 
 /**
  * Normalise common leet-speak / asterisk obfuscations before keyword matching.
@@ -227,7 +234,11 @@ function normalizeObfuscation(text: string): string {
  */
 function localKeywordCheck(text: string): ModerationResult | null {
   const normalized = normalizeObfuscation(text);
-  const matched = BLOCKED_PATTERN.test(normalized);
+  const termMatch = BLOCKED_TERMS_PATTERN.test(normalized);
+  const phraseMatch = BLOCKED_PHRASE_PATTERNS.some((pattern) =>
+    pattern.test(normalized),
+  );
+  const matched = termMatch || phraseMatch;
   if (matched) {
     console.log("[Moderation] ⚠️ Local keyword match detected");
     console.log("[Moderation] Original text (first 100 chars):", text.substring(0, 100));

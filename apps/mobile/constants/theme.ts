@@ -57,6 +57,10 @@ export const colors = {
   danger: '#EF4444',
   /** Success / safe */
   safe: '#22C55E',
+  /** Dark destructive / error — red-700 */
+  dangerDark: '#B91C1C',
+  /** Dark success / safe — green-700 */
+  safeDark: '#15803D',
   /** Light card background — gray-50 */
   cardLight: '#F9FAFB',
   /** Light error background — red-100 */

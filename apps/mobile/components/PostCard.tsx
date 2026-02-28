@@ -10,10 +10,13 @@ import {
   TouchableOpacity,
   Modal,
   Animated,
-  Image,
   StyleSheet,
+  Dimensions,
+  type GestureResponderEvent,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type {
@@ -21,14 +24,36 @@ import type {
   ReactionType,
   ReactionCounts,
 } from "../../../packages/types";
-import { REACTION_EMOJI as EMOJI } from "../../../packages/types";
 import type { RootStackParamList } from "../navigation/AppNavigator";
-import { apiGetReactions, apiUpsertReaction, apiDeletePost, apiFlagPost } from "../services/api";
+import { PrayIcon, SupportIcon } from "./ReactionIcons";
+import {
+  apiGetReactions,
+  apiUpsertReaction,
+  apiDeletePost,
+  apiFlagPost,
+} from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { colors } from "../constants/theme";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
+
+const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
+  "heart",
+  "heart-outline",
+  "ellipse",
+];
+
+function getCareIcon(): keyof typeof Ionicons.glyphMap {
+  const candidates = CARE_ICON_CANDIDATES;
+  return candidates.find((name) => name in Ionicons.glyphMap) ?? "ellipse";
+}
+
+function renderReactionIcon(type: ReactionType, size: number, color: string) {
+  if (type === "PRAY") return <PrayIcon size={size} color={color} />;
+  if (type === "SUPPORT") return <SupportIcon size={size} color={color} />;
+  return <Ionicons name={getCareIcon()} size={size} color={color} />;
+}
 
 interface PostCardProps {
   post: Post;
@@ -56,6 +81,8 @@ type CardNavProp = any;
 export default function PostCard({ post, onDelete }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
   const { userId, role } = useUser();
+  const screenWidth = Dimensions.get("window").width;
+  const screenHeight = Dimensions.get("window").height;
 
   const displayName = post.user?.displayName ?? "Anonymous";
   const timeAgo = formatRelativeTime(post.createdAt);
@@ -73,10 +100,15 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
       .then((data) => {
         setCounts(data.counts);
         setUserReaction(data.userReaction);
-        const total = Object.values(data.counts).reduce((s, n) => s + (n ?? 0), 0);
+        const total = Object.values(data.counts).reduce(
+          (s, n) => s + (n ?? 0),
+          0,
+        );
         setLocalTotal(total);
       })
-      .catch(() => {/* keep defaults */});
+      .catch(() => {
+        /* keep defaults */
+      });
   }, [post.id, userId]);
 
   // ── Floating picker ───────────────────────────
@@ -85,6 +117,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
 
   // ── 3-dot menu ────────────────────────────────
   const [showMenu, setShowMenu] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState({ top: 80, right: 20 });
   const menuAnim = useRef(new Animated.Value(0)).current;
 
   const openPicker = () => {
@@ -100,10 +133,15 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
       .then((data) => {
         setCounts(data.counts);
         setUserReaction(data.userReaction);
-        const total = Object.values(data.counts).reduce((s, n) => s + (n ?? 0), 0);
+        const total = Object.values(data.counts).reduce(
+          (s, n) => s + (n ?? 0),
+          0,
+        );
         setLocalTotal(total);
       })
-      .catch(() => {/* keep current state */});
+      .catch(() => {
+        /* keep current state */
+      });
   };
 
   const closePicker = () => {
@@ -114,7 +152,18 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     }).start(() => setShowPicker(false));
   };
 
-  const openMenu = () => {
+  const openMenu = (event: GestureResponderEvent) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const estimatedMenuHeight =
+      canDelete && canFlag ? 180 : canDelete || canFlag ? 132 : 88;
+    const top = Math.min(
+      Math.max(16, pageY + 8),
+      screenHeight - estimatedMenuHeight - 16,
+    );
+    setMenuAnchor({
+      top,
+      right: Math.max(12, screenWidth - pageX + 12),
+    });
     setShowMenu(true);
     Animated.spring(menuAnim, {
       toValue: 1,
@@ -134,16 +183,16 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
 
   const handleViewComments = () => {
     closeMenu();
-    navigation.getParent()?.navigate("PostDetail", { post });
+    navigation.getParent()?.navigate("PostDetail", { postId: post.id });
   };
 
   const handleDeletePost = async () => {
     closeMenu();
     const confirmed = await showConfirm(
       "Delete Post",
-      "Are you sure you want to delete this post?"
+      "Are you sure you want to delete this post?",
     );
-    
+
     if (confirmed) {
       if (!userId) return;
       try {
@@ -159,9 +208,9 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     closeMenu();
     const confirmed = await showConfirm(
       "Flag this post",
-      "This will flag the post as inappropriate. Are you sure?"
+      "This will flag the post as inappropriate. Are you sure?",
     );
-    
+
     if (confirmed) {
       if (!userId) return;
       try {
@@ -208,10 +257,9 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     }
   };
 
-  const topEmojis = REACTION_TYPES.filter((t) => (counts[t] ?? 0) > 0)
+  const topReactions = REACTION_TYPES.filter((t) => (counts[t] ?? 0) > 0)
     .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0))
-    .slice(0, 3)
-    .map((t) => EMOJI[t]);
+    .slice(0, 3);
 
   const avatarPalette: [string, string][] = [
     [colors.hot, colors.primary],
@@ -226,28 +274,47 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     <>
       <TouchableOpacity
         activeOpacity={0.88}
-        onPress={() => navigation.getParent()?.navigate("PostDetail", { post })}
+        onPress={() =>
+          navigation.getParent()?.navigate("PostDetail", { postId: post.id })
+        }
         onLongPress={openPicker}
         delayLongPress={300}
-        style={[styles.card, userReaction ? styles.cardActive : styles.cardDefault]}
+        style={[
+          styles.card,
+          userReaction ? styles.cardActive : styles.cardDefault,
+        ]}
       >
         {/* ── Author row ── */}
         <View style={styles.authorRow}>
           <View style={styles.row}>
-            <LinearGradient
-              colors={colorPair}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatar}
-            >
-              <Text style={styles.avatarInitial}>{post.userId === 'system-encouragement-bot' ? '🕊️' : initial}</Text>
-            </LinearGradient>
+            {post.userId === "system-encouragement-bot" ? (
+              <Image
+                source={require("../assets/logo.png")}
+                style={styles.avatar}
+              />
+            ) : (
+              <LinearGradient
+                colors={colorPair}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatar}
+              >
+                <Text style={styles.avatarInitial}>{initial}</Text>
+              </LinearGradient>
+            )}
+
             <View>
               <Text style={styles.authorName}>{displayName}</Text>
-              <Text style={styles.authorSubtitle}>
-                👤
-                {` Spaze ${post.user?.role === "COACH" ? "Coach" : post.user?.role === "ADMIN" ? "Admin" : "Member"}`}
-              </Text>
+              <View style={styles.authorSubtitleRow}>
+                <Ionicons
+                  name="person-sharp"
+                  size={12}
+                  color={colors.primary}
+                />
+                <Text style={styles.authorSubtitle}>
+                  {`Spaze ${post.userId === "system-encouragement-bot" ? "AI" : post.user?.role === "COACH" ? "Coach" : post.user?.role === "ADMIN" ? "Admin" : "Member"}`}
+                </Text>
+              </View>
             </View>
           </View>
           <View style={styles.headerRight}>
@@ -260,7 +327,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
               style={styles.menuButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.menuDots}>⋮</Text>
+              <Ionicons name="ellipsis-vertical" size={16} color={colors.ink} />
             </TouchableOpacity>
           </View>
         </View>
@@ -287,32 +354,47 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         {/* ── Footer: reaction + comment counts ── */}
         <View style={styles.footer}>
           <View style={styles.footerLeft}>
-            {topEmojis.length > 0 ? (
+            {topReactions.length > 0 ? (
               <TouchableOpacity
-                onPress={() => handleReaction('PRAY')}
+                onPress={() => handleReaction("PRAY")}
                 onLongPress={openPicker}
                 delayLongPress={300}
                 activeOpacity={0.75}
                 style={styles.emojiCluster}
               >
-                {topEmojis.map((emoji, i) => (
-                  <Text key={i} style={styles.emojiItem}>{emoji}</Text>
+                {topReactions.map((type, i) => (
+                  <View key={i} style={styles.iconChip}>
+                    {renderReactionIcon(type, 20, colors.card)}
+                  </View>
                 ))}
                 <Text style={styles.emojiCount}>{localTotal}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={() => handleReaction('PRAY')}
+                onPress={() => handleReaction("PRAY")}
                 onLongPress={openPicker}
                 delayLongPress={300}
                 activeOpacity={0.75}
+                style={styles.countButton}
               >
+                <PrayIcon
+                  size={24}
+                  color={colors.primary}
+                  style={{ top: -2 }}
+                />
                 <Text style={styles.footerCount}>
-                  {reactionLoading ? "…" : `🙇 ${localTotal}`}
+                  {reactionLoading ? "…" : `${localTotal}`}
                 </Text>
               </TouchableOpacity>
             )}
-            <Text style={styles.footerCount}>💬 {post.commentCount ?? 0}</Text>
+            <View style={styles.countButton}>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={styles.footerCount}>{post.commentCount ?? 0}</Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -349,25 +431,44 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
               ]}
             >
               {REACTION_TYPES.map((type) => {
-                  const active = userReaction === type;
-                  const count = counts[type] ?? 0;
-                  return (
-                    <TouchableOpacity
-                      key={type}
-                      onPress={() => handleReaction(type)}
-                      activeOpacity={0.75}
-                      style={[styles.reactionOption, active ? styles.reactionOptionActive : styles.reactionOptionDefault]}
-                    >
-                      <Text style={styles.reactionEmoji}>{EMOJI[type]}</Text>
-                      <Text style={[styles.reactionLabel, active ? styles.reactionLabelActive : styles.reactionLabelDefault]}>
-                        {type.toLowerCase().charAt(0).toUpperCase() + type.slice(1).toLowerCase()}
-                      </Text>
-                      {count > 0 && (
-                        <Text style={styles.reactionCount}>{count}</Text>
+                const active = userReaction === type;
+                const count = counts[type] ?? 0;
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    onPress={() => handleReaction(type)}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.reactionOption,
+                      active
+                        ? styles.reactionOptionActive
+                        : styles.reactionOptionDefault,
+                    ]}
+                  >
+                    <View style={styles.reactionIconCircle}>
+                      {renderReactionIcon(
+                        type,
+                        type === "PRAY" ? 34 : 20,
+                        colors.card,
                       )}
-                    </TouchableOpacity>
-                  );
-                })}
+                    </View>
+                    <Text
+                      style={[
+                        styles.reactionLabel,
+                        active
+                          ? styles.reactionLabelActive
+                          : styles.reactionLabelDefault,
+                      ]}
+                    >
+                      {type.toLowerCase().charAt(0).toUpperCase() +
+                        type.slice(1).toLowerCase()}
+                    </Text>
+                    {count > 0 && (
+                      <Text style={styles.reactionCount}>{count}</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </Animated.View>
           </View>
         </View>
@@ -386,7 +487,12 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
           activeOpacity={1}
           onPress={closeMenu}
         >
-          <View style={styles.menuModalContainer}>
+          <View
+            style={[
+              styles.menuModalContainer,
+              { top: menuAnchor.top, right: menuAnchor.right },
+            ]}
+          >
             <TouchableOpacity activeOpacity={1}>
               <Animated.View
                 style={[
@@ -415,7 +521,11 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                   activeOpacity={0.7}
                   style={styles.menuOption}
                 >
-                  <Text style={styles.menuOptionIcon}>💬</Text>
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={18}
+                    color={colors.card}
+                  />
                   <Text style={styles.menuOptionText}>View Comments</Text>
                 </TouchableOpacity>
                 {canFlag && (
@@ -426,8 +536,19 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                       activeOpacity={0.7}
                       style={styles.menuOption}
                     >
-                      <Text style={styles.menuOptionIcon}>🚩</Text>
-                      <Text style={[styles.menuOptionText, styles.menuOptionTextWarning]}>Flag this post</Text>
+                      <Ionicons
+                        name="flag-outline"
+                        size={18}
+                        color={colors.card}
+                      />
+                      <Text
+                        style={[
+                          styles.menuOptionText,
+                          styles.menuOptionTextWarning,
+                        ]}
+                      >
+                        Flag this post
+                      </Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -439,8 +560,19 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                       activeOpacity={0.7}
                       style={styles.menuOption}
                     >
-                      <Text style={styles.menuOptionIcon}>🗑️</Text>
-                      <Text style={[styles.menuOptionText, styles.menuOptionTextDanger]}>Delete Post</Text>
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={colors.card}
+                      />
+                      <Text
+                        style={[
+                          styles.menuOptionText,
+                          styles.menuOptionTextDanger,
+                        ]}
+                      >
+                        Delete Post
+                      </Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -516,7 +648,8 @@ const styles = StyleSheet.create({
     color: colors.muted5,
     fontSize: 11,
     marginTop: 1,
-    display: "flex",
+  },
+  authorSubtitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -545,13 +678,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  menuDots: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-
   // ── Body ──────────────────────────────────
   divider: {
     height: 1,
@@ -603,10 +729,16 @@ const styles = StyleSheet.create({
   emojiCluster: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
+    height: 24,
   },
-  emojiItem: {
-    fontSize: 14,
+  iconChip: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
   emojiCount: {
     fontSize: 13,
@@ -615,7 +747,13 @@ const styles = StyleSheet.create({
   },
   footerCount: {
     fontSize: 13,
-    color: colors.subtle,
+    color: colors.primary,
+  },
+  countButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 24,
   },
   reactBtn: {
     flexDirection: "row",
@@ -629,11 +767,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderWidth: 0,
     borderColor: "transparent",
-  },
-  reactBtnActive: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.fuchsia,
   },
   reactBtnEmoji: {
     fontSize: 14,
@@ -699,8 +832,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.fuchsia,
   },
-  reactionEmoji: {
-    fontSize: 36,
+  reactionIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
   reactionLabel: {
     fontSize: 12,
@@ -728,11 +866,8 @@ const styles = StyleSheet.create({
 
   // ── 3-Dot Menu ────────────────────────────
   menuModalContainer: {
-    flex: 1,
-    justifyContent: "flex-start",
+    position: "absolute",
     alignItems: "flex-end",
-    paddingTop: 80,
-    paddingRight: 20,
   },
   menuDropdown: {
     backgroundColor: colors.card,
@@ -763,14 +898,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   menuOptionText: {
-    color: colors.text,
+    color: colors.card,
     fontSize: 15,
     fontWeight: "600",
   },
   menuOptionTextWarning: {
-    color: "#ff9944",
+    color: colors.card,
   },
   menuOptionTextDanger: {
-    color: "#ff4444",
+    color: colors.card,
   },
 });

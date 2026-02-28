@@ -20,10 +20,14 @@ import {
   Modal,
   Animated,
   StyleSheet,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { PrayIcon, SupportIcon } from "../components/ReactionIcons";
 import {
+  apiGetPostById,
   apiGetReactions,
   apiUpsertReaction,
   apiGetComments,
@@ -36,11 +40,21 @@ import type {
   Comment,
   ReactionType,
   ReactionCounts,
-  REACTION_EMOJI,
 } from "../../../packages/types";
-import { REACTION_EMOJI as EMOJI } from "../../../packages/types";
 
-type PostDetailRouteProp = RouteProp<{ PostDetail: { post: Post } }, "PostDetail">;
+type PostDetailRouteProp = RouteProp<
+  { PostDetail: { postId?: string; post?: Post; openedFrom?: "notifications" } },
+  "PostDetail"
+>;
+
+function isValidPost(value: unknown): value is Post {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof (value as { id: unknown }).id === "string"
+  );
+}
 
 // Gradient avatar (same logic as PostCard)
 function avatarColors(initial: string): [string, string] {
@@ -63,11 +77,44 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
+const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
+  "heart",
+  "heart-outline",
+  "ellipse",
+];
+
+function getCareIcon(): keyof typeof Ionicons.glyphMap {
+  const candidates = CARE_ICON_CANDIDATES;
+  return candidates.find((name) => name in Ionicons.glyphMap) ?? "ellipse";
+}
+
+function renderReactionIcon(type: ReactionType, size: number, color: string) {
+  if (type === "PRAY") return <PrayIcon size={size} color={color} />;
+  if (type === "SUPPORT") return <SupportIcon size={size} color={color} />;
+  return <Ionicons name={getCareIcon()} size={size} color={color} />;
+}
 
 export default function PostDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<PostDetailRouteProp>();
-  const { post } = route.params;
+  const routePost = route.params?.post;
+  const routePostId = route.params?.postId;
+  const [post, setPost] = useState<Post | null>(
+    isValidPost(routePost) ? routePost : null,
+  );
+  const [postLoading, setPostLoading] = useState(
+    !isValidPost(routePost) && !!routePostId,
+  );
+  const openedFrom = route.params?.openedFrom;
+  const openedFromNotifications = openedFrom === "notifications";
+
+  const handleBackPress = () => {
+    if (openedFromNotifications) {
+      navigation.navigate("Notifications" as never);
+      return;
+    }
+    navigation.goBack();
+  };
 
   const { userId, username, role } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
@@ -103,8 +150,52 @@ export default function PostDetailScreen() {
 
   const flatListRef = useRef<FlatList>(null);
 
+  useEffect(() => {
+    const validRoutePost = isValidPost(route.params?.post)
+      ? route.params?.post
+      : null;
+
+    if (validRoutePost) {
+      setPost(validRoutePost);
+      setPostLoading(false);
+      return;
+    }
+
+    const fallbackPostId = route.params?.postId;
+    if (!fallbackPostId) {
+      setPost(null);
+      setPostLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPostLoading(true);
+
+    (async () => {
+      try {
+        const { post: fetchedPost } = await apiGetPostById(fallbackPostId);
+        if (!cancelled) {
+          setPost(fetchedPost);
+        }
+      } catch {
+        if (!cancelled) {
+          setPost(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setPostLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [route.params?.post, route.params?.postId]);
+
   // ── Load reactions + comments on mount ───────
   const loadData = useCallback(async () => {
+    if (!post?.id) return;
     setCommentsLoading(true);
     try {
       const [reactData, commentData] = await Promise.all([
@@ -119,7 +210,7 @@ export default function PostDetailScreen() {
     } finally {
       setCommentsLoading(false);
     }
-  }, [post.id, userId]);
+  }, [post?.id, userId]);
 
   useEffect(() => {
     loadData();
@@ -134,6 +225,7 @@ export default function PostDetailScreen() {
 
   // ── Toggle reaction ───────────────────────────
   const handleReaction = async (type: ReactionType) => {
+    if (!post?.id) return;
     if (!userId) {
       Alert.alert("Not logged in");
       return;
@@ -163,6 +255,7 @@ export default function PostDetailScreen() {
 
   // ── Submit comment ────────────────────────────
   const handleComment = async () => {
+    if (!post?.id) return;
     if (!commentText.trim()) return;
     if (!userId) {
       Alert.alert("Not logged in");
@@ -179,7 +272,7 @@ export default function PostDetailScreen() {
       );
       if (flagged) {
         setCommentError(
-          "🚫 Your comment was flagged by our safety system and was not posted. Please revise it.",
+          "Your comment was flagged by our safety system and was not posted. Please revise it.",
         );
       } else {
         setComments((prev) => [...prev, comment]);
@@ -187,7 +280,7 @@ export default function PostDetailScreen() {
         setCommentError(null);
         if (underReview) {
           setCommentReview(
-            "🔍 Your comment is under review and will appear once approved.",
+            "Your comment is under review and will appear once approved.",
           );
           setTimeout(() => setCommentReview(null), 4000);
         } else {
@@ -215,14 +308,22 @@ export default function PostDetailScreen() {
     const isUnderReview = item.moderationStatus === "REVIEW";
     return (
       <View style={styles.commentRow}>
-        <LinearGradient
-          colors={avatarGrad}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.commentAvatar}
-        >
-          <Text style={styles.commentAvatarInitial}>{initial}</Text>
-        </LinearGradient>
+        {item.userId === "system-encouragement-bot" ? (
+          <Image
+            source={require("../assets/logo.png")}
+            style={styles.commentAvatar}
+          />
+        ) : (
+          <LinearGradient
+            colors={avatarGrad}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.commentAvatar}
+          >
+            <Text style={styles.commentAvatarInitial}>{initial}</Text>
+          </LinearGradient>
+        )}
+
         <View style={styles.commentBody}>
           <View style={styles.commentMeta}>
             <Text style={styles.commentAuthor}>{name}</Text>
@@ -231,7 +332,14 @@ export default function PostDetailScreen() {
             </Text>
             {isUnderReview && (
               <View style={styles.reviewBadge}>
-                <Text style={styles.reviewBadgeText}>🔍 Review</Text>
+                <View style={styles.reviewBadgeRow}>
+                  <Ionicons
+                    name="search-outline"
+                    size={10}
+                    color={colors.warningText}
+                  />
+                  <Text style={styles.reviewBadgeText}>Review</Text>
+                </View>
               </View>
             )}
           </View>
@@ -247,10 +355,36 @@ export default function PostDetailScreen() {
     (sum, n) => sum + (n ?? 0),
     0,
   );
-  const topReactionEmojis = REACTION_TYPES.filter((t) => (counts[t] ?? 0) > 0)
+  const topReactions = REACTION_TYPES.filter((t) => (counts[t] ?? 0) > 0)
     .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0))
-    .slice(0, 3)
-    .map((t) => EMOJI[t]);
+    .slice(0, 3);
+
+  if (postLoading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!post) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
+          <Text style={{ color: colors.text, fontSize: 16, textAlign: "center", marginBottom: 14 }}>
+            Post not available. Please open it again from the feed or notifications.
+          </Text>
+          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.8}>
+            <Text style={{ color: colors.primary, fontWeight: "700" }}>
+              {openedFromNotifications ? "Back to notifications" : "Back to feed"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const displayName = post.user?.displayName ?? "Anonymous";
   const initial = displayName.charAt(0).toUpperCase();
@@ -265,13 +399,27 @@ export default function PostDetailScreen() {
         style={styles.header}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
           activeOpacity={0.75}
           style={styles.backBtn}
         >
-          <Text style={styles.backText}>← Back to feed</Text>
+          <Ionicons
+            name="arrow-back-outline"
+            size={16}
+            color="rgba(255,255,255,0.7)"
+          />
+          <Text style={styles.backText}>
+            {openedFromNotifications ? "Back to notifications" : "Back to feed"}
+          </Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Encourage one another ⋆⭒˚</Text>
+        <View style={styles.headerTitleRow}>
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={18}
+            color={colors.card}
+          />
+          <Text style={styles.headerTitle}>Encourage one another</Text>
+        </View>
         <Text style={styles.headerSubtitle}>
           Commenting as{" "}
           <Text
@@ -332,7 +480,7 @@ export default function PostDetailScreen() {
               {totalReactions > 0 && (
                 <View style={styles.reactionSummary}>
                   <View style={styles.reactionEmojiStack}>
-                    {topReactionEmojis.map((emoji, i) => (
+                    {topReactions.map((type, i) => (
                       <View
                         key={i}
                         style={[
@@ -340,7 +488,7 @@ export default function PostDetailScreen() {
                           i > 0 ? styles.reactionEmojiOffset : undefined,
                         ]}
                       >
-                        <Text style={styles.reactionEmojiText}>{emoji}</Text>
+                        {renderReactionIcon(type, 12, colors.card)}
                       </View>
                     ))}
                   </View>
@@ -352,9 +500,16 @@ export default function PostDetailScreen() {
               )}
 
               {/* ── Comments header ── */}
-              <Text style={styles.commentsHeader}>
-                💬 Comments {comments.length > 0 ? `(${comments.length})` : ""}
-              </Text>
+              <View style={styles.commentsHeaderRow}>
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={14}
+                  color={colors.deep}
+                />
+                <Text style={styles.commentsHeader}>
+                  Comments {comments.length > 0 ? `(${comments.length})` : ""}
+                </Text>
+              </View>
 
               {commentsLoading && (
                 <ActivityIndicator
@@ -364,9 +519,16 @@ export default function PostDetailScreen() {
               )}
 
               {!commentsLoading && comments.length === 0 && (
-                <Text style={styles.commentsEmpty}>
-                  No comments yet — be the first to encourage! 🔥
-                </Text>
+                <View style={styles.commentsEmptyRow}>
+                  <Text style={styles.commentsEmpty}>
+                    No comments yet — be the first to encourage.
+                  </Text>
+                  <Ionicons
+                    name="sparkles-outline"
+                    size={24}
+                    color={colors.muted5}
+                  />
+                </View>
               )}
             </View>
           }
@@ -434,7 +596,7 @@ export default function PostDetailScreen() {
               {submitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.sendIcon}>↑</Text>
+                <Ionicons name="arrow-up" size={16} color="#fff" />
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -493,7 +655,9 @@ export default function PostDetailScreen() {
                           : styles.pickerOptionDefault,
                       ]}
                     >
-                      <Text style={styles.pickerEmoji}>{EMOJI[type]}</Text>
+                      <View style={styles.pickerIconWrap}>
+                        {renderReactionIcon(type, 24, colors.card)}
+                      </View>
                       <Text
                         style={[
                           styles.pickerLabel,
@@ -532,8 +696,14 @@ const styles = StyleSheet.create({
 
   // ── Header ───────────────────────────────
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
-  backBtn: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 6,
+  },
   backText: { color: "rgba(255,255,255,0.7)", fontSize: 14 },
+  headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerTitle: { fontSize: 20, fontWeight: "800", color: colors.card },
 
   // ── Scroll / list ─────────────────────────
@@ -596,7 +766,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary,
     borderWidth: 1.5,
     borderColor: colors.canvas,
     alignItems: "center",
@@ -604,7 +774,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   reactionEmojiOffset: { marginLeft: -6, zIndex: 9 },
-  reactionEmojiText: { fontSize: 12 },
   reactionSummaryCount: {
     fontSize: 12,
     color: colors.primary,
@@ -651,18 +820,30 @@ const styles = StyleSheet.create({
   actionBarHint: { fontSize: 11, color: colors.muted5 },
 
   // ── Comments section ───────────────────────
+  commentsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
   commentsHeader: {
     fontSize: 15,
     fontWeight: "700",
     color: colors.deep,
-    marginBottom: 16,
   },
   commentsSpinner: { marginBottom: 16 },
+  commentsEmptyRow: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 24,
+  },
   commentsEmpty: {
     color: colors.muted5,
     fontSize: 14,
     textAlign: "center",
-    marginBottom: 24,
   },
 
   // ── Comment rows ──────────────────────────
@@ -687,7 +868,7 @@ const styles = StyleSheet.create({
   },
   commentTime: { color: colors.muted5, fontSize: 11 },
   commentBubble: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.muted1,
     borderRadius: 14,
     padding: 12,
   },
@@ -705,6 +886,11 @@ const styles = StyleSheet.create({
     color: colors.warningText,
     fontSize: 10,
     fontWeight: "700",
+  },
+  reviewBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   commentFeedbackError: {
     marginHorizontal: 16,
@@ -761,8 +947,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sendIcon: { fontSize: 18, color: "#fff" },
-
   // ── Floating Picker Modal ────────────────────
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.25)" },
   modalCenter: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -798,7 +982,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.fuchsia,
   },
-  pickerEmoji: { fontSize: 36 },
+  pickerIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   pickerLabel: { fontSize: 12, fontWeight: "700", marginTop: 5 },
   pickerLabelDefault: { color: colors.subtle },
   pickerLabelActive: { color: colors.fuchsia },

@@ -17,6 +17,7 @@ import {
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { Platform as RNPlatform } from 'react-native';
@@ -164,7 +165,10 @@ export default function ProfileScreen() {
           <View style={styles.hamburgerLine} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>👤 Profile</Text>
+          <View style={styles.headerTitleRow}>
+            <Ionicons name="person-circle-outline" size={18} color={colors.card} />
+            <Text style={styles.headerTitle}>Profile</Text>
+          </View>
           <Text style={styles.headerSubtitle}>Account Settings</Text>
         </View>
       </View>
@@ -227,7 +231,7 @@ export default function ProfileScreen() {
                   onPress={handleEditUsername}
                   style={[styles.actionBtn, styles.editBtn]}
                 >
-                  <Text style={styles.actionBtnIcon}>✏️</Text>
+                  <Ionicons name="create-outline" size={16} color={colors.card} style={styles.actionBtnIcon} />
                   <Text style={styles.actionBtnText}>Edit Username</Text>
                 </TouchableOpacity>
               </>
@@ -236,7 +240,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Device Binding ── */}
-        <View style={[styles.section, { display: 'none' }]}>
+        <View style={[styles.section]}>
           <Text style={styles.sectionTitle}>Device Binding</Text>
           <View style={styles.card}>
             <Text style={styles.explanation}>
@@ -262,7 +266,7 @@ export default function ProfileScreen() {
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <>
-                        <Text style={styles.actionBtnIcon}>🔓</Text>
+                        <Ionicons name="lock-open-outline" size={16} color={colors.card} style={styles.actionBtnIcon} />
                         <Text style={styles.actionBtnText}>Clear Device Binding</Text>
                       </>
                     )}
@@ -306,8 +310,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: colors.muted5,
+    color: colors.card,
     letterSpacing: 0.3,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerSubtitle: {
     fontSize: 13,

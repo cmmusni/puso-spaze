@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useUser } from '../hooks/useUser';
@@ -99,25 +100,28 @@ export default function NotificationsScreen() {
       const { post } = await apiGetPostById(postId);
       
       // Navigate to PostDetail
-      navigation.navigate('PostDetail', { post });
+      navigation.navigate('PostDetail', {
+        postId: post.id,
+        openedFrom: 'notifications',
+      });
     } catch (error) {
       console.error('Failed to fetch post:', error);
       Alert.alert('Error', 'Could not load this post. It may have been removed.');
     }
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string): keyof typeof Ionicons.glyphMap => {
     switch (type) {
       case 'REACTION':
-        return '💙';
+        return 'heart-outline';
       case 'COMMENT':
-        return '💬';
+        return 'chatbubble-ellipses-outline';
       case 'ENCOURAGEMENT':
-        return '🕊️';
+        return 'sparkles-outline';
       case 'SYSTEM':
-        return '📢';
+        return 'megaphone-outline';
       default:
-        return '🔔';
+        return 'notifications-outline';
     }
   };
 
@@ -142,7 +146,7 @@ export default function NotificationsScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{getNotificationIcon(item.type)}</Text>
+        <Ionicons name={getNotificationIcon(item.type)} size={18} color={colors.primary} />
       </View>
       <View style={styles.content}>
         <Text style={styles.title}>{item.title}</Text>
@@ -169,7 +173,7 @@ export default function NotificationsScreen() {
             activeOpacity={0.7}
             style={styles.hamburger}
           >
-            <Text style={styles.hamburgerIcon}>☰</Text>
+            <Ionicons name="menu-outline" size={22} color={colors.card} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Notifications</Text>
           <View style={{ width: 40 }} />
@@ -196,7 +200,7 @@ export default function NotificationsScreen() {
           activeOpacity={0.7}
           style={styles.hamburger}
         >
-          <Text style={styles.hamburgerIcon}>☰</Text>
+          <Ionicons name="menu-outline" size={22} color={colors.card} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         {unreadCount > 0 ? (
@@ -210,7 +214,9 @@ export default function NotificationsScreen() {
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🔔</Text>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="notifications-outline" size={32} color={colors.card} />
+          </View>
           <Text style={styles.emptyText}>No notifications yet</Text>
           <Text style={styles.emptySubtext}>
             You'll see reactions, comments, and encouragements here
@@ -251,11 +257,6 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: -8,
   },
-  hamburgerIcon: {
-    fontSize: 24,
-    color: colors.card,
-    fontWeight: '300',
-  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -287,9 +288,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    fontSize: 64,
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
     marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     fontSize: 18,
@@ -337,9 +343,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-  },
-  icon: {
-    fontSize: 20,
   },
   content: {
     flex: 1,

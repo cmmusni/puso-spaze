@@ -20,6 +20,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../constants/theme';
@@ -155,7 +156,10 @@ export default function LoginScreen() {
 
           {/* ── Frosted card ── */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Welcome to PUSO Spaze 👋</Text>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="sparkles-outline" size={18} color="#ffffff" />
+              <Text style={styles.cardTitle}>Welcome to PUSO Spaze</Text>
+            </View>
             <Text style={styles.cardSubtitle}>Your safe space awaits. Choose how to enter.</Text>
 
             {!showCoachPanel && (
@@ -175,13 +179,13 @@ export default function LoginScreen() {
                   >
                     <View style={styles.anonContent}>
                       <View style={styles.anonIconContainer}>
-                        <Text style={styles.anonIcon}>🎭</Text>
+                        <Ionicons name="person-outline" size={24} color="#ffffff" />
                       </View>
                       <View style={styles.anonTextContainer}>
                         <Text style={styles.anonBtnText}>Enter Anonymously</Text>
-                        <Text style={styles.anonSubtext}>✨ 100% private · No name needed</Text>
+                        <Text style={styles.anonSubtext}>100% private · No name needed</Text>
                       </View>
-                      <Text style={styles.anonArrow}>→</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#ffffff" />
                     </View>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -197,7 +201,7 @@ export default function LoginScreen() {
 
                 {/* Input */}
                 <View style={[styles.inputWrapper, focused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
-                  <Text style={styles.inputIcon}>✏️</Text>
+                  <Ionicons name="create-outline" size={16} color="rgba(255,255,255,0.8)" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. GracefulSoul"
@@ -213,7 +217,7 @@ export default function LoginScreen() {
                   />
                   {customName.length > 0 && (
                     <TouchableOpacity onPress={() => setCustomName('')} activeOpacity={0.7}>
-                      <Text style={styles.clearBtn}>✕</Text>
+                      <Ionicons name="close" size={16} color="rgba(255,255,255,0.6)" style={styles.clearBtn} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -250,9 +254,16 @@ export default function LoginScreen() {
               activeOpacity={0.7}
               style={styles.coachToggle}
             >
-              <Text style={styles.coachToggleText}>
-                {showCoachPanel ? '▲ Anonymous User' : '🛡️ PUSO Coach? Enter invite code'}
-              </Text>
+              <View style={styles.coachToggleRow}>
+                <Ionicons
+                  name={showCoachPanel ? 'chevron-up' : 'shield-checkmark-outline'}
+                  size={14}
+                  color='rgba(129,140,248,0.9)'
+                />
+                <Text style={styles.coachToggleText}>
+                  {showCoachPanel ? 'Anonymous User' : 'PUSO Coach? Enter invite code'}
+                </Text>
+              </View>
             </TouchableOpacity>
 
             {/* ── Coach panel (collapsible) ── */}
@@ -265,13 +276,13 @@ export default function LoginScreen() {
                   Enter your name and the invite code you received.
                 </Text>
                 <Text style={styles.coachPanelHint}>
-                  💡 Returning coaches: Just use your name in the main login above!
+                  Returning coaches: Just use your name in the main login above.
                 </Text>
 
                 {/* Coach name input */}
                 <Text style={styles.inputLabel}>Coach Name</Text>
                 <View style={[styles.inputWrapper, coachNameFocused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
-                  <Text style={styles.inputIcon}>🛡️</Text>
+                  <Ionicons name="shield-outline" size={16} color="rgba(255,255,255,0.8)" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="Your name"
@@ -290,7 +301,7 @@ export default function LoginScreen() {
                 {/* Invite code input */}
                 <Text style={styles.inputLabel}>Invite Code</Text>
                 <View style={[styles.inputWrapper, coachCodeFocused ? styles.coachCodeFocused : styles.inputWrapperDefault]}>
-                  <Text style={styles.inputIcon}>🔑</Text>
+                  <Ionicons name="key-outline" size={16} color="rgba(255,255,255,0.8)" style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, styles.codeInput]}
                     placeholder="XXXXX-XXXXX"
@@ -324,7 +335,10 @@ export default function LoginScreen() {
                     {loading ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.ctaText}>🛡️ Enter as Coach</Text>
+                      <View style={styles.ctaIconRow}>
+                        <Ionicons name="shield-checkmark-outline" size={16} color="#ffffff" />
+                        <Text style={styles.ctaText}>Enter as Coach</Text>
+                      </View>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
@@ -334,9 +348,16 @@ export default function LoginScreen() {
 
           {/* Feature chips */}
           <View style={styles.chipsRow}>
-            {['🔒 Private', '🤝 Community', '✨ Uplifting'].map((chip) => (
-              <View key={chip} style={styles.chip}>
-                <Text style={styles.chipText}>{chip}</Text>
+            {[
+              { icon: 'lock-closed-outline', label: 'Private' },
+              { icon: 'people-outline', label: 'Community' },
+              { icon: 'sparkles-outline', label: 'Uplifting' },
+            ].map((chip) => (
+              <View key={chip.label} style={styles.chip}>
+                <View style={styles.chipRow}>
+                  <Ionicons name={chip.icon as keyof typeof Ionicons.glyphMap} size={12} color='rgba(255,255,255,0.8)' />
+                  <Text style={styles.chipText}>{chip.label}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -388,6 +409,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 4,
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   cardSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.55)',
@@ -423,7 +450,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(129,140,248,0.08)',
   },
   inputIcon: {
-    fontSize: 16,
     marginRight: 8,
   },
   input: {
@@ -437,8 +463,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   clearBtn: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 16,
     paddingLeft: 8,
   },
   ctaBtn: {
@@ -509,9 +533,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  anonIcon: {
-    fontSize: 28,
-  },
   anonTextContainer: {
     flex: 1,
   },
@@ -527,15 +548,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 3,
   },
-  anonArrow: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '300',
-  },
   coachToggle: {
     marginTop: 16,
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  coachToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   coachToggleText: {
     color: 'rgba(129,140,248,0.8)',
@@ -591,6 +612,16 @@ const styles = StyleSheet.create({
   chipText: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ctaIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   footerText: {
     textAlign: 'center',

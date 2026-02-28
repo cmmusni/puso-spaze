@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 
@@ -141,7 +142,10 @@ export default function CoachDashboard() {
             {isBusy ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.actionBtnText}>✅ Approve</Text>
+              <View style={styles.actionBtnRow}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={colors.card} />
+                <Text style={styles.actionBtnText}>Approve</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -153,7 +157,10 @@ export default function CoachDashboard() {
             {isBusy ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.actionBtnText}>🚫 Reject</Text>
+              <View style={styles.actionBtnRow}>
+                <Ionicons name="close-circle-outline" size={14} color={colors.card} />
+                <Text style={styles.actionBtnText}>Reject</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -194,7 +201,10 @@ export default function CoachDashboard() {
             {isBusy ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.actionBtnText}>✅ Approve</Text>
+              <View style={styles.actionBtnRow}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={colors.card} />
+                <Text style={styles.actionBtnText}>Approve</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -206,7 +216,10 @@ export default function CoachDashboard() {
             {isBusy ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.actionBtnText}>🚫 Reject</Text>
+              <View style={styles.actionBtnRow}>
+                <Ionicons name="close-circle-outline" size={14} color={colors.card} />
+                <Text style={styles.actionBtnText}>Reject</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -218,7 +231,9 @@ export default function CoachDashboard() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyEmoji}>🎉</Text>
+      <View style={styles.emptyIconWrap}>
+        <Ionicons name="checkmark-done-outline" size={28} color={colors.card} />
+      </View>
       <Text style={styles.emptyTitle}>All clear!</Text>
       <Text style={styles.emptySubtitle}>
         No {tab === 'posts' ? 'posts' : 'comments'} waiting for review.
@@ -244,10 +259,13 @@ export default function CoachDashboard() {
           style={styles.hamburger}
           activeOpacity={0.7}
         >
-          <Text style={styles.hamburgerIcon}>☰</Text>
+          <Ionicons name="menu-outline" size={18} color={colors.card} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>🛡️ Coach Dashboard</Text>
+          <View style={styles.headerTitleRow}>
+            <Ionicons name="shield-outline" size={18} color={colors.card} />
+            <Text style={styles.headerTitle}>Coach Dashboard</Text>
+          </View>
           <Text style={styles.headerSubtitle}>
             {username ?? 'Coach'} · review queue
           </Text>
@@ -335,15 +353,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },
-  hamburgerIcon: {
-    fontSize: 18,
-    color: colors.card,
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: colors.card,
     letterSpacing: 0.3,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerSubtitle: {
     fontSize: 12,
@@ -398,8 +417,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  emptyEmoji: {
-    fontSize: 48,
+  emptyIconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   emptyTitle: {
@@ -486,14 +510,19 @@ const styles = StyleSheet.create({
     minHeight: 42,
   },
   approveBtn: {
-    backgroundColor: colors.safe,
+    backgroundColor: colors.safeDark,
   },
   rejectBtn: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.dangerDark,
   },
   actionBtnText: {
     color: colors.card,
     fontWeight: '700',
     fontSize: 14,
+  },
+  actionBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });

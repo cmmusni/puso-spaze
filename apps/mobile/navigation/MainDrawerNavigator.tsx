@@ -18,6 +18,7 @@ import {
   type DrawerContentComponentProps,
 } from "@react-navigation/drawer";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from "../screens/HomeScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -37,7 +38,7 @@ export type MainDrawerParamList = {
   ReviewQueue: undefined;
   SendInvite: undefined;
   Post: undefined;
-  PostDetail: { post: Post };
+  PostDetail: { postId?: string; post?: Post; openedFrom?: "notifications" };
   Notifications: undefined;
 };
 
@@ -58,7 +59,7 @@ function CustomDrawerContent({
     label,
     routeName,
   }: {
-    icon: string;
+    icon: keyof typeof Ionicons.glyphMap;
     label: string;
     routeName: keyof MainDrawerParamList;
   }) => {
@@ -69,7 +70,13 @@ function CustomDrawerContent({
         style={[styles.navItem, active && styles.navItemActive]}
         activeOpacity={0.75}
       >
-        <Text style={styles.navItemIcon}>{icon}</Text>
+        <View style={styles.navItemIconWrap}>
+          <Ionicons
+            name={icon}
+            size={18}
+            color={active ? colors.card : colors.muted5}
+          />
+        </View>
         <Text style={[styles.navItemText, active && styles.navItemTextActive]}>
           {label}
         </Text>
@@ -93,11 +100,16 @@ function CustomDrawerContent({
 
       {/* ── User header ── */}
       <View style={styles.userHeader}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarLetter}>
-            {(username ?? "?").charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Profile")}
+          activeOpacity={0.75}
+        >
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarLetter}>
+              {(username ?? "?").charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        </TouchableOpacity>
         <Text style={styles.userName} numberOfLines={1}>
           {username ?? "User"}
         </Text>
@@ -111,13 +123,16 @@ function CustomDrawerContent({
                 : styles.roleBadgeUser,
           ]}
         >
-          <Text style={styles.roleBadgeText}>
-            {isAdmin
-              ? "⭐ Admin"
-              : isCoach
-                ? "🛡️ Coach"
-                : "👤 Community Member"}
-          </Text>
+          <View style={styles.roleBadgeContent}>
+            <Ionicons
+              name={isAdmin ? "shield-checkmark-outline" : isCoach ? "shield-outline" : "person-outline"}
+              size={12}
+              color={colors.card}
+            />
+            <Text style={styles.roleBadgeText}>
+              {isAdmin ? "Admin" : isCoach ? "Coach" : "Community Member"}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -126,16 +141,16 @@ function CustomDrawerContent({
       {/* ── Navigation items ── */}
       <View style={styles.navSection}>
         {/* Common items */}
-        <NavItem icon="👤" label="Profile" routeName="Profile" />
-        <NavItem icon="🔔" label="Notifications" routeName="Notifications" />
-        <NavItem icon="🕊️" label="Community Feed" routeName="Home" />
+        <NavItem icon="person-outline" label="Profile" routeName="Profile" />
+        <NavItem icon="notifications-outline" label="Notifications" routeName="Notifications" />
+        <NavItem icon="newspaper-outline" label="Community Feed" routeName="Home" />
 
         {/* Coach/Admin items */}
         {isCoach && (
-          <NavItem icon="📋" label="Review Queue" routeName="ReviewQueue" />
+          <NavItem icon="list-outline" label="Review Queue" routeName="ReviewQueue" />
         )}
         {isAdmin && (
-          <NavItem icon="📧" label="Send Invite" routeName="SendInvite" />
+          <NavItem icon="mail-outline" label="Send Invite" routeName="SendInvite" />
         )}
       </View>
 
@@ -149,7 +164,7 @@ function CustomDrawerContent({
         style={styles.signOutItem}
         activeOpacity={0.75}
       >
-        <Text style={styles.signOutIcon}>⏻</Text>
+        <Ionicons name="log-out-outline" size={18} color={colors.card} style={styles.signOutIcon} />
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
 
@@ -289,6 +304,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.card,
   },
+  roleBadgeContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
 
   divider: {
     height: 1,
@@ -313,10 +333,10 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: colors.fuchsia + "26",
   },
-  navItemIcon: {
-    fontSize: 18,
+  navItemIconWrap: {
     marginRight: 12,
     width: 24,
+    alignItems: "center",
     textAlign: "center",
   },
   navItemText: {
@@ -351,9 +371,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   signOutIcon: {
-    fontSize: 18,
     marginRight: 12,
-    color: colors.hot,
   },
   signOutText: {
     fontSize: 15,

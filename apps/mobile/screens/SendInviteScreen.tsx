@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { colors } from '../constants/theme';
@@ -52,7 +53,7 @@ export default function SendInviteScreen() {
       const { code } = await apiSendInviteByEmail(emailTrimmed, secretTrimmed);
       setInviteEmail('');
       setAdminSecret('');
-      showAlert('Invite Sent ✅', `Invite code ${code} has been emailed to ${emailTrimmed}.`);
+      showAlert('Invite Sent', `Invite code ${code} has been emailed to ${emailTrimmed}.`);
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Failed to send invite. Check the admin secret and try again.';
       showAlert('Send Failed', msg);
@@ -76,7 +77,10 @@ export default function SendInviteScreen() {
           <View style={styles.hamburgerLine} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.pageTitle}>📧 Send Coach Invite</Text>
+          <View style={styles.pageTitleRow}>
+            <Ionicons name="mail-outline" size={18} color="#ffffff" />
+            <Text style={styles.pageTitle}>Send Coach Invite</Text>
+          </View>
           <Text style={styles.pageSubtitle}>Email a new invite code to an incoming coach.</Text>
         </View>
       </View>
@@ -93,7 +97,7 @@ export default function SendInviteScreen() {
             styles.inputWrapper,
             inviteEmailFocused ? styles.inputFocused : styles.inputDefault,
           ]}>
-            <Text style={styles.inputIcon}>📧</Text>
+            <Ionicons name="mail-outline" size={16} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="coach@example.com"
@@ -109,7 +113,7 @@ export default function SendInviteScreen() {
             />
             {inviteEmail.length > 0 && (
               <TouchableOpacity onPress={() => setInviteEmail('')} activeOpacity={0.7}>
-                <Text style={styles.clearBtn}>✕</Text>
+                <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" style={styles.clearBtn} />
               </TouchableOpacity>
             )}
           </View>
@@ -120,7 +124,7 @@ export default function SendInviteScreen() {
             styles.inputWrapper,
             adminSecretFocused ? styles.inputFocused : styles.inputDefault,
           ]}>
-            <Text style={styles.inputIcon}>🔐</Text>
+            <Ionicons name="lock-closed-outline" size={16} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Enter admin secret"
@@ -146,7 +150,10 @@ export default function SendInviteScreen() {
             {sending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.sendBtnText}>📤 Send Invite Code</Text>
+              <View style={styles.sendBtnRow}>
+                <Ionicons name="paper-plane-outline" size={16} color="#fff" />
+                <Text style={styles.sendBtnText}>Send Invite Code</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -194,6 +201,11 @@ const styles = StyleSheet.create({
     color: '#a5b4fc',
     letterSpacing: 0.3,
   },
+  pageTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   pageSubtitle: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.45)',
@@ -237,7 +249,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(129,140,248,0.08)',
   },
   inputIcon: {
-    fontSize: 16,
     marginRight: 8,
   },
   input: {
@@ -247,8 +258,6 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   clearBtn: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 16,
     paddingLeft: 8,
   },
 
@@ -268,6 +277,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 15,
+  },
+  sendBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 
   hintBox: {

@@ -17,6 +17,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/theme";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
@@ -32,9 +33,9 @@ type HomeNavigationProp = DrawerNavigationProp<MainDrawerParamList, "Home">;
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
   const { username, role, userId } = useUser();
-  const isCoach = role === 'COACH' || role === 'ADMIN';
+  const isCoach = role === "COACH" || role === "ADMIN";
   const { posts, loading, error, fetchPosts } = usePosts();
-  
+
   // Initialize push notifications and get unread count
   const { unreadCount, refreshUnreadCount } = useNotifications(userId);
 
@@ -60,7 +61,9 @@ export default function HomeScreen() {
 
   const ListEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>🕊️</Text>
+      <View style={styles.emptyIconWrap}>
+        <Ionicons name="sparkles-outline" size={36} color={colors.card} />
+      </View>
       <Text style={styles.emptyTitle}>The space is quiet…</Text>
       <Text style={styles.emptySubtitle}>
         Be the first to share a prayer or word of encouragement!
@@ -85,35 +88,40 @@ export default function HomeScreen() {
             activeOpacity={0.7}
             style={styles.hamburger}
           >
-            <Text style={styles.hamburgerIcon}>☰</Text>
+            <Ionicons name="menu-outline" size={22} color={colors.card} />
           </TouchableOpacity>
 
           <View style={{ flex: 1 }}>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <Text style={styles.appTitle}>PUSO Spaze ✨</Text>
+            <View style={styles.appTitleRow}>
+              <Text style={styles.appTitle}>PUSO Spaze</Text>
+              <Ionicons name="sparkles-outline" size={18} color={colors.card} />
             </View>
             <Text style={styles.greeting}>
-              <Text style={styles.greetingName}>{`Hey, ${isCoach ? "Coach" : ""} ${username ?? "…"}`}</Text>
+              <Text
+                style={styles.greetingName}
+              >{`Hey, ${isCoach ? "Coach" : ""} ${username ?? "…"}`}</Text>
             </Text>
           </View>
 
           {/* Notification bell */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Notifications")}
-            activeOpacity={0.7}
-            style={styles.notificationBtn}
-          >
-            <Text style={styles.bellIcon}>🔔</Text>
-            {unreadCount > 0 && (
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Notifications")}
+              activeOpacity={0.7}
+              style={styles.notificationBtn}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={24}
+                color={colors.card}
+              />
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </Text>
               </View>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
 
           {/* Refresh button for web */}
           <TouchableOpacity
@@ -125,7 +133,7 @@ export default function HomeScreen() {
             {loading ? (
               <ActivityIndicator size="small" color={colors.card} />
             ) : (
-              <Text style={styles.refreshIcon}>↻</Text>
+              <Ionicons name="refresh-outline" size={24} color={colors.card} />
             )}
           </TouchableOpacity>
         </View>
@@ -134,7 +142,14 @@ export default function HomeScreen() {
       {/* ── Error Banner ── */}
       {error && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
+          <View style={styles.errorRow}>
+            <Ionicons
+              name="warning-outline"
+              size={14}
+              color={colors.errorText}
+            />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
         </View>
       )}
 
@@ -206,11 +221,7 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: -8,
   },
-  hamburgerIcon: {
-    fontSize: 26,
-    color: colors.card,
-    fontWeight: "300",
-  },
+  appTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   appTitle: {
     fontSize: 24,
     fontWeight: "800",
@@ -225,38 +236,30 @@ const styles = StyleSheet.create({
   greetingName: { color: colors.accent, fontWeight: "700" },
   notificationBtn: {
     padding: 8,
-    position: 'relative',
-  },
-  bellIcon: {
-    fontSize: 22,
-    color: colors.card,
+    position: "relative",
   },
   badge: {
-    position: 'absolute',
+    position: "absolute",
     top: 4,
     right: 4,
     backgroundColor: colors.hot,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 4,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.deep,
   },
   badgeText: {
     color: colors.card,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 8,
+    fontWeight: "700",
   },
   refreshBtn: {
     padding: 8,
     marginRight: -4,
-  },
-  refreshIcon: {
-    fontSize: 24,
-    color: colors.card,
   },
 
   // ── Error banner ─────────────────────────
@@ -268,6 +271,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  errorRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   errorText: { color: colors.errorText, fontSize: 13 },
 
   // ── Feed ─────────────────────────────────
@@ -293,7 +297,15 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     paddingHorizontal: 32,
   },
-  emptyIcon: { fontSize: 56, marginBottom: 16 },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
