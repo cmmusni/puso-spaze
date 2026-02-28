@@ -99,7 +99,7 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>
               <Text
                 style={styles.greetingName}
-              >{`Hey, ${isCoach ? "Coach" : ""} ${username ?? "…"}`}</Text>
+              >{`Hey, ${isCoach ? "Coach " : ""}${username ?? "…"}`}</Text>
             </Text>
           </View>
 
