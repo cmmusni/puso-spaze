@@ -28,6 +28,12 @@ function generateCode(length = 10): string {
   return `${code.slice(0, 5)}-${code.slice(5)}`;
 }
 
+async function verifyAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  return user?.role === 'ADMIN';
+}
+
 /**
  * POST /api/admin/invite-codes
  * Header: Authorization: Bearer <ADMIN_SECRET>
@@ -146,6 +152,12 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
  */
 export async function pinPost(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
+  const { userId } = req.body as { userId?: string };
+
+  if (!(await verifyAdmin(userId ?? ''))) {
+    res.status(403).json({ error: 'Access denied. Admin account required.' });
+    return;
+  }
 
   try {
     // ── Check if post exists ─────────────────
@@ -194,6 +206,12 @@ export async function pinPost(req: Request, res: Response): Promise<void> {
  */
 export async function unpinPost(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
+  const { userId } = req.body as { userId?: string };
+
+  if (!(await verifyAdmin(userId ?? ''))) {
+    res.status(403).json({ error: 'Access denied. Admin account required.' });
+    return;
+  }
 
   try {
     // ── Check if post exists ─────────────────

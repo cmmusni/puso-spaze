@@ -7,11 +7,11 @@
   "routes": [
     {
       "src": "/overview",
-      "dest": "/overview/index.html"
+      "dest": "/apps/mobile/overview/index.html"
     },
     {
       "src": "/overview/(.*)",
-      "dest": "/overview/$1"
+      "dest": "/apps/mobile/overview/$1"
     },
     {
       "handle": "filesystem"

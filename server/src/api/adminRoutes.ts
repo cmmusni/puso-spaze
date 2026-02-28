@@ -57,9 +57,17 @@ router.post('/encouragement/trigger', requireAdmin, async (_req: Request, res: R
 });
 
 // POST /api/admin/posts/:postId/pin
-router.post('/posts/:postId/pin', requireAdmin, pinPost);
+router.post(
+  '/posts/:postId/pin',
+  [body('userId').isString().notEmpty().withMessage('userId is required.'), validate],
+  pinPost
+);
 
 // POST /api/admin/posts/:postId/unpin
-router.post('/posts/:postId/unpin', requireAdmin, unpinPost);
+router.post(
+  '/posts/:postId/unpin',
+  [body('userId').isString().notEmpty().withMessage('userId is required.'), validate],
+  unpinPost
+);
 
 export default router;

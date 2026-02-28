@@ -31,12 +31,15 @@ import {
   apiUpsertReaction,
   apiDeletePost,
   apiFlagPost,
+  apiPinPost,
+  apiUnpinPost,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { colors } from "../constants/theme";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
+const SYSTEM_USER_ID = "system-encouragement-bot";
 
 const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
   "heart",
@@ -155,7 +158,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
   const openMenu = (event: GestureResponderEvent) => {
     const { pageY, pageX } = event.nativeEvent;
     const estimatedMenuHeight =
-      canDelete && canFlag ? 180 : canDelete || canFlag ? 132 : 88;
+      88 + (canPin ? 44 : 0) + (canFlag ? 44 : 0) + (canDelete ? 44 : 0);
     const top = Math.min(
       Math.max(16, pageY + 8),
       screenHeight - estimatedMenuHeight - 16,
@@ -223,9 +226,32 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     }
   };
 
+  const handleTogglePin = async () => {
+    closeMenu();
+    if (role !== "ADMIN" || !userId) return;
+
+    try {
+      if (post.pinned) {
+        await apiUnpinPost(post.id, userId);
+        showAlert("Success", "Post has been unpinned.");
+      } else {
+        await apiPinPost(post.id, userId);
+        showAlert("Success", "Post has been pinned.");
+      }
+      onDelete?.(post.id);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.error ??
+        error?.message ??
+        "Failed to update pin status. Please try again.";
+      showAlert("Error", message);
+    }
+  };
+
   // ── Permission check ──────────────────────────
   const canDelete = userId === post.userId || role === "ADMIN";
   const canFlag = role === "COACH" || role === "ADMIN";
+  const canPin = role === "ADMIN";
 
   const handleReaction = async (type: ReactionType) => {
     if (!userId) return;
@@ -281,6 +307,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         delayLongPress={300}
         style={[
           styles.card,
+          post.pinned ? styles.cardPinned : null,
           userReaction ? styles.cardActive : styles.cardDefault,
         ]}
       >
@@ -318,6 +345,12 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             </View>
           </View>
           <View style={styles.headerRight}>
+            {post.pinned && (
+              <View style={styles.pinnedPill}>
+                <Ionicons name="pin" size={12} color={colors.accent} />
+                <Text style={styles.pinnedPillText}>Pinned</Text>
+              </View>
+            )}
             <View style={styles.timePill}>
               <Text style={styles.timeText}>{timeAgo}</Text>
             </View>
@@ -397,6 +430,19 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             </View>
           </View>
         </View>
+
+        {post.latestComment && post.latestComment.userId !== SYSTEM_USER_ID && (
+          <View style={styles.latestCommentWrap}>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={13}
+              color={colors.muted5}
+            />
+            <Text style={styles.latestCommentText} numberOfLines={1}>
+              {`${post.latestComment.user?.displayName ?? "Member"}: ${post.latestComment.content}`}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
 
       {/* ── Floating Reaction Picker Modal ── */}
@@ -524,10 +570,29 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                   <Ionicons
                     name="chatbubble-ellipses-outline"
                     size={18}
-                    color={colors.card}
+                    color={colors.primary}
                   />
                   <Text style={styles.menuOptionText}>View Comments</Text>
                 </TouchableOpacity>
+                {canPin && (
+                  <>
+                    <View style={styles.menuDivider} />
+                    <TouchableOpacity
+                      onPress={handleTogglePin}
+                      activeOpacity={0.7}
+                      style={styles.menuOption}
+                    >
+                      <Ionicons
+                        name={post.pinned ? "pin" : "pin-outline"}
+                        size={18}
+                        color={colors.accent}
+                      />
+                      <Text style={styles.menuOptionTextAccent}>
+                        {post.pinned ? "Unpin Post" : "Pin Post"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
                 {canFlag && (
                   <>
                     <View style={styles.menuDivider} />
@@ -539,7 +604,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                       <Ionicons
                         name="flag-outline"
                         size={18}
-                        color={colors.card}
+                        color={colors.warningText}
                       />
                       <Text
                         style={[
@@ -563,7 +628,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                       <Ionicons
                         name="trash-outline"
                         size={18}
-                        color={colors.card}
+                        color={colors.danger}
                       />
                       <Text
                         style={[
@@ -605,6 +670,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.muted3,
   },
+  cardPinned: {
+    borderColor: colors.accent,
+  },
   cardActive: {
     borderWidth: 1.5,
     borderColor: colors.fuchsia,
@@ -625,6 +693,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  pinnedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  pinnedPillText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: "700",
   },
   avatar: {
     width: 38,
@@ -754,6 +838,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     height: 24,
+  },
+  latestCommentWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.muted3,
+  },
+  latestCommentText: {
+    flex: 1,
+    color: colors.muted5,
+    fontSize: 12,
+    lineHeight: 16,
   },
   reactBtn: {
     flexDirection: "row",
@@ -898,14 +997,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   menuOptionText: {
-    color: colors.card,
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  menuOptionTextAccent: {
+    color: colors.accent,
     fontSize: 15,
     fontWeight: "600",
   },
   menuOptionTextWarning: {
-    color: colors.card,
+    color: colors.warningText,
   },
   menuOptionTextDanger: {
-    color: colors.card,
+    color: colors.danger,
   },
 });

@@ -188,6 +188,8 @@ puso-spaze/
 - `POST /api/admin/invite-codes` - Generate invite codes
 - `POST /api/admin/invite-codes/send-email` - Email invite code
 - `POST /api/admin/encouragement/trigger` - Manual encouragement post
+
+### Admin (requires `userId` with ADMIN role)
 - `POST /api/admin/posts/:id/pin` - Pin post
 - `POST /api/admin/posts/:id/unpin` - Unpin post
 

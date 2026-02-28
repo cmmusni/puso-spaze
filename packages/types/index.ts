@@ -35,6 +35,13 @@ export interface Post {
   pinned?: boolean;
   commentCount?: number;
   reactionCount?: number;
+  latestComment?: {
+    id: string;
+    userId: string;
+    content: string;
+    createdAt: string;
+    user?: Pick<User, 'displayName' | 'role'>;
+  };
 }
 
 export interface Comment {

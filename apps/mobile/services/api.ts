@@ -132,6 +132,36 @@ export async function apiDeletePost(
   return data;
 }
 
+/**
+ * POST /api/admin/posts/:postId/pin
+ * Pins a post (Admin only).
+ */
+export async function apiPinPost(
+  postId: string,
+  userId: string
+): Promise<{ post: Post }> {
+  const { data } = await client.post<{ post: Post }>(
+    `/api/admin/posts/${postId}/pin`,
+    { userId }
+  );
+  return data;
+}
+
+/**
+ * POST /api/admin/posts/:postId/unpin
+ * Unpins a post (Admin only).
+ */
+export async function apiUnpinPost(
+  postId: string,
+  userId: string
+): Promise<{ post: Post }> {
+  const { data } = await client.post<{ post: Post }>(
+    `/api/admin/posts/${postId}/unpin`,
+    { userId }
+  );
+  return data;
+}
+
 // ── Reaction endpoints ───────────────────────
 
 /**

@@ -111,24 +111,47 @@ export async function createPost(req: Request, res: Response): Promise<void> {
 
 // ── GET /api/posts ────────────────────────────
 /**
- * Returns all SAFE posts, pinned posts first, then newest first.
+ * Returns all SAFE posts, pinned posts first, then most recent comment activity.
  * Includes author displayName.
  */
 export async function getPosts(_req: Request, res: Response): Promise<void> {
   const posts = await prisma.post.findMany({
     where: { moderationStatus: { in: ['SAFE', 'REVIEW'] } },
-    orderBy: [
-      { pinned: 'desc' },  // Pinned posts first
-      { createdAt: 'desc' }, // Then newest first
-    ],
     include: {
       user: { select: { displayName: true, role: true } },
       _count: { select: { reactions: true, comments: true } },
+      comments: {
+        where: {
+          moderationStatus: { in: ['SAFE', 'REVIEW'] },
+          userId: { not: SYSTEM_USER_ID },
+        },
+        select: {
+          id: true,
+          userId: true,
+          content: true,
+          createdAt: true,
+          user: { select: { displayName: true, role: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
   });
 
+  const sorted = posts.sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+
+    const aLatestCommentAt = a.comments[0]?.createdAt ?? a.createdAt;
+    const bLatestCommentAt = b.comments[0]?.createdAt ?? b.createdAt;
+
+    return bLatestCommentAt.getTime() - aLatestCommentAt.getTime();
+  });
+
   res.json({
-    posts: posts.map((p) => ({
+    posts: sorted.map((p) => {
+      const latestComment = p.comments[0];
+
+      return {
       id: p.id,
       content: p.content,
       userId: p.userId,
@@ -139,7 +162,17 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
       pinned: p.pinned,
       commentCount: p._count.comments,
       reactionCount: p._count.reactions,
-    })),
+      latestComment: latestComment
+        ? {
+            id: latestComment.id,
+            userId: latestComment.userId,
+            content: latestComment.content,
+            createdAt: latestComment.createdAt.toISOString(),
+            user: latestComment.user,
+          }
+        : undefined,
+      };
+    }),
   });
 }
 
