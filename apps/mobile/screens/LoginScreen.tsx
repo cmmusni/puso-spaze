@@ -172,7 +172,7 @@ export default function LoginScreen() {
                   style={styles.anonBtn}
                 >
                   <LinearGradient
-                    colors={['#9333EA', '#C026D3', '#7E22CE']}
+                    colors={[colors.fuchsia, colors.ink, colors.deep, colors.darkest]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.anonGradient}
@@ -230,7 +230,7 @@ export default function LoginScreen() {
                   style={styles.ctaBtn}
                 >
                   <LinearGradient
-                    colors={canSubmit ? ['rgba(192, 132, 252, 0.2)', 'rgba(168, 85, 247, 0.2)'] : [colors.muted2, colors.muted4]}
+                    colors={canSubmit ? [colors.ink, colors.lightPrimary] : [colors.muted4, colors.muted5]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.ctaGradient}
@@ -258,7 +258,7 @@ export default function LoginScreen() {
                 <Ionicons
                   name={showCoachPanel ? 'chevron-up' : 'shield-checkmark-outline'}
                   size={14}
-                  color='rgba(129,140,248,0.9)'
+                  color={colors.lightAccent}
                 />
                 <Text style={styles.coachToggleText}>
                   {showCoachPanel ? 'Anonymous User' : 'PUSO Coach? Enter invite code'}
@@ -442,12 +442,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   inputWrapperFocused: {
-    borderColor: '#c084fc',
-    backgroundColor: 'rgba(192,132,252,0.08)',
+    borderColor: colors.lightAccent,
+    backgroundColor: colors.lightAccent + '14',
   },
   coachCodeFocused: {
-    borderColor: '#818cf8',
-    backgroundColor: 'rgba(129,140,248,0.08)',
+    borderColor: colors.lightAccent,
+    backgroundColor: colors.lightAccent + '14',
   },
   inputIcon: {
     marginRight: 8,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   ctaText: {
-    color: '#ffffff',
+    color: colors.card,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
   },
   ctaNameHighlight: {
-    color: '#f0abfc',
+    color: colors.lightAccent,
     fontWeight: '900',
   },
   dividerRow: {
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 20,
-    shadowColor: '#9333EA',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   coachToggleText: {
-    color: 'rgba(129,140,248,0.8)',
+    color: colors.lightAccent,
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.3,

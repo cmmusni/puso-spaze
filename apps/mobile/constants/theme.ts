@@ -5,52 +5,52 @@
  * never appear inline outside this file.
  */
 export const colors = {
-  /** Deep-space gradient start / darkest background */
-  darkest: '#1A0533',
-  /** Deep violet — gradient step 2 */
-  deep: '#4C1D95',
-  /** Purple-700 — gradient step 3 / ink */
-  ink: '#7E22CE',
-  /** Primary brand purple */
-  primary: '#9333EA',
-  /** Active / focused / fuchsia accent */
-  fuchsia: '#C026D3',
-  /** Hot-pink — gradient end / highlights */
-  hot: '#F018A0',
-  /** Gold / tagline accent */
-  accent: '#FACC15',
-  /** Light purple — accent light variant */
-  lightPrimary: '#D8B4FE',
-  /** Light fuchsia — pink accent light */
-  lightFuchsia: '#F0ABFC',
-  /** Light hot pink — rose accent light */
-  lightHot: '#FB7185',
-  /** Light golden yellow — accent light variant */
-  lightAccent: '#FEF08A',
+  /** Deep teal gradient start / darkest background */
+  darkest: '#0B2A2A',
+  /** Deep teal — gradient step 2 */
+  deep: '#11423C',
+  /** Mid-teal — gradient step 3 / ink */
+  ink: '#1D5D54',
+  /** Primary brand teal */
+  primary: '#2F7A6D',
+  /** Warm coral-orange accent */
+  fuchsia: '#C56245',
+  /** Warm coral highlight */
+  hot: '#E07A4E',
+  /** Soft warm accent */
+  accent: '#F4B267',
+  /** Light teal — accent light variant */
+  lightPrimary: '#8AB8AD',
+  /** Light coral — accent light variant */
+  lightFuchsia: '#E6A08C',
+  /** Light warm coral — highlight light variant */
+  lightHot: '#F2B191',
+  /** Light warm sand — accent light variant */
+  lightAccent: '#F8D8A8',
   /** Light error — red-300 */
   lightDanger: '#FCA5A5',
   /** Light success — green-300 */
   lightSafe: '#86EFAC',
   /** Lightest background (canvas) */
-  canvas: '#FDF4FF',
+  canvas: '#F8FCFB',
   /** Surface — chip / tag backgrounds */
-  surface: '#F5F3FF',
+  surface: '#EDF7F5',
   /** Muted-1 — picker borders / subtle fills */
-  muted1: '#EDE9FE',
+  muted1: '#D7ECE7',
   /** Muted-2 — tag chip borders */
-  muted2: '#DDD6FE',
+  muted2: '#BDDCD5',
   /** Muted-3 — card borders / dividers */
-  muted3: '#F3E8FF',
+  muted3: '#E6F3F0',
   /** Muted-4 — placeholder text */
-  muted4: '#C4B5FD',
+  muted4: '#9EC8BE',
   /** Muted-5 — subtle labels / secondary text */
-  muted5: '#A78BFA',
+  muted5: '#6FA899',
   /** Body copy */
-  text: '#374151',
+  text: '#2F3E3B',
   /** Names / headings */
-  heading: '#1F2937',
+  heading: '#1F2C2A',
   /** Muted / disabled labels */
-  subtle: '#6B7280',
+  subtle: '#5F6F6B',
   /** Card / white surfaces */
   card: '#FFFFFF',
   /** Destructive / error */
@@ -83,8 +83,8 @@ export const colors = {
   warningBorder: '#FDE68A',
   /** Warning body text — amber-800 */
   warningText: '#92400E',
-  /** Placeholder/disabled text — gray-400 */
-  placeholder: '#9CA3AF',
+  /** Placeholder/disabled text — muted teal-gray */
+  placeholder: '#8FA09C',
 } as const;
 
 export type ColorKey = keyof typeof colors;

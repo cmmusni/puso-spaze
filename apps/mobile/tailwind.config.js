@@ -10,43 +10,43 @@ module.exports = {
   theme: {
     extend: {
       // ── Brand Colors ──────────────────────────────────────
-      // Primary: deep spiritual purple
-      // Accent: warm gold / sunrise orange
-      // Background: soft off-white / linen
+      // Primary: deep teal
+      // Accent: warm coral-orange
+      // Background: soft aqua-white / warm neutrals
       colors: {
         brand: {
           // ── Gradient anchors ────────────────────
-          darkest:  '#1A0533',   // gradient start — darkest purple
-          deep:     '#4C1D95',   // deep blue-purple — logo shadow
-          ink:      '#7E22CE',   // purple-700
-          primary:  '#9333EA',   // vivid purple — logo centre
-          fuchsia:  '#C026D3',   // fuchsia — focus borders, active states
-          hot:      '#F018A0',   // hot magenta-pink — logo left glow
+          darkest:  '#0B2A2A',   // gradient start — deepest teal
+          deep:     '#11423C',   // deep teal
+          ink:      '#1D5D54',   // mid-teal
+          primary:  '#2F7A6D',   // primary brand teal
+          fuchsia:  '#C56245',   // warm coral-orange accent
+          hot:      '#E07A4E',   // bright coral highlight
 
           // ── Accent ──────────────────────────────
-          accent:   '#FACC15',   // golden yellow — tagline colour
+          accent:   '#F4B267',   // warm sand accent
 
           // ── Light Accent Colors ──────────────────
-          'light-primary':   '#D8B4FE', // violet-300 — light purple
-          'light-fuchsia':   '#F0ABFC', // fuchsia-200 — light fuchsia/pink
-          'light-hot':       '#FB7185', // rose-400 — light hot pink
-          'light-accent':    '#FEF08A', // yellow-100 — light golden yellow
+          'light-primary':   '#8AB8AD', // light teal
+          'light-fuchsia':   '#E6A08C', // light coral
+          'light-hot':       '#F2B191', // light warm coral
+          'light-accent':    '#F8D8A8', // light warm sand
           'light-danger':    '#FCA5A5', // red-300 — light error
           'light-safe':      '#86EFAC', // green-300 — light success
 
-          // ── Violet neutrals (surface / border / text) ──
-          'canvas':   '#FDF4FF', // ultra-light lavender canvas (bg)
-          'surface':  '#F5F3FF', // violet-50 — chip / tag backgrounds
-          'muted-1':  '#EDE9FE', // violet-100 — picker border
-          'muted-2':  '#DDD6FE', // violet-200 — tag chip border
-          'muted-3':  '#F3E8FF', // purple-100 — card border / divider
-          'muted-4':  '#C4B5FD', // violet-300 — placeholder text
-          'muted-5':  '#A78BFA', // violet-400 — subtle / secondary text
+          // ── Teal neutrals (surface / border / text) ──
+          'canvas':   '#F8FCFB', // aqua-white canvas (bg)
+          'surface':  '#EDF7F5', // soft teal surface
+          'muted-1':  '#D7ECE7', // subtle border
+          'muted-2':  '#BDDCD5', // chip border
+          'muted-3':  '#E6F3F0', // card border / divider
+          'muted-4':  '#9EC8BE', // placeholder text
+          'muted-5':  '#6FA899', // subtle / secondary text
 
           // ── Grays ───────────────────────────────
-          'text':     '#374151', // gray-700 — body content
-          'heading':  '#1F2937', // gray-800 — author names / headings
-          'subtle':   '#6B7280', // gray-500 — muted labels / counts
+          'text':     '#2F3E3B', // body content
+          'heading':  '#1F2C2A', // author names / headings
+          'subtle':   '#5F6F6B', // muted labels / counts
 
           // ── Semantic ────────────────────────────
           card:    '#FFFFFF',
