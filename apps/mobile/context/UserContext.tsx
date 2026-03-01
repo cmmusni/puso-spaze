@@ -114,7 +114,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         throw new Error(
           `This device is bound to user "${deviceOwner}". ` +
           `Cannot log in as "${username}". ` +
-          `Only the original user can access this device.`
+          `You can sign in as "${deviceOwner}" to keep access to previous posts/comments, ` +
+          `or sign in as "${deviceOwner}" and clear the device binding first to use a new username (previous posts/comments will stay with "${deviceOwner}").`
         );
       }
     } catch (err) {

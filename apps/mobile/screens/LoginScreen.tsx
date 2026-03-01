@@ -76,6 +76,11 @@ export default function LoginScreen() {
 
   // ── Handlers ──────────────────────────────
 
+  const extractBoundUser = (message: string): string | null => {
+    const match = message.match(/bound to user "([^"]+)"/i);
+    return match?.[1] ?? null;
+  };
+
   const handleLoginWithUsername = async () => {
     const err = validateUsername(customName);
     if (err) {
@@ -88,6 +93,22 @@ export default function LoginScreen() {
       navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg = err?.message ?? 'Could not connect to server. Please try again.';
+      const deviceOwner = extractBoundUser(msg);
+      if (deviceOwner) {
+        const signInInstead = await showConfirm(
+          'Use Existing Account Instead?',
+          `Do you want to sign in as "${deviceOwner}" instead?`
+        );
+        if (signInInstead) {
+          setShowCoachPanel(false);
+          setCustomName(deviceOwner);
+          showAlert(
+            'Username Filled',
+            `You can continue by tapping "Enter as ${deviceOwner}" to keep access to your previous posts/comments.`
+          );
+          return;
+        }
+      }
       showAlert('Login Failed', msg);
     } finally {
       setLoading(false);
@@ -158,6 +179,22 @@ export default function LoginScreen() {
       navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg = err?.message ?? err?.response?.data?.error ?? 'Invalid or already-used invite code.';
+      const deviceOwner = extractBoundUser(msg);
+      if (deviceOwner) {
+        const signInInstead = await showConfirm(
+          'Use Existing Account Instead?',
+          `This device is bound to "${deviceOwner}". Do you want to sign in with that username instead?`
+        );
+        if (signInInstead) {
+          setShowCoachPanel(false);
+          setCustomName(deviceOwner);
+          showAlert(
+            'Switched to User Login',
+            `Use "Enter as ${deviceOwner}" to continue with the bound account.`
+          );
+          return;
+        }
+      }
       showAlert('Coach Login Failed', msg);
     } finally {
       setLoading(false);
