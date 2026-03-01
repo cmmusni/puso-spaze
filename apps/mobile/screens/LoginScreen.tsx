@@ -104,7 +104,22 @@ export default function LoginScreen() {
           `Do you want to continue?`
       );
 
-      if (!confirmed) return;
+      if (!confirmed) {
+        const signInInstead = await showConfirm(
+          'Use Existing Account Instead?',
+          `Do you want to sign in as "${deviceOwner}" instead?`
+        );
+
+        if (signInInstead) {
+          setShowCoachPanel(false);
+          setCustomName(deviceOwner);
+          showAlert(
+            'Username Filled',
+            `You can continue by tapping "Enter as ${deviceOwner}" to keep access to your previous posts/comments.`
+          );
+        }
+        return;
+      }
 
       try {
         await clearDeviceOwnerBinding();
