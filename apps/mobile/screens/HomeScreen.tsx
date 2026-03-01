@@ -48,6 +48,10 @@ export default function HomeScreen() {
     }, [fetchPosts, refreshUnreadCount]),
   );
 
+  const handleManualRefresh = useCallback(async () => {
+    await Promise.all([fetchPosts(), refreshUnreadCount()]);
+  }, [fetchPosts, refreshUnreadCount]);
+
   const handleDeletePost = useCallback(() => {
     fetchPosts(); // Refresh the feed after deletion
   }, [fetchPosts]);
@@ -125,7 +129,7 @@ export default function HomeScreen() {
 
           {/* Refresh button for web */}
           <TouchableOpacity
-            onPress={fetchPosts}
+            onPress={handleManualRefresh}
             activeOpacity={0.7}
             style={styles.refreshBtn}
             disabled={loading}
@@ -164,7 +168,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={loading}
-            onRefresh={fetchPosts}
+            onRefresh={handleManualRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />

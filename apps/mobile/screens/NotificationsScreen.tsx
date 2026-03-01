@@ -3,7 +3,7 @@
 // Display user notifications with read/unread states
 // ─────────────────────────────────────────────
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useUser } from '../hooks/useUser';
 import { 
@@ -38,7 +38,11 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadNotifications = async () => {
+  const goToFeed = useCallback(() => {
+    navigation.navigate('Home');
+  }, [navigation]);
+
+  const loadNotifications = useCallback(async () => {
     if (!userId) return;
     try {
       const { notifications: data } = await apiGetNotifications(userId);
@@ -49,11 +53,13 @@ export default function NotificationsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    loadNotifications();
   }, [userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications();
+    }, [loadNotifications])
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -188,7 +194,7 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <LinearGradient
         colors={[colors.darkest, colors.deep, colors.fuchsia]}
         start={{ x: 0, y: 0 }}
@@ -237,6 +243,17 @@ export default function NotificationsScreen() {
           }
         />
       )}
+
+      <View style={styles.bottomFeedBtnWrap}>
+        <TouchableOpacity
+          onPress={goToFeed}
+          activeOpacity={0.85}
+          style={styles.bottomFeedBtn}
+        >
+          <Ionicons name="home-outline" size={18} color={colors.card} />
+          <Text style={styles.bottomFeedBtnText}>Back to Feed</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -311,6 +328,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingBottom: 120,
   },
   notificationCard: {
     flexDirection: 'row',
@@ -370,5 +388,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     marginLeft: 8,
     marginTop: 4,
+  },
+  bottomFeedBtnWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+  },
+  bottomFeedBtn: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  bottomFeedBtnText: {
+    color: colors.card,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
