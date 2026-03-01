@@ -26,7 +26,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
-import { showAlert } from '../utils/alertPlatform';
+import { showAlert, showConfirm } from '../utils/alertPlatform';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
@@ -35,7 +35,13 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 export default function LoginScreen() {
   const route = useRoute<LoginScreenRouteProp>();
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { loginWithUsername, loginAnonymously, loginAsCoach } = useUser();
+  const {
+    loginWithUsername,
+    loginAnonymously,
+    loginAsCoach,
+    getDeviceOwner,
+    clearDeviceOwnerBinding,
+  } = useUser();
   const [customName, setCustomName]           = useState('');
   const [loading, setLoading]                 = useState(false);
   const [focused, setFocused]                 = useState(false);
@@ -89,6 +95,25 @@ export default function LoginScreen() {
   };
 
   const handleLoginAnonymously = async () => {
+    const deviceOwner = await getDeviceOwner();
+    if (deviceOwner) {
+      const confirmed = await showConfirm(
+        'Device Already Bound',
+        `This device is currently bound to "${deviceOwner}".\n\n` +
+          `Signing in anonymously will create a new username, and you won't have access to previous posts/comments under "${deviceOwner}".\n\n` +
+          `Do you want to continue?`
+      );
+
+      if (!confirmed) return;
+
+      try {
+        await clearDeviceOwnerBinding();
+      } catch {
+        showAlert('Binding Error', 'Could not clear existing device binding. Please try again.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await loginAnonymously();

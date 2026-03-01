@@ -10,7 +10,18 @@ import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { apiCreateUser, apiRedeemInviteCode } from '../services/api';
 
 export function useUser() {
-  const { userId, username, role, isLoggedIn, loginUser, logoutUser, loadUser, validateDeviceOwner } =
+  const {
+    userId,
+    username,
+    role,
+    isLoggedIn,
+    loginUser,
+    logoutUser,
+    loadUser,
+    validateDeviceOwner,
+    getDeviceOwner,
+    clearDeviceOwnerBinding,
+  } =
     useUserStore();
 
   /**
@@ -85,5 +96,7 @@ export function useUser() {
     logoutUser,
     loadUser,
     previewAnonUsername,
+    getDeviceOwner,
+    clearDeviceOwnerBinding,
   };
 }

@@ -71,6 +71,12 @@ export interface UserState {
 
   /** Update the user's username in storage and state */
   updateUsername: (newUsername: string) => Promise<void>;
+
+  /** Read current device owner binding username (if any). */
+  getDeviceOwner: () => Promise<string | null>;
+
+  /** Clear device owner binding to allow a fresh account binding. */
+  clearDeviceOwnerBinding: () => Promise<void>;
 }
 
 // ── Zustand store ────────────────────────────
@@ -184,6 +190,24 @@ export const useUserStore = create<UserState>((set, get) => ({
       console.log('[UserStore] ═══════════ UPDATE USERNAME END ═══════════');
     } catch (err) {
       console.error('[UserStore] ✗ ERROR updating username:', err);
+      throw err;
+    }
+  },
+
+  getDeviceOwner: async () => {
+    try {
+      return await storage.getItem(DEV_OWNER_KEY);
+    } catch (err) {
+      console.warn('[UserStore] Could not read device owner binding:', err);
+      return null;
+    }
+  },
+
+  clearDeviceOwnerBinding: async () => {
+    try {
+      await storage.removeItem(DEV_OWNER_KEY);
+    } catch (err) {
+      console.warn('[UserStore] Could not clear device owner binding:', err);
       throw err;
     }
   },
