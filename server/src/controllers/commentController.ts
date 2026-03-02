@@ -2,6 +2,7 @@
 // src/controllers/commentController.ts
 // POST /api/posts/:postId/comments — add comment
 // GET  /api/posts/:postId/comments — list comments
+// DELETE /api/posts/:postId/comments/:commentId — delete own comment
 // ─────────────────────────────────────────────
 
 import { Request, Response } from 'express';
@@ -100,4 +101,41 @@ export async function getComments(req: Request, res: Response): Promise<void> {
       user: c.user,
     })),
   });
+}
+
+// ── DELETE /api/posts/:postId/comments/:commentId ──────────
+export async function deleteComment(req: Request, res: Response): Promise<void> {
+  const { postId, commentId } = req.params;
+  const bodyUserId = (req.body as { userId?: string })?.userId;
+  const queryUserId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+  const userId = bodyUserId ?? queryUserId;
+
+  if (!userId || !/^[0-9a-fA-F-]{36}$/.test(userId)) {
+    res.status(400).json({ error: 'A valid userId is required.' });
+    return;
+  }
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { id: true, postId: true, userId: true },
+    });
+
+    if (!comment || comment.postId !== postId) {
+      res.status(404).json({ error: 'Comment not found.' });
+      return;
+    }
+
+    if (comment.userId !== userId) {
+      res.status(403).json({ error: 'You can only delete your own comment.' });
+      return;
+    }
+
+    await prisma.comment.delete({ where: { id: commentId } });
+
+    res.json({ success: true, message: 'Comment deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ error: 'Failed to delete comment.' });
+  }
 }

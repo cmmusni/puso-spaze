@@ -7,13 +7,14 @@
 // POST   /api/posts/:id/reactions  — toggle reaction
 // GET    /api/posts/:id/comments   — get comments
 // POST   /api/posts/:id/comments   — add comment
+// DELETE /api/posts/:id/comments/:commentId — delete own comment
 // ─────────────────────────────────────────────
 
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { createPost, getPosts, getPostById, deletePost } from '../controllers/postController';
 import { upsertReaction, getReactions } from '../controllers/reactionController';
-import { createComment, getComments } from '../controllers/commentController';
+import { createComment, getComments, deleteComment } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
@@ -80,6 +81,16 @@ router.post(
     validate,
   ],
   createComment
+);
+
+router.delete(
+  '/:postId/comments/:commentId',
+  [
+    param('postId').isUUID().withMessage('postId must be a valid UUID'),
+    param('commentId').isUUID().withMessage('commentId must be a valid UUID'),
+    validate,
+  ],
+  deleteComment
 );
 
 export default router;

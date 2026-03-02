@@ -32,8 +32,10 @@ import {
   apiUpsertReaction,
   apiGetComments,
   apiCreateComment,
+  apiDeleteComment,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
+import { showAlert, showConfirm } from "../utils/alertPlatform";
 import { colors } from "../constants/theme";
 import type {
   Post,
@@ -128,6 +130,9 @@ export default function PostDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [commentMenuVisible, setCommentMenuVisible] = useState(false);
+  const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentReview, setCommentReview] = useState<string | null>(null);
 
@@ -297,6 +302,52 @@ export default function PostDetailScreen() {
     }
   };
 
+  const performDeleteComment = useCallback(
+    async (comment: Comment) => {
+      if (!post?.id || !userId) return;
+
+      setDeletingCommentId(comment.id);
+      try {
+        await apiDeleteComment(post.id, comment.id, userId);
+        setComments((prev) => prev.filter((item) => item.id !== comment.id));
+      } catch (err: any) {
+        const msg =
+          err?.response?.data?.error ??
+          err?.message ??
+          "Could not delete comment. Please try again.";
+        showAlert("Error", msg);
+      } finally {
+        setDeletingCommentId(null);
+      }
+    },
+    [post?.id, userId]
+  );
+
+  const openCommentMenu = useCallback((comment: Comment) => {
+    setSelectedComment(comment);
+    setCommentMenuVisible(true);
+  }, []);
+
+  const closeCommentMenu = useCallback(() => {
+    setCommentMenuVisible(false);
+    setSelectedComment(null);
+  }, []);
+
+  const handleDeleteFromMenu = useCallback(async () => {
+    if (!selectedComment) return;
+
+    const commentToDelete = selectedComment;
+    closeCommentMenu();
+
+    const confirmed = await showConfirm(
+      "Delete Comment",
+      "Are you sure you want to delete this comment?"
+    );
+    if (!confirmed) return;
+
+    await performDeleteComment(commentToDelete);
+  }, [selectedComment, closeCommentMenu, performDeleteComment]);
+
   // ── Render a single comment ───────────────────
   const renderComment: ListRenderItem<Comment> = ({ item }) => {
     const name =
@@ -306,6 +357,8 @@ export default function PostDetailScreen() {
     const initial = name.charAt(0).toUpperCase();
     const avatarGrad = avatarColors(initial);
     const isUnderReview = item.moderationStatus === "REVIEW";
+    const isOwnComment = item.userId === userId;
+    const isDeletingThisComment = deletingCommentId === item.id;
     return (
       <View style={styles.commentRow}>
         {item.userId === "system-encouragement-bot" ? (
@@ -343,9 +396,24 @@ export default function PostDetailScreen() {
               </View>
             )}
           </View>
-          <View style={styles.commentBubble}>
-            <Text style={styles.commentText}>{item.content}</Text>
-          </View>
+          {isOwnComment ? (
+            <TouchableOpacity
+              onPress={() => openCommentMenu(item)}
+              disabled={isDeletingThisComment}
+              activeOpacity={0.8}
+              style={[styles.commentBubble, styles.commentBubbleOwn]}
+            >
+              {isDeletingThisComment ? (
+                <ActivityIndicator size="small" color={colors.errorText} />
+              ) : (
+                <Text style={styles.commentText}>{item.content}</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.commentBubble}>
+              <Text style={styles.commentText}>{item.content}</Text>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -604,6 +672,48 @@ export default function PostDetailScreen() {
       </KeyboardAvoidingView>
 
       {/* ── Floating Reaction Picker Modal ── */}
+      <Modal
+        visible={commentMenuVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={closeCommentMenu}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={closeCommentMenu}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.menuSheet}
+          >
+            <Text style={styles.menuTitle}>Comment options</Text>
+            <TouchableOpacity
+              style={styles.menuDeleteBtn}
+              activeOpacity={0.8}
+              onPress={handleDeleteFromMenu}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={16}
+                color={colors.errorText}
+              />
+              <Text style={styles.menuDeleteText}>Delete comment</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuCancelBtn}
+              activeOpacity={0.8}
+              onPress={closeCommentMenu}
+            >
+              <Text style={styles.menuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       <Modal
         visible={showPicker}
         transparent
@@ -871,6 +981,58 @@ const styles = StyleSheet.create({
     backgroundColor: colors.muted1,
     borderRadius: 14,
     padding: 12,
+  },
+  commentBubbleOwn: {
+    borderWidth: 1,
+    borderColor: colors.muted2,
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    justifyContent: "flex-end",
+    padding: 16,
+  },
+  menuSheet: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.muted2,
+    padding: 14,
+    gap: 10,
+  },
+  menuTitle: {
+    color: colors.deep,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  menuDeleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.errorBg,
+    borderWidth: 1,
+    borderColor: colors.errorBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  menuDeleteText: {
+    color: colors.errorText,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  menuCancelBtn: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.muted2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  menuCancelText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "600",
   },
   commentText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   reviewBadge: {

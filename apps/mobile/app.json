@@ -33,7 +33,7 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiUrl": "https://api.puso-spaze.org",
+      "apiUrl": "http://localhost:4000",
       "eas": {
         "projectId": "353a10cc-0fe0-467d-9d70-6161ffa2f637"
       }

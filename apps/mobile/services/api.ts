@@ -222,6 +222,25 @@ export async function apiCreateComment(
   return data;
 }
 
+/**
+ * DELETE /api/posts/:postId/comments/:commentId
+ * Deletes a comment owned by the requesting user.
+ */
+export async function apiDeleteComment(
+  postId: string,
+  commentId: string,
+  userId: string
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await client.delete<{ success: boolean; message: string }>(
+    `/api/posts/${postId}/comments/${commentId}`,
+    {
+      data: { userId },
+      params: { userId },
+    }
+  );
+  return data;
+}
+
 // ── Coach / Auth endpoints ───────────────────
 
 /**

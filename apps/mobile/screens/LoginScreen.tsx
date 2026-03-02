@@ -95,15 +95,11 @@ export default function LoginScreen() {
       const msg = err?.message ?? 'Could not connect to server. Please try again.';
       const deviceOwner = extractBoundUser(msg);
       if (deviceOwner) {
-        showAlert(
-          'Device Already Bound',
-          `This device is currently bound to "${deviceOwner}". ` +
-            `Using a different username will not give access to previous posts/comments owned by "${deviceOwner}".`
-        );
-
         const signInInstead = await showConfirm(
           'Use Existing Account Instead?',
-          `Do you want to sign in as "${deviceOwner}" instead?`
+          `This device is currently bound to "${deviceOwner}". ` +
+            `Using a different username will not give access to previous posts/comments owned by "${deviceOwner}".\n\n` +
+            `Do you want to sign in as "${deviceOwner}" instead?`
         );
         if (signInInstead) {
           setShowCoachPanel(false);
@@ -112,8 +108,8 @@ export default function LoginScreen() {
             'Username Filled',
             `You can continue by tapping "Enter as ${deviceOwner}" to keep access to your previous posts/comments.`
           );
-          return;
         }
+        return;
       }
       showAlert('Login Failed', msg);
     } finally {
@@ -187,15 +183,11 @@ export default function LoginScreen() {
       const msg = err?.message ?? err?.response?.data?.error ?? 'Invalid or already-used invite code.';
       const deviceOwner = extractBoundUser(msg);
       if (deviceOwner) {
-        showAlert(
-          'Device Already Bound',
-          `This device is currently bound to "${deviceOwner}". ` +
-            `Using a different username will not give access to previous posts/comments owned by "${deviceOwner}".`
-        );
-
         const signInInstead = await showConfirm(
           'Use Existing Account Instead?',
-          `This device is bound to "${deviceOwner}". Do you want to sign in with that username instead?`
+          `This device is currently bound to "${deviceOwner}". ` +
+            `Using a different username will not give access to previous posts/comments owned by "${deviceOwner}".\n\n` +
+            `Do you want to sign in with that username instead?`
         );
         if (signInInstead) {
           setShowCoachPanel(false);
@@ -204,8 +196,8 @@ export default function LoginScreen() {
             'Switched to User Login',
             `Use "Enter as ${deviceOwner}" to continue with the bound account.`
           );
-          return;
         }
+        return;
       }
       showAlert('Coach Login Failed', msg);
     } finally {
