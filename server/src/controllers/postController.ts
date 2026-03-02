@@ -8,6 +8,7 @@ import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
 import { generateContextualEncouragement } from '../services/biblicalEncouragementService';
 import { notifyComment } from '../services/notificationService';
+import { getHourlyHopeConfig } from '../services/appConfigService';
 
 const SYSTEM_USER_ID = 'system-encouragement-bot';
 const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
@@ -115,8 +116,13 @@ export async function createPost(req: Request, res: Response): Promise<void> {
  * Includes author displayName.
  */
 export async function getPosts(_req: Request, res: Response): Promise<void> {
+  const { visible: hourlyHopeVisible } = await getHourlyHopeConfig();
+
   const posts = await prisma.post.findMany({
-    where: { moderationStatus: { in: ['SAFE', 'REVIEW'] } },
+    where: {
+      moderationStatus: { in: ['SAFE', 'REVIEW'] },
+      ...(hourlyHopeVisible ? {} : { userId: { not: SYSTEM_USER_ID } }),
+    },
     include: {
       user: { select: { displayName: true, role: true } },
       _count: { select: { reactions: true, comments: true } },
@@ -182,6 +188,7 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
  */
 export async function getPostById(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
+  const { visible: hourlyHopeVisible } = await getHourlyHopeConfig();
 
   const post = await prisma.post.findUnique({
     where: { id: postId },
@@ -192,6 +199,11 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
   });
 
   if (!post) {
+    res.status(404).json({ error: 'Post not found.' });
+    return;
+  }
+
+  if (!hourlyHopeVisible && post.userId === SYSTEM_USER_ID) {
     res.status(404).json({ error: 'Post not found.' });
     return;
   }

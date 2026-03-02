@@ -150,7 +150,7 @@ function CustomDrawerContent({
           <NavItem icon="list-outline" label="Review Queue" routeName="ReviewQueue" />
         )}
         {isAdmin && (
-          <NavItem icon="mail-outline" label="Send Invite" routeName="SendInvite" />
+          <NavItem icon="settings-outline" label="Admin Settings" routeName="SendInvite" />
         )}
       </View>
 
@@ -210,7 +210,7 @@ export default function MainDrawerNavigator() {
       <Drawer.Screen
         name="SendInvite"
         component={SendInviteScreen}
-        options={{ title: "PUSO Spaze — Send Invite" }}
+        options={{ title: "PUSO Spaze — Admin Settings" }}
       />
       <Drawer.Screen
         name="Post"

@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { Resend } from 'resend';
 import { prisma } from '../config/db';
 import { env } from '../config/env';
+import { getHourlyHopeConfig, updateHourlyHopeConfig } from '../services/appConfigService';
 
 // ── Resend client (lazy singleton) ───
 let _resend: Resend | null = null;
@@ -248,5 +249,49 @@ export async function unpinPost(req: Request, res: Response): Promise<void> {
   } catch (err) {
     console.error('[AdminController] unpinPost error:', err);
     res.status(500).json({ error: 'Failed to unpin post.' });
+  }
+}
+
+/**
+ * GET /api/admin/hourly-hope/status
+ * Header: Authorization: Bearer <ADMIN_SECRET>
+ *
+ * Returns: { postingEnabled: boolean; visible: boolean }
+ */
+export async function getHourlyHopeStatus(_req: Request, res: Response): Promise<void> {
+  try {
+    const config = await getHourlyHopeConfig();
+    res.json(config);
+  } catch (err) {
+    console.error('[AdminController] getHourlyHopeStatus error:', err);
+    res.status(500).json({ error: 'Failed to get Hourly Hope status.' });
+  }
+}
+
+/**
+ * PATCH /api/admin/hourly-hope/status
+ * Header: Authorization: Bearer <ADMIN_SECRET>
+ * Body: { postingEnabled?: boolean; visible?: boolean }
+ *
+ * postingEnabled=false: pause new Hourly Hope posts
+ * visible=false: hide existing Hourly Hope posts from feed
+ */
+export async function updateHourlyHopeStatus(req: Request, res: Response): Promise<void> {
+  const { postingEnabled, visible } = req.body as {
+    postingEnabled?: boolean;
+    visible?: boolean;
+  };
+
+  if (typeof postingEnabled !== 'boolean' && typeof visible !== 'boolean') {
+    res.status(400).json({ error: 'At least one of postingEnabled or visible must be a boolean.' });
+    return;
+  }
+
+  try {
+    const next = await updateHourlyHopeConfig({ postingEnabled, visible });
+    res.json(next);
+  } catch (err) {
+    console.error('[AdminController] updateHourlyHopeStatus error:', err);
+    res.status(500).json({ error: 'Failed to update Hourly Hope status.' });
   }
 }

@@ -135,3 +135,15 @@ model Notification {
   @@index([createdAt])
   @@map("notifications")
 }
+
+// ── AppConfig ───────────────────────────────
+model AppConfig {
+  id                Int      @id @default(1)
+  hourlyHopePostingEnabled Boolean  @default(true)
+  hourlyHopeVisible Boolean  @default(true)
+  hourlyHopeEnabled Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("app_config")
+}

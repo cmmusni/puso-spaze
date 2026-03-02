@@ -8,6 +8,7 @@ import { prisma } from '../config/db';
 import { generateBiblicalEncouragement } from './biblicalEncouragementService';
 import { moderateContent } from './moderationService';
 import { notifyNewEncouragement } from './notificationService';
+import { getHourlyHopeConfig } from './appConfigService';
 
 const SYSTEM_USER_ID = 'system-encouragement-bot';
 const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
@@ -37,6 +38,12 @@ async function ensureSystemUser(): Promise<void> {
  */
 async function postEncouragement(): Promise<void> {
   try {
+    const { postingEnabled } = await getHourlyHopeConfig();
+    if (!postingEnabled) {
+      console.log('⏸️ Hourly Hope is paused; skipping scheduled encouragement post.');
+      return;
+    }
+
     console.log('🌟 Generating hourly biblical encouragement...');
 
     // Ensure system user exists
@@ -107,5 +114,10 @@ export function startEncouragementScheduler(): void {
  * Can be called from an admin endpoint
  */
 export async function triggerEncouragementNow(): Promise<void> {
+  const { postingEnabled } = await getHourlyHopeConfig();
+  if (!postingEnabled) {
+    throw new Error('Hourly Hope is currently paused by admin setting.');
+  }
+
   await postEncouragement();
 }

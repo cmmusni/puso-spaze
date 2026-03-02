@@ -6,7 +6,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middlewares/validate';
-import { generateInviteCodes, listInviteCodes, sendInviteCodeByEmail, pinPost, unpinPost } from '../controllers/adminController';
+import {
+  generateInviteCodes,
+  listInviteCodes,
+  sendInviteCodeByEmail,
+  pinPost,
+  unpinPost,
+  getHourlyHopeStatus,
+  updateHourlyHopeStatus,
+} from '../controllers/adminController';
 import { env } from '../config/env';
 import { triggerEncouragementNow } from '../services/encouragementScheduler';
 
@@ -51,10 +59,30 @@ router.post('/encouragement/trigger', requireAdmin, async (_req: Request, res: R
   try {
     await triggerEncouragementNow();
     res.json({ success: true, message: 'Encouragement post created successfully' });
-  } catch (error) {
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : 'Failed to create encouragement post';
+    if (message.includes('paused')) {
+      res.status(409).json({ error: message });
+      return;
+    }
     res.status(500).json({ error: 'Failed to create encouragement post' });
   }
 });
+
+// GET /api/admin/hourly-hope/status
+router.get('/hourly-hope/status', requireAdmin, getHourlyHopeStatus);
+
+// PATCH /api/admin/hourly-hope/status
+router.patch(
+  '/hourly-hope/status',
+  requireAdmin,
+  [
+    body('postingEnabled').optional().isBoolean().withMessage('postingEnabled must be boolean'),
+    body('visible').optional().isBoolean().withMessage('visible must be boolean'),
+    validate,
+  ],
+  updateHourlyHopeStatus
+);
 
 // POST /api/admin/posts/:postId/pin
 router.post(
