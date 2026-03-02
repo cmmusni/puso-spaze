@@ -12,6 +12,7 @@ import { getHourlyHopeConfig } from '../services/appConfigService';
 
 const SYSTEM_USER_ID = 'system-encouragement-bot';
 const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
+const HOURLY_HOPE_AUTO_COMMENT_DELAY_MS = 3 * 60 * 1000;
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -57,41 +58,43 @@ export async function createPost(req: Request, res: Response): Promise<void> {
 
   // ── Hourly Hope contextual encouragement comment ─────────
   if (!flagged && userId !== SYSTEM_USER_ID) {
-    void (async () => {
-      try {
-        const systemUser = await prisma.user.findUnique({ where: { id: SYSTEM_USER_ID } });
-        if (!systemUser) {
-          await prisma.user.create({
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const systemUser = await prisma.user.findUnique({ where: { id: SYSTEM_USER_ID } });
+          if (!systemUser) {
+            await prisma.user.create({
+              data: {
+                id: SYSTEM_USER_ID,
+                displayName: SYSTEM_USER_DISPLAY_NAME,
+                role: 'ADMIN',
+              },
+            });
+          }
+
+          const encouragement = await generateContextualEncouragement(content);
+
+          await prisma.comment.create({
             data: {
-              id: SYSTEM_USER_ID,
-              displayName: SYSTEM_USER_DISPLAY_NAME,
-              role: 'ADMIN',
+              postId: post.id,
+              userId: SYSTEM_USER_ID,
+              content: encouragement,
+              moderationStatus: 'SAFE',
             },
           });
-        }
 
-        const encouragement = await generateContextualEncouragement(content);
-
-        await prisma.comment.create({
-          data: {
+          await notifyComment({
             postId: post.id,
-            userId: SYSTEM_USER_ID,
-            content: encouragement,
-            moderationStatus: 'SAFE',
-          },
-        });
-
-        await notifyComment({
-          postId: post.id,
-          postAuthorId: post.userId,
-          commenterId: SYSTEM_USER_ID,
-          commenterName: SYSTEM_USER_DISPLAY_NAME,
-          commentPreview: encouragement,
-        });
-      } catch (err) {
-        console.error('Failed to auto-create Hourly Hope encouragement comment:', err);
-      }
-    })();
+            postAuthorId: post.userId,
+            commenterId: SYSTEM_USER_ID,
+            commenterName: SYSTEM_USER_DISPLAY_NAME,
+            commentPreview: encouragement,
+          });
+        } catch (err) {
+          console.error('Failed to auto-create Hourly Hope encouragement comment:', err);
+        }
+      })();
+    }, HOURLY_HOPE_AUTO_COMMENT_DELAY_MS);
   }
 
   res.status(201).json({
