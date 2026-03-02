@@ -105,6 +105,8 @@ ADMIN_SECRET="your_admin_secret"
 ALLOWED_ORIGINS="http://localhost:8081,http://localhost:19006"
 RESEND_API_KEY="your_resend_api_key"
 FROM_EMAIL="noreply@yourdomain.com"
+NEW_USER_ALERT_TO="you@example.com"
+NEW_USER_ALERT_FROM="PUSO Spaze <noreply@yourdomain.com>"
 ```
 
 4. **Run database migrations**

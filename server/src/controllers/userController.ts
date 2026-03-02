@@ -7,6 +7,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 
 /**
  * POST /api/users
@@ -23,11 +24,28 @@ export async function createUser(req: Request, res: Response): Promise<void> {
   const { displayName } = req.body as { displayName: string };
 
   try {
+    const existingUser = await prisma.user.findUnique({
+      where: { displayName },
+      select: { id: true },
+    });
+
     const user = await prisma.user.upsert({
       where: { displayName },
       update: {},  // Preserve existing role (including COACH/ADMIN)
       create: { displayName },  // New users default to USER role
     });
+
+    if (!existingUser) {
+      const context = extractNewUserAlertContext(req);
+      context.source = 'users.create';
+
+      void sendNewUserAlertEmail({
+        userId: user.id,
+        displayName: user.displayName,
+        role: user.role,
+        context,
+      });
+    }
 
     res.status(201).json({
       userId: user.id,

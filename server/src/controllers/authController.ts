@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 
 /**
  * POST /api/auth/redeem-invite
@@ -31,11 +32,28 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
     }
 
     // 2. Upsert the user — keep existing role on re-login, default to COACH on first login
+    const existingUser = await prisma.user.findUnique({
+      where: { displayName },
+      select: { id: true },
+    });
+
     const user = await prisma.user.upsert({
       where: { displayName },
       update: {},  // preserve any manually elevated role (e.g. ADMIN)
       create: { displayName, role: 'COACH' },
     });
+
+    if (!existingUser) {
+      const context = extractNewUserAlertContext(req);
+      context.source = 'auth.redeem-invite';
+
+      void sendNewUserAlertEmail({
+        userId: user.id,
+        displayName: user.displayName,
+        role: user.role,
+        context,
+      });
+    }
 
     // 3. Mark the invite code as used
     await prisma.inviteCode.update({

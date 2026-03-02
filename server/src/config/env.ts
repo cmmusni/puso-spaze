@@ -34,4 +34,11 @@ export const env = {
   // ── Email (Resend) ──────────────────────────────────────────────────
   /** Resend API key for transactional emails */
   RESEND_API_KEY: optional('RESEND_API_KEY', ''),
+  /** Comma-separated list of emails that receive new user signup alerts */
+  NEW_USER_ALERT_TO: optional('NEW_USER_ALERT_TO', '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+  /** Sender used for new-user alert emails */
+  NEW_USER_ALERT_FROM: optional('NEW_USER_ALERT_FROM', 'PUSO Spaze <noreply@puso-spaze.org>'),
 } as const;
