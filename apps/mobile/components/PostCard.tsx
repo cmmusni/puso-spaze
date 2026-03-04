@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   Modal,
   Animated,
@@ -14,6 +15,7 @@ import {
   Dimensions,
   type GestureResponderEvent,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +32,7 @@ import {
   apiGetReactions,
   apiUpsertReaction,
   apiDeletePost,
+  apiUpdatePost,
   apiFlagPost,
   apiPinPost,
   apiUnpinPost,
@@ -123,6 +126,9 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState({ top: 80, right: 20 });
   const menuAnim = useRef(new Animated.Value(0)).current;
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const openPicker = () => {
     setShowPicker(true);
@@ -208,6 +214,46 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     }
   };
 
+  const handleOpenEditPost = () => {
+    closeMenu();
+    setEditContent(post.content);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEditPost = async () => {
+    if (!userId) return;
+    const trimmed = editContent.trim();
+    if (trimmed.length < 3) {
+      showAlert("Error", "Post content must be at least 3 characters.");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const { underReview } = await apiUpdatePost(post.id, {
+        userId,
+        content: trimmed,
+        tags: post.tags,
+      });
+      setEditModalVisible(false);
+      showAlert(
+        "Success",
+        underReview
+          ? "Post updated and is under review."
+          : "Post updated successfully."
+      );
+      onDelete?.(post.id);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.error ??
+        error?.message ??
+        "Failed to update post. Please try again.";
+      showAlert("Error", message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleFlagPost = async () => {
     closeMenu();
     const confirmed = await showConfirm(
@@ -251,6 +297,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
 
   // ── Permission check ──────────────────────────
   const canDelete = userId === post.userId || role === "ADMIN";
+  const canEdit = userId === post.userId;
   const canFlag = role === "COACH" || role === "ADMIN";
   const canPin = role === "ADMIN";
 
@@ -624,6 +671,23 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                     </TouchableOpacity>
                   </>
                 )}
+                {canEdit && (
+                  <>
+                    <View style={styles.menuDivider} />
+                    <TouchableOpacity
+                      onPress={handleOpenEditPost}
+                      activeOpacity={0.7}
+                      style={styles.menuOption}
+                    >
+                      <Ionicons
+                        name="create-outline"
+                        size={18}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.menuOptionText}>Edit Post</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
                 {canDelete && (
                   <>
                     <View style={styles.menuDivider} />
@@ -651,6 +715,60 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
               </Animated.View>
             </TouchableOpacity>
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => !savingEdit && setEditModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.editBackdrop}
+          activeOpacity={1}
+          onPress={() => !savingEdit && setEditModalVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.editSheet}
+          >
+            <Text style={styles.editTitle}>Edit Post</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editContent}
+              onChangeText={setEditContent}
+              editable={!savingEdit}
+              multiline
+              maxLength={500}
+              placeholder="Update your post..."
+              placeholderTextColor={colors.muted4}
+            />
+            <View style={styles.editActions}>
+              <TouchableOpacity
+                style={styles.editCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setEditModalVisible(false)}
+                disabled={savingEdit}
+              >
+                <Text style={styles.editCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.editSaveBtn}
+                activeOpacity={0.8}
+                onPress={handleSaveEditPost}
+                disabled={savingEdit || editContent.trim().length < 3}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator size="small" color={colors.card} />
+                ) : (
+                  <Text style={styles.editSaveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </>
@@ -1022,5 +1140,71 @@ const styles = StyleSheet.create({
   },
   menuOptionTextDanger: {
     color: colors.danger,
+  },
+  editBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  editSheet: {
+    width: "100%",
+    maxWidth: 520,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.muted2,
+    padding: 14,
+  },
+  editTitle: {
+    color: colors.heading,
+    fontWeight: "700",
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  editInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.muted2,
+    minHeight: 120,
+    maxHeight: 220,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.heading,
+    textAlignVertical: "top",
+  },
+  editActions: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  editCancelBtn: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: colors.muted3,
+    backgroundColor: colors.surface,
+  },
+  editCancelText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  editSaveBtn: {
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    backgroundColor: colors.primary,
+    minWidth: 70,
+    alignItems: "center",
+  },
+  editSaveText: {
+    color: colors.card,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

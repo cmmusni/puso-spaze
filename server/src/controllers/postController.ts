@@ -299,3 +299,83 @@ export async function deletePost(req: Request, res: Response): Promise<void> {
 
   res.json({ success: true, message: 'Post deleted successfully.' });
 }
+
+export async function updatePost(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+  const { userId, content, tags } = req.body as {
+    userId: string;
+    content: string;
+    tags?: string[];
+  };
+
+  if (!userId || !content?.trim()) {
+    res.status(400).json({ error: 'userId and content are required.' });
+    return;
+  }
+
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    include: { user: { select: { displayName: true } } },
+  });
+
+  if (!post) {
+    res.status(404).json({ error: 'Post not found.' });
+    return;
+  }
+
+  if (post.userId !== userId) {
+    res.status(403).json({ error: 'You can only edit your own post.' });
+    return;
+  }
+
+  let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
+  try {
+    moderationStatus = await moderateContent(content.trim());
+  } catch {
+    moderationStatus = 'REVIEW';
+  }
+
+  if (moderationStatus === 'FLAGGED') {
+    res.status(400).json({
+      error: 'Your updated post was flagged by our safety system. Please revise it.',
+      flagged: true,
+    });
+    return;
+  }
+
+  const updated = await prisma.post.update({
+    where: { id: postId },
+    data: {
+      content: content.trim(),
+      tags: tags ?? post.tags,
+      moderationStatus,
+    },
+    include: { user: { select: { displayName: true, role: true } } },
+  });
+
+  if (moderationStatus === 'SAFE') {
+    notifyMentionsInPost({
+      postId: updated.id,
+      authorId: updated.userId,
+      authorName: updated.user.displayName,
+      content: updated.content,
+    }).catch((err) => {
+      console.error('Failed to send post mention notifications:', err);
+    });
+  }
+
+  res.json({
+    post: {
+      id: updated.id,
+      content: updated.content,
+      userId: updated.userId,
+      user: updated.user,
+      createdAt: updated.createdAt.toISOString(),
+      moderationStatus: updated.moderationStatus,
+      tags: updated.tags,
+      pinned: updated.pinned,
+    },
+    flagged: false,
+    underReview: moderationStatus === 'REVIEW',
+  });
+}

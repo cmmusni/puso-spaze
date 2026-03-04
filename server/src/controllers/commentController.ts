@@ -161,3 +161,81 @@ export async function deleteComment(req: Request, res: Response): Promise<void> 
     res.status(500).json({ error: 'Failed to delete comment.' });
   }
 }
+
+export async function updateComment(req: Request, res: Response): Promise<void> {
+  const { postId, commentId } = req.params;
+  const { userId, content } = req.body as { userId: string; content: string };
+
+  if (!userId || !content?.trim()) {
+    res.status(400).json({ error: 'userId and content are required.' });
+    return;
+  }
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { user: { select: { displayName: true, role: true } } },
+    });
+
+    if (!comment || comment.postId !== postId) {
+      res.status(404).json({ error: 'Comment not found.' });
+      return;
+    }
+
+    if (comment.userId !== userId) {
+      res.status(403).json({ error: 'You can only edit your own comment.' });
+      return;
+    }
+
+    let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
+    try {
+      moderationStatus = await moderateContent(content.trim());
+    } catch {
+      moderationStatus = 'REVIEW';
+    }
+
+    if (moderationStatus === 'FLAGGED') {
+      res.status(400).json({
+        error: 'Your updated comment was flagged by our safety system. Please revise it.',
+        flagged: true,
+      });
+      return;
+    }
+
+    const updated = await prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        content: content.trim(),
+        moderationStatus,
+      },
+      include: { user: { select: { displayName: true, role: true } } },
+    });
+
+    if (moderationStatus === 'SAFE') {
+      notifyMentionsInComment({
+        postId,
+        commentId: updated.id,
+        commentAuthorId: updated.userId,
+        commentAuthorName: updated.user.displayName,
+        content: updated.content,
+      }).catch((err) => console.error('Failed to send mention notifications:', err));
+    }
+
+    res.json({
+      comment: {
+        id: updated.id,
+        postId: updated.postId,
+        userId: updated.userId,
+        content: updated.content,
+        createdAt: updated.createdAt.toISOString(),
+        moderationStatus: updated.moderationStatus,
+        user: updated.user,
+      },
+      flagged: false,
+      underReview: moderationStatus === 'REVIEW',
+    });
+  } catch (error) {
+    console.error('Error updating comment:', error);
+    res.status(500).json({ error: 'Failed to update comment.' });
+  }
+}

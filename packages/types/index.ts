@@ -94,6 +94,8 @@ export interface CreateUserResponse { userId: string; displayName: string; role:
 
 export interface CreatePostRequest { userId: string; content: string; tags?: string[]; }
 export interface CreatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
+export interface UpdatePostRequest { userId: string; content: string; tags?: string[]; }
+export interface UpdatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
 export interface GetPostsResponse { posts: Post[]; }
 
 export interface UpsertReactionRequest { userId: string; type: ReactionType; }
@@ -109,6 +111,8 @@ export interface GetReactionsResponse {
 
 export interface CreateCommentRequest { userId: string; content: string; }
 export interface CreateCommentResponse { comment: Comment; flagged: boolean; underReview: boolean; }
+export interface UpdateCommentRequest { userId: string; content: string; }
+export interface UpdateCommentResponse { comment: Comment; flagged: boolean; underReview: boolean; }
 export interface GetCommentsResponse { comments: Comment[]; }
 export interface SearchUsersResponse { users: MentionUser[]; }
 

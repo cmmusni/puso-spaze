@@ -12,12 +12,16 @@ import type {
   CreateUserResponse,
   CreatePostRequest,
   CreatePostResponse,
+  UpdatePostRequest,
+  UpdatePostResponse,
   GetPostsResponse,
   UpsertReactionRequest,
   UpsertReactionResponse,
   GetReactionsResponse,
   CreateCommentRequest,
   CreateCommentResponse,
+  UpdateCommentRequest,
+  UpdateCommentResponse,
   GetCommentsResponse,
   RedeemInviteRequest,
   RedeemInviteResponse,
@@ -147,6 +151,17 @@ export async function apiDeletePost(
   return data;
 }
 
+export async function apiUpdatePost(
+  postId: string,
+  body: UpdatePostRequest
+): Promise<UpdatePostResponse> {
+  const { data } = await client.patch<UpdatePostResponse>(
+    `/api/posts/${postId}`,
+    body
+  );
+  return data;
+}
+
 /**
  * POST /api/admin/posts/:postId/pin
  * Pins a post (Admin only).
@@ -252,6 +267,18 @@ export async function apiDeleteComment(
       data: { userId },
       params: { userId },
     }
+  );
+  return data;
+}
+
+export async function apiUpdateComment(
+  postId: string,
+  commentId: string,
+  body: UpdateCommentRequest
+): Promise<UpdateCommentResponse> {
+  const { data } = await client.patch<UpdateCommentResponse>(
+    `/api/posts/${postId}/comments/${commentId}`,
+    body
   );
   return data;
 }

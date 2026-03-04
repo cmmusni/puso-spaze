@@ -38,6 +38,7 @@ import {
   apiGetComments,
   apiCreateComment,
   apiDeleteComment,
+  apiUpdateComment,
   apiSearchUsers,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
@@ -166,6 +167,9 @@ export default function PostDetailScreen() {
   const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentReview, setCommentReview] = useState<string | null>(null);
+  const [editCommentVisible, setEditCommentVisible] = useState(false);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [savingCommentEdit, setSavingCommentEdit] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
@@ -458,6 +462,65 @@ export default function PostDetailScreen() {
     await performDeleteComment(commentToDelete);
   }, [selectedComment, closeCommentMenu, performDeleteComment, role, userId]);
 
+  const handleEditFromMenu = useCallback(() => {
+    if (!selectedComment) return;
+    if (!userId || selectedComment.userId !== userId) {
+      closeCommentMenu();
+      showAlert("Error", "You can only edit your own comment.");
+      return;
+    }
+    setEditCommentText(selectedComment.content);
+    closeCommentMenu();
+    setEditCommentVisible(true);
+  }, [selectedComment, userId, closeCommentMenu]);
+
+  const openCommentEditor = useCallback(
+    (comment: Comment) => {
+      if (!userId || comment.userId !== userId) {
+        showAlert("Error", "You can only edit your own comment.");
+        return;
+      }
+      setSelectedComment(comment);
+      setEditCommentText(comment.content);
+      setEditCommentVisible(true);
+    },
+    [userId]
+  );
+
+  const handleSaveEditedComment = useCallback(async () => {
+    if (!post?.id || !selectedComment || !userId) return;
+
+    const trimmed = editCommentText.trim();
+    if (!trimmed) {
+      showAlert("Error", "Comment cannot be empty.");
+      return;
+    }
+
+    setSavingCommentEdit(true);
+    try {
+      const { comment, underReview } = await apiUpdateComment(post.id, selectedComment.id, {
+        userId,
+        content: trimmed,
+      });
+
+      setComments((prev) =>
+        prev.map((item) => (item.id === comment.id ? comment : item))
+      );
+      setEditCommentVisible(false);
+      if (underReview) {
+        showAlert("Updated", "Comment updated and is under review.");
+      }
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ??
+        err?.message ??
+        "Could not update comment. Please try again.";
+      showAlert("Error", msg);
+    } finally {
+      setSavingCommentEdit(false);
+    }
+  }, [editCommentText, post?.id, selectedComment, userId]);
+
   const handleCommentInputChange = useCallback((text: string) => {
     setCommentText(text);
     setMentionQuery(extractTrailingMentionQuery(text));
@@ -505,6 +568,20 @@ export default function PostDetailScreen() {
             <Text style={styles.commentTime}>
               {formatRelativeTime(item.createdAt)}
             </Text>
+            {isOwnComment && (
+              <TouchableOpacity
+                onPress={() => openCommentEditor(item)}
+                activeOpacity={0.75}
+                style={styles.commentEditBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={13}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            )}
             {isUnderReview && (
               <View style={styles.reviewBadge}>
                 <View style={styles.reviewBadgeRow}>
@@ -847,6 +924,21 @@ export default function PostDetailScreen() {
             style={styles.menuSheet}
           >
             <Text style={styles.menuTitle}>Comment options</Text>
+            {selectedComment?.userId === userId && (
+              <TouchableOpacity
+                style={styles.menuDeleteBtn}
+                activeOpacity={0.8}
+                onPress={handleEditFromMenu}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={16}
+                  color={colors.primary}
+                />
+                <Text style={styles.menuEditText}>Edit comment</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.menuDeleteBtn}
               activeOpacity={0.8}
@@ -867,6 +959,61 @@ export default function PostDetailScreen() {
             >
               <Text style={styles.menuCancelText}>Cancel</Text>
             </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={editCommentVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => !savingCommentEdit && setEditCommentVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => !savingCommentEdit && setEditCommentVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.menuSheet}
+          >
+            <Text style={styles.menuTitle}>Edit comment</Text>
+            <TextInput
+              style={styles.editCommentInput}
+              value={editCommentText}
+              onChangeText={setEditCommentText}
+              multiline
+              maxLength={500}
+              editable={!savingCommentEdit}
+              placeholder="Update your comment..."
+              placeholderTextColor={colors.muted4}
+            />
+
+            <View style={styles.editCommentActions}>
+              <TouchableOpacity
+                style={styles.menuCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setEditCommentVisible(false)}
+                disabled={savingCommentEdit}
+              >
+                <Text style={styles.menuCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.editCommentSaveBtn}
+                activeOpacity={0.8}
+                onPress={handleSaveEditedComment}
+                disabled={savingCommentEdit || !editCommentText.trim()}
+              >
+                {savingCommentEdit ? (
+                  <ActivityIndicator size="small" color={colors.card} />
+                ) : (
+                  <Text style={styles.editCommentSaveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -1178,6 +1325,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
+  menuEditText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
   menuCancelBtn: {
     borderRadius: 12,
     borderWidth: 1,
@@ -1215,6 +1367,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
+  commentEditBtn: {
+    marginLeft: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.muted1,
+  },
   commentFeedbackError: {
     marginHorizontal: 16,
     marginBottom: 8,
@@ -1236,6 +1399,37 @@ const styles = StyleSheet.create({
   commentFeedbackText: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  editCommentInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.muted1,
+    minHeight: 110,
+    maxHeight: 220,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.heading,
+    textAlignVertical: "top",
+    marginBottom: 10,
+  },
+  editCommentActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  editCommentSaveBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.primary,
+    minWidth: 70,
+    alignItems: "center",
+  },
+  editCommentSaveText: {
+    color: colors.card,
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   // ── Input bar ─────────────────────────────
