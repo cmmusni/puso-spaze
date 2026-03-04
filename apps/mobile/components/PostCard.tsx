@@ -356,7 +356,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         style={[
           styles.card,
           post.pinned ? styles.cardPinned : null,
-          userReaction ? styles.cardActive : styles.cardDefault,
+          styles.cardDefault,
         ]}
       >
         {/* ── Author row ── */}
@@ -438,39 +438,26 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         {/* ── Footer: reaction + comment counts ── */}
         <View style={styles.footer}>
           <View style={styles.footerLeft}>
-            {topReactions.length > 0 ? (
-              <TouchableOpacity
-                onPress={() => handleReaction("PRAY")}
-                onLongPress={openPicker}
-                delayLongPress={300}
-                activeOpacity={0.75}
-                style={styles.emojiCluster}
-              >
-                {topReactions.map((type, i) => (
-                  <View key={i} style={styles.iconChip}>
-                    {renderReactionIcon(type, 15, colors.card)}
-                  </View>
-                ))}
-                <Text style={styles.emojiCount}>{localTotal}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={() => handleReaction("PRAY")}
-                onLongPress={openPicker}
-                delayLongPress={300}
-                activeOpacity={0.75}
-                style={styles.countButton}
-              >
+            <TouchableOpacity
+              onPress={() => handleReaction(userReaction ?? "PRAY")}
+              onLongPress={openPicker}
+              delayLongPress={300}
+              activeOpacity={0.75}
+              style={styles.countButton}
+            >
+              {userReaction ? (
+                renderReactionIcon(userReaction, 22, colors.primary)
+              ) : (
                 <PrayIcon
-                  size={24}
-                  color={colors.primary}
-                  style={{ top: -2 }}
+                  size={22}
+                  color={colors.lightPrimary}
+                  style={{ top: -1 }}
                 />
-                <Text style={styles.footerCount}>
-                  {reactionLoading ? "…" : `${localTotal}`}
-                </Text>
-              </TouchableOpacity>
-            )}
+              )}
+              <Text style={styles.footerCount}>
+                {reactionLoading ? "…" : `${localTotal}`}
+              </Text>
+            </TouchableOpacity>
             <View style={styles.countButton}>
               <Ionicons
                 name="chatbubble-ellipses-outline"
@@ -480,6 +467,22 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
               <Text style={styles.footerCount}>{post.commentCount ?? 0}</Text>
             </View>
           </View>
+
+          {topReactions.length > 0 && (
+            <View style={styles.reactionSummaryRight}>
+              {topReactions.map((type, i) => (
+                <View
+                  key={type}
+                  style={[
+                    styles.iconChip,
+                    i > 0 ? styles.reactionSummaryOffset : undefined,
+                  ]}
+                >
+                  {renderReactionIcon(type, 13, colors.card)}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {post.latestComment && post.latestComment.userId !== SYSTEM_USER_ID && (
@@ -798,11 +801,6 @@ const styles = StyleSheet.create({
   cardPinned: {
     borderColor: colors.accent,
   },
-  cardActive: {
-    borderWidth: 1.5,
-    borderColor: colors.fuchsia,
-  },
-
   // ── Author ────────────────────────────────
   authorRow: {
     flexDirection: "row",
@@ -939,12 +937,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  emojiCluster: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    height: 24,
-  },
   iconChip: {
     width: 24,
     height: 24,
@@ -953,10 +945,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emojiCount: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: "600",
+  reactionSummaryRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reactionSummaryOffset: {
+    marginLeft: -6,
   },
   footerCount: {
     fontSize: 13,
