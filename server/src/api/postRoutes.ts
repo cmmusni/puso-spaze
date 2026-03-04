@@ -7,7 +7,7 @@
 // POST   /api/posts/:id/reactions  — toggle reaction
 // GET    /api/posts/:id/comments   — get comments
 // POST   /api/posts/:id/comments   — add comment
-// DELETE /api/posts/:id/comments/:commentId — delete own comment
+// DELETE /api/posts/:id/comments/:commentId — delete own comment (or any comment if admin)
 // ─────────────────────────────────────────────
 
 import { Router } from 'express';

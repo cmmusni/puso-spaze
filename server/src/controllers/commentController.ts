@@ -2,7 +2,7 @@
 // src/controllers/commentController.ts
 // POST /api/posts/:postId/comments — add comment
 // GET  /api/posts/:postId/comments — list comments
-// DELETE /api/posts/:postId/comments/:commentId — delete own comment
+// DELETE /api/posts/:postId/comments/:commentId — delete own comment (or any comment if admin)
 // ─────────────────────────────────────────────
 
 import { Request, Response } from 'express';
@@ -126,8 +126,21 @@ export async function deleteComment(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (comment.userId !== userId) {
-      res.status(403).json({ error: 'You can only delete your own comment.' });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    const isOwner = comment.userId === userId;
+    const isAdmin = user.role === 'ADMIN';
+
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({ error: 'You do not have permission to delete this comment.' });
       return;
     }
 
