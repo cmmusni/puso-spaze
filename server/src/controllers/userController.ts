@@ -9,6 +9,57 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 
+function toMentionHandle(displayName: string): string {
+  return displayName.trim().replace(/\s+/g, '_');
+}
+
+/**
+ * GET /api/users/search?q=...&limit=...
+ * Returns users for @mention autocomplete.
+ */
+export async function searchUsers(req: Request, res: Response): Promise<void> {
+  const q = String(req.query.q ?? '').trim();
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 1), 10)
+    : 8;
+
+  if (!q) {
+    res.json({ users: [] });
+    return;
+  }
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { displayName: { startsWith: q, mode: 'insensitive' } },
+          { displayName: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        displayName: true,
+        role: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    res.json({
+      users: users.map((user) => ({
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+        mentionHandle: toMentionHandle(user.displayName),
+      })),
+    });
+  } catch (err) {
+    console.error('[UserController] searchUsers error:', err);
+    res.status(500).json({ error: 'Failed to search users.' });
+  }
+}
+
 /**
  * POST /api/users
  * Body: { displayName: string }

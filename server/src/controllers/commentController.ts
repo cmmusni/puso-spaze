@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
 import { notifyComment } from '../services/notificationService';
+import { notifyMentionsInComment } from '../services/mentionService';
 
 // ── POST /api/posts/:postId/comments ─────────
 export async function createComment(req: Request, res: Response): Promise<void> {
@@ -51,6 +52,14 @@ export async function createComment(req: Request, res: Response): Promise<void> 
         commenterName: comment.user.displayName,
         commentPreview: content.trim(),
       }).catch((err) => console.error('Failed to send comment notification:', err));
+
+      notifyMentionsInComment({
+        postId,
+        commentId: comment.id,
+        commentAuthorId: userId,
+        commentAuthorName: comment.user.displayName,
+        content: content.trim(),
+      }).catch((err) => console.error('Failed to send mention notifications:', err));
     }
 
     const flagged = moderationStatus === 'FLAGGED';

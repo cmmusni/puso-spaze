@@ -24,6 +24,13 @@ export interface User {
   createdAt: string;
 }
 
+export interface MentionUser {
+  id: string;
+  displayName: string;
+  role: UserRole;
+  mentionHandle: string;
+}
+
 export interface Post {
   id: string;
   content: string;
@@ -103,6 +110,7 @@ export interface GetReactionsResponse {
 export interface CreateCommentRequest { userId: string; content: string; }
 export interface CreateCommentResponse { comment: Comment; flagged: boolean; underReview: boolean; }
 export interface GetCommentsResponse { comments: Comment[]; }
+export interface SearchUsersResponse { users: MentionUser[]; }
 
 // Auth / session
 export interface UserSession { userId: string; username: string; role: UserRole; isLoggedIn: boolean; }

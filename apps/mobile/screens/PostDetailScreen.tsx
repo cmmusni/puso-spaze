@@ -24,7 +24,12 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  RouteProp,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { PrayIcon, SupportIcon } from "../components/ReactionIcons";
 import {
   apiGetPostById,
@@ -33,13 +38,20 @@ import {
   apiGetComments,
   apiCreateComment,
   apiDeleteComment,
+  apiSearchUsers,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import { colors } from "../constants/theme";
+import MentionText from "../components/MentionText";
+import {
+  extractTrailingMentionQuery,
+  replaceTrailingMention,
+} from "../utils/mentions";
 import type {
   Post,
   Comment,
+  MentionUser,
   ReactionType,
   ReactionCounts,
 } from "../../../packages/types";
@@ -100,14 +112,33 @@ export default function PostDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<PostDetailRouteProp>();
   const routePost = route.params?.post;
-  const routePostId = route.params?.postId;
+  const webPathname =
+    Platform.OS === "web"
+      ? String((globalThis as { location?: { pathname?: string } }).location?.pathname ?? "")
+      : "";
+  const webSearch =
+    Platform.OS === "web"
+      ? String((globalThis as { location?: { search?: string } }).location?.search ?? "")
+      : "";
+  const webPostId =
+    Platform.OS === "web"
+      ? (() => {
+          const match = webPathname.match(/\/PostDetail\/([^/?#]+)/);
+          return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+        })()
+      : undefined;
+  const queryOpenedFrom =
+    Platform.OS === "web"
+      ? new URLSearchParams(webSearch).get("openedFrom")
+      : undefined;
+  const routePostId = route.params?.postId ?? webPostId;
   const [post, setPost] = useState<Post | null>(
     isValidPost(routePost) ? routePost : null,
   );
   const [postLoading, setPostLoading] = useState(
     !isValidPost(routePost) && !!routePostId,
   );
-  const openedFrom = route.params?.openedFrom;
+  const openedFrom = route.params?.openedFrom ?? queryOpenedFrom ?? undefined;
   const openedFromNotifications = openedFrom === "notifications";
 
   const handleBackPress = () => {
@@ -135,6 +166,9 @@ export default function PostDetailScreen() {
   const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentReview, setCommentReview] = useState<string | null>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
 
   // ── Floating reaction picker ──────────────────
   const [showPicker, setShowPicker] = useState(false);
@@ -155,6 +189,29 @@ export default function PostDetailScreen() {
 
   const flatListRef = useRef<FlatList>(null);
 
+  const refreshPostDetail = useCallback(async () => {
+    const targetPostId = routePostId ?? post?.id;
+    if (!targetPostId) return;
+
+    setCommentsLoading(true);
+    try {
+      const [postData, reactData, commentData] = await Promise.all([
+        apiGetPostById(targetPostId),
+        apiGetReactions(targetPostId, userId ?? undefined),
+        apiGetComments(targetPostId),
+      ]);
+
+      setPost(postData.post);
+      setCounts(reactData.counts);
+      setUserReaction(reactData.userReaction);
+      setComments(commentData.comments);
+    } catch {
+      // non-fatal
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [post?.id, routePostId, userId]);
+
   useEffect(() => {
     const validRoutePost = isValidPost(route.params?.post)
       ? route.params?.post
@@ -166,7 +223,7 @@ export default function PostDetailScreen() {
       return;
     }
 
-    const fallbackPostId = route.params?.postId;
+    const fallbackPostId = routePostId;
     if (!fallbackPostId) {
       setPost(null);
       setPostLoading(false);
@@ -196,7 +253,7 @@ export default function PostDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [route.params?.post, route.params?.postId]);
+  }, [route.params?.post, routePostId]);
 
   // ── Load reactions + comments on mount ───────
   const loadData = useCallback(async () => {
@@ -220,6 +277,49 @@ export default function PostDetailScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!openedFromNotifications) return;
+      void refreshPostDetail();
+    }, [openedFromNotifications, refreshPostDetail])
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    if (!mentionQuery) {
+      setMentionUsers([]);
+      setMentionLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setMentionLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const { users } = await apiSearchUsers(mentionQuery, 6);
+        if (active) {
+          setMentionUsers(users);
+        }
+      } catch {
+        if (active) {
+          setMentionUsers([]);
+        }
+      } finally {
+        if (active) {
+          setMentionLoading(false);
+        }
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [mentionQuery]);
 
   // ── Refresh handler ───────────────────────────
   const handleRefresh = async () => {
@@ -282,6 +382,8 @@ export default function PostDetailScreen() {
       } else {
         setComments((prev) => [...prev, comment]);
         setCommentText("");
+        setMentionQuery(null);
+        setMentionUsers([]);
         setCommentError(null);
         if (underReview) {
           setCommentReview(
@@ -356,6 +458,17 @@ export default function PostDetailScreen() {
     await performDeleteComment(commentToDelete);
   }, [selectedComment, closeCommentMenu, performDeleteComment, role, userId]);
 
+  const handleCommentInputChange = useCallback((text: string) => {
+    setCommentText(text);
+    setMentionQuery(extractTrailingMentionQuery(text));
+  }, []);
+
+  const handleSelectMention = useCallback((mentionHandle: string) => {
+    setCommentText((prev) => replaceTrailingMention(prev, mentionHandle));
+    setMentionQuery(null);
+    setMentionUsers([]);
+  }, []);
+
   // ── Render a single comment ───────────────────
   const renderComment: ListRenderItem<Comment> = ({ item }) => {
     const name =
@@ -418,12 +531,20 @@ export default function PostDetailScreen() {
               {isDeletingThisComment ? (
                 <ActivityIndicator size="small" color={colors.errorText} />
               ) : (
-                <Text style={styles.commentText}>{item.content}</Text>
+                <MentionText
+                  text={item.content}
+                  baseStyle={styles.commentText}
+                  mentionStyle={styles.mentionText}
+                />
               )}
             </TouchableOpacity>
           ) : (
             <View style={styles.commentBubble}>
-              <Text style={styles.commentText}>{item.content}</Text>
+              <MentionText
+                text={item.content}
+                baseStyle={styles.commentText}
+                mentionStyle={styles.mentionText}
+              />
             </View>
           )}
         </View>
@@ -543,7 +664,11 @@ export default function PostDetailScreen() {
                 </View>
 
                 <View style={styles.postDivider} />
-                <Text style={styles.postContent}>{post.content}</Text>
+                <MentionText
+                  text={post.content}
+                  baseStyle={styles.postContent}
+                  mentionStyle={styles.mentionText}
+                />
 
                 {post.tags && post.tags.length > 0 && (
                   <View style={styles.tagsRow}>
@@ -646,13 +771,33 @@ export default function PostDetailScreen() {
         )}
 
         {/* ── Comment input ── */}
+        {mentionQuery && (mentionLoading || mentionUsers.length > 0) && (
+          <View style={styles.mentionBox}>
+            {mentionLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              mentionUsers.map((user) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={styles.mentionItem}
+                  activeOpacity={0.8}
+                  onPress={() => handleSelectMention(user.mentionHandle)}
+                >
+                  <Text style={styles.mentionHandle}>@{user.mentionHandle}</Text>
+                  <Text style={styles.mentionName}>{user.displayName}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
+
         <View style={styles.inputBar}>
           <TextInput
             style={styles.commentInput}
             placeholder="Write an encouragement…"
             placeholderTextColor={colors.muted4}
             value={commentText}
-            onChangeText={setCommentText}
+            onChangeText={handleCommentInputChange}
             multiline
             maxLength={500}
             editable={!submitting}
@@ -1047,6 +1192,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   commentText: { color: colors.text, fontSize: 14, lineHeight: 20 },
+  mentionText: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
   reviewBadge: {
     backgroundColor: colors.warningBg,
     borderWidth: 1,
@@ -1090,6 +1239,35 @@ const styles = StyleSheet.create({
   },
 
   // ── Input bar ─────────────────────────────
+  mentionBox: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.muted1,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  mentionItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.muted1,
+  },
+  mentionHandle: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  mentionName: {
+    color: colors.muted5,
+    fontSize: 12,
+    marginTop: 2,
+  },
   inputBar: {
     backgroundColor: colors.card,
     borderTopWidth: 1,

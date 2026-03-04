@@ -10,6 +10,7 @@ import { generateContextualEncouragement } from '../services/biblicalEncourageme
 import { notifyComment } from '../services/notificationService';
 import { getHourlyHopeConfig } from '../services/appConfigService';
 import { env } from '../config/env';
+import { notifyMentionsInPost } from '../services/mentionService';
 
 const SYSTEM_USER_ID = 'system-encouragement-bot';
 const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
@@ -56,6 +57,17 @@ export async function createPost(req: Request, res: Response): Promise<void> {
 
   const flagged = moderationStatus === 'FLAGGED';
   const underReview = moderationStatus === 'REVIEW';
+
+  if (moderationStatus === 'SAFE') {
+    notifyMentionsInPost({
+      postId: post.id,
+      authorId: post.userId,
+      authorName: post.user.displayName,
+      content: post.content,
+    }).catch((err) => {
+      console.error('Failed to send post mention notifications:', err);
+    });
+  }
 
   // ── Hourly Hope contextual encouragement comment ─────────
   if (!flagged && userId !== SYSTEM_USER_ID && env.HOURLY_HOPE_AUTO_COMMENT_ENABLED) {

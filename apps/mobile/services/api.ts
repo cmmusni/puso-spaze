@@ -34,6 +34,7 @@ import type {
   MarkNotificationReadResponse,
   MarkAllNotificationsReadRequest,
   MarkAllNotificationsReadResponse,
+  SearchUsersResponse,
 } from '../../../packages/types';
 
 // ── Base URL ─────────────────────────────────
@@ -81,6 +82,20 @@ export async function apiUpdateUsername(
 ): Promise<{ success: boolean }> {
   const { data } = await client.patch(`/api/users/${userId}/username`, {
     displayName: newUsername,
+  });
+  return data;
+}
+
+/**
+ * GET /api/users/search?q=...&limit=...
+ * Returns users for @mention autocomplete.
+ */
+export async function apiSearchUsers(
+  q: string,
+  limit = 8
+): Promise<SearchUsersResponse> {
+  const { data } = await client.get<SearchUsersResponse>('/api/users/search', {
+    params: { q, limit },
   });
   return data;
 }

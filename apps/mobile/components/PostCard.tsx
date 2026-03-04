@@ -37,6 +37,7 @@ import {
 import { useUser } from "../hooks/useUser";
 import { colors } from "../constants/theme";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
+import MentionText from "./MentionText";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
 const SYSTEM_USER_ID = "system-encouragement-bot";
@@ -369,9 +370,12 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         <View style={styles.divider} />
 
         {/* ── Post Content ── */}
-        <Text style={styles.content} numberOfLines={4}>
-          {post.content}
-        </Text>
+        <MentionText
+          text={post.content}
+          baseStyle={styles.content}
+          mentionStyle={styles.mentionText}
+          numberOfLines={4}
+        />
 
         {/* ── Tags ── */}
         {post.tags && post.tags.length > 0 && (
@@ -438,9 +442,12 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
               size={13}
               color={colors.muted5}
             />
-            <Text style={styles.latestCommentText} numberOfLines={1}>
-              {`${post.latestComment.user?.displayName ?? "Member"}: ${post.latestComment.content}`}
-            </Text>
+            <MentionText
+              text={`${post.latestComment.user?.displayName ?? "Member"}: ${post.latestComment.content}`}
+              baseStyle={styles.latestCommentText}
+              mentionStyle={styles.mentionText}
+              numberOfLines={1}
+            />
           </View>
         )}
       </TouchableOpacity>
@@ -772,6 +779,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     lineHeight: 24,
+  },
+  mentionText: {
+    color: colors.primary,
+    fontWeight: "700",
   },
 
   // ── Tags ──────────────────────────────────

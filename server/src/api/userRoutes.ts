@@ -5,11 +5,27 @@
 // ─────────────────────────────────────────────
 
 import { Router } from 'express';
-import { body, param } from 'express-validator';
-import { createUser, getUserById, updateUsername } from '../controllers/userController';
+import { body, param, query } from 'express-validator';
+import { createUser, getUserById, searchUsers, updateUsername } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
+
+router.get(
+  '/search',
+  [
+    query('q')
+      .trim()
+      .isLength({ min: 1, max: 30 })
+      .withMessage('q must be 1–30 characters'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 10 })
+      .withMessage('limit must be between 1 and 10'),
+    validate,
+  ],
+  searchUsers
+);
 
 router.post(
   '/',

@@ -3,7 +3,7 @@
 // Submit a prayer or word of encouragement
 // ─────────────────────────────────────────────
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,9 @@ import { useNavigation } from '@react-navigation/native';
 import { usePosts } from '../hooks/usePosts';
 import { useUser } from '../hooks/useUser';
 import { validatePostContent } from '../utils/validators';
+import { apiSearchUsers } from '../services/api';
+import { extractTrailingMentionQuery, replaceTrailingMention } from '../utils/mentions';
+import type { MentionUser } from '../../../packages/types';
 
 export default function PostScreen() {
   const navigation = useNavigation();
@@ -37,11 +40,61 @@ export default function PostScreen() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
 
   const MAX_CHARS = 500;
   const charsLeft = MAX_CHARS - content.length;
   const canSubmit = !loading && content.trim().length >= 3;
   const MAX_TAGS = 5;
+
+  useEffect(() => {
+    let active = true;
+
+    if (!mentionQuery || mentionQuery.length < 1) {
+      setMentionUsers([]);
+      setMentionLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setMentionLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const { users } = await apiSearchUsers(mentionQuery, 6);
+        if (active) {
+          setMentionUsers(users);
+        }
+      } catch {
+        if (active) {
+          setMentionUsers([]);
+        }
+      } finally {
+        if (active) {
+          setMentionLoading(false);
+        }
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [mentionQuery]);
+
+  const handleContentChange = (text: string) => {
+    setContent(text);
+    const nextMentionQuery = extractTrailingMentionQuery(text);
+    setMentionQuery(nextMentionQuery);
+  };
+
+  const handleSelectMention = (mentionHandle: string) => {
+    setContent((prev) => replaceTrailingMention(prev, mentionHandle));
+    setMentionQuery(null);
+    setMentionUsers([]);
+  };
 
   const addTag = () => {
     const trimmed = tagInput.trim().toLowerCase();
@@ -139,7 +192,7 @@ export default function PostScreen() {
               placeholder="e.g. Lord, I pray for peace in our community…"
               placeholderTextColor={colors.muted4}
               value={content}
-              onChangeText={setContent}
+              onChangeText={handleContentChange}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               multiline
@@ -147,6 +200,26 @@ export default function PostScreen() {
               editable={!loading}
             />
           </View>
+
+          {mentionQuery && (mentionLoading || mentionUsers.length > 0) && (
+            <View style={styles.mentionBox}>
+              {mentionLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                mentionUsers.map((user) => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={styles.mentionItem}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelectMention(user.mentionHandle)}
+                  >
+                    <Text style={styles.mentionHandle}>@{user.mentionHandle}</Text>
+                    <Text style={styles.mentionName}>{user.displayName}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
 
           {/* ── Character counter ── */}
           <Text style={[styles.charCounter, charsLeft < 50 ? styles.charCounterWarn : styles.charCounterDefault]}>
@@ -302,6 +375,34 @@ const styles = StyleSheet.create({
     minHeight: 180,
     lineHeight: 26,
     textAlignVertical: 'top',
+  },
+  mentionBox: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.muted3,
+    marginBottom: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  mentionItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.muted3,
+  },
+  mentionHandle: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  mentionName: {
+    color: colors.muted5,
+    fontSize: 12,
+    marginTop: 2,
   },
   charCounter: { textAlign: 'right', fontSize: 12, fontWeight: '600', marginBottom: 16 },
   charCounterDefault: { color: colors.muted5 },
