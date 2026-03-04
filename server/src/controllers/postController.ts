@@ -9,6 +9,7 @@ import { moderateContent } from '../services/moderationService';
 import { generateContextualEncouragement } from '../services/biblicalEncouragementService';
 import { notifyComment } from '../services/notificationService';
 import { getHourlyHopeConfig } from '../services/appConfigService';
+import { env } from '../config/env';
 
 const SYSTEM_USER_ID = 'system-encouragement-bot';
 const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
@@ -57,7 +58,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
   const underReview = moderationStatus === 'REVIEW';
 
   // ── Hourly Hope contextual encouragement comment ─────────
-  if (!flagged && userId !== SYSTEM_USER_ID) {
+  if (!flagged && userId !== SYSTEM_USER_ID && env.HOURLY_HOPE_AUTO_COMMENT_ENABLED) {
     setTimeout(() => {
       void (async () => {
         try {
