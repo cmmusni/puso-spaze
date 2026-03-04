@@ -224,7 +224,7 @@ export async function apiCreateComment(
 
 /**
  * DELETE /api/posts/:postId/comments/:commentId
- * Deletes a comment owned by the requesting user.
+ * Deletes a comment owned by the requesting user, or any comment if requester is admin.
  */
 export async function apiDeleteComment(
   postId: string,

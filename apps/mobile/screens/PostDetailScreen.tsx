@@ -336,6 +336,14 @@ export default function PostDetailScreen() {
   const handleDeleteFromMenu = useCallback(async () => {
     if (!selectedComment) return;
 
+    const canDelete =
+      !!userId && (selectedComment.userId === userId || role === "ADMIN");
+    if (!canDelete) {
+      closeCommentMenu();
+      showAlert("Error", "You do not have permission to delete this comment.");
+      return;
+    }
+
     const commentToDelete = selectedComment;
     closeCommentMenu();
 
@@ -346,7 +354,7 @@ export default function PostDetailScreen() {
     if (!confirmed) return;
 
     await performDeleteComment(commentToDelete);
-  }, [selectedComment, closeCommentMenu, performDeleteComment]);
+  }, [selectedComment, closeCommentMenu, performDeleteComment, role, userId]);
 
   // ── Render a single comment ───────────────────
   const renderComment: ListRenderItem<Comment> = ({ item }) => {
@@ -358,6 +366,7 @@ export default function PostDetailScreen() {
     const avatarGrad = avatarColors(initial);
     const isUnderReview = item.moderationStatus === "REVIEW";
     const isOwnComment = item.userId === userId;
+    const canDeleteComment = isOwnComment || role === "ADMIN";
     const isDeletingThisComment = deletingCommentId === item.id;
     return (
       <View style={styles.commentRow}>
@@ -396,12 +405,15 @@ export default function PostDetailScreen() {
               </View>
             )}
           </View>
-          {isOwnComment ? (
+          {canDeleteComment ? (
             <TouchableOpacity
               onPress={() => openCommentMenu(item)}
               disabled={isDeletingThisComment}
               activeOpacity={0.8}
-              style={[styles.commentBubble, styles.commentBubbleOwn]}
+              style={[
+                styles.commentBubble,
+                isOwnComment ? styles.commentBubbleOwn : null,
+              ]}
             >
               {isDeletingThisComment ? (
                 <ActivityIndicator size="small" color={colors.errorText} />
