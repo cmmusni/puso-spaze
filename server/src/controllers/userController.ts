@@ -13,6 +13,8 @@ function toMentionHandle(displayName: string): string {
   return displayName.trim().replace(/\s+/g, '_');
 }
 
+const EVERYONE_MENTION_HANDLE = 'everyone';
+
 /**
  * GET /api/users/search?q=...&limit=...
  * Returns users for @mention autocomplete.
@@ -30,6 +32,9 @@ export async function searchUsers(req: Request, res: Response): Promise<void> {
   }
 
   try {
+    const includeEveryone = EVERYONE_MENTION_HANDLE.startsWith(q.toLowerCase());
+    const dbTake = includeEveryone ? Math.max(limit - 1, 0) : limit;
+
     const users = await prisma.user.findMany({
       where: {
         OR: [
@@ -43,16 +48,27 @@ export async function searchUsers(req: Request, res: Response): Promise<void> {
         role: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: dbTake,
     });
 
+    const results = users.map((user) => ({
+      id: user.id,
+      displayName: user.displayName,
+      role: user.role,
+      mentionHandle: toMentionHandle(user.displayName),
+    }));
+
+    if (includeEveryone) {
+      results.unshift({
+        id: 'everyone',
+        displayName: 'Everyone',
+        role: 'USER',
+        mentionHandle: EVERYONE_MENTION_HANDLE,
+      });
+    }
+
     res.json({
-      users: users.map((user) => ({
-        id: user.id,
-        displayName: user.displayName,
-        role: user.role,
-        mentionHandle: toMentionHandle(user.displayName),
-      })),
+      users: results.slice(0, limit),
     });
   } catch (err) {
     console.error('[UserController] searchUsers error:', err);

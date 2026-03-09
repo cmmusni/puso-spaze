@@ -48,6 +48,7 @@ const storage = {
 };
 
 export default function ProfileScreen() {
+  const showClearDeviceBindingSection = false;
   const navigation = useNavigation<Nav>();
   const { username, userId, updateUsername, logoutUser } = useUserStore();
   const [deviceOwner, setDeviceOwner] = useState<string | null>(null);
@@ -256,7 +257,7 @@ export default function ProfileScreen() {
                   <Text style={styles.value}>{deviceOwner ?? 'Not set'}</Text>
                 </View>
 
-                {deviceOwner && (
+                {deviceOwner && showClearDeviceBindingSection && (
                   <TouchableOpacity
                     onPress={handleClearDeviceBinding}
                     disabled={clearing}

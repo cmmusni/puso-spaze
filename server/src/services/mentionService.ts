@@ -1,6 +1,8 @@
 import { prisma } from '../config/db';
 import { createNotification } from './notificationService';
 
+const EVERYONE_HANDLE = 'everyone';
+
 function extractMentionHandles(text: string): string[] {
   const matches = text.match(/(^|\s)@([a-zA-Z0-9_-]{2,30})/g) ?? [];
   const handles = matches
@@ -26,21 +28,50 @@ function buildHandleVariants(handle: string): string[] {
 async function findMentionedUsersByHandles(handles: string[]) {
   if (!handles.length) return [] as Array<{ id: string; displayName: string }>;
 
-  const variants = [...new Set(handles.flatMap(buildHandleVariants))];
+  const includeEveryone = handles.includes(EVERYONE_HANDLE);
+  const specificHandles = handles.filter((handle) => handle !== EVERYONE_HANDLE);
 
-  const users = await prisma.user.findMany({
-    where: {
-      OR: variants.map((variant) => ({
-        displayName: { equals: variant, mode: 'insensitive' as const },
-      })),
-    },
+  if (includeEveryone && specificHandles.length === 0) {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        displayName: true,
+      },
+    });
+  }
+
+  const variants = [...new Set(specificHandles.flatMap(buildHandleVariants))];
+
+  const users = variants.length
+    ? await prisma.user.findMany({
+        where: {
+          OR: variants.map((variant) => ({
+            displayName: { equals: variant, mode: 'insensitive' as const },
+          })),
+        },
+        select: {
+          id: true,
+          displayName: true,
+        },
+      })
+    : [];
+
+  if (!includeEveryone) {
+    return users;
+  }
+
+  const everyoneUsers = await prisma.user.findMany({
     select: {
       id: true,
       displayName: true,
     },
   });
 
-  return users;
+  const merged = new Map<string, { id: string; displayName: string }>();
+  for (const user of everyoneUsers) merged.set(user.id, user);
+  for (const user of users) merged.set(user.id, user);
+
+  return [...merged.values()];
 }
 
 export async function notifyMentionsInPost(params: {

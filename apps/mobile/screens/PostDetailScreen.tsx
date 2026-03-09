@@ -470,7 +470,7 @@ export default function PostDetailScreen() {
       return;
     }
     setEditCommentText(selectedComment.content);
-    closeCommentMenu();
+    setCommentMenuVisible(false);
     setEditCommentVisible(true);
   }, [selectedComment, userId, closeCommentMenu]);
 
@@ -507,6 +507,7 @@ export default function PostDetailScreen() {
         prev.map((item) => (item.id === comment.id ? comment : item))
       );
       setEditCommentVisible(false);
+      setSelectedComment(null);
       if (underReview) {
         showAlert("Updated", "Comment updated and is under review.");
       }
@@ -968,12 +969,20 @@ export default function PostDetailScreen() {
         transparent
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => !savingCommentEdit && setEditCommentVisible(false)}
+        onRequestClose={() => {
+          if (savingCommentEdit) return;
+          setEditCommentVisible(false);
+          setSelectedComment(null);
+        }}
       >
         <TouchableOpacity
           style={styles.menuBackdrop}
           activeOpacity={1}
-          onPress={() => !savingCommentEdit && setEditCommentVisible(false)}
+          onPress={() => {
+            if (savingCommentEdit) return;
+            setEditCommentVisible(false);
+            setSelectedComment(null);
+          }}
         >
           <TouchableOpacity
             activeOpacity={1}
@@ -996,7 +1005,10 @@ export default function PostDetailScreen() {
               <TouchableOpacity
                 style={styles.menuCancelBtn}
                 activeOpacity={0.8}
-                onPress={() => setEditCommentVisible(false)}
+                onPress={() => {
+                  setEditCommentVisible(false);
+                  setSelectedComment(null);
+                }}
                 disabled={savingCommentEdit}
               >
                 <Text style={styles.menuCancelText}>Cancel</Text>
