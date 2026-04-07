@@ -489,3 +489,21 @@ export async function apiGetOnlineCount(): Promise<number> {
     return 0;
   }
 }
+
+
+export interface DashboardStats {
+  totalMembers: number;
+  dailyStories: number;
+  onlineCount: number;
+  trendingTags: string[];
+  dailyReflection: { id: string; content: string; createdAt: string } | null;
+}
+
+export async function apiGetDashboardStats(): Promise<DashboardStats> {
+  try {
+    const { data } = await client.get<DashboardStats>('/api/stats/dashboard');
+    return data;
+  } catch {
+    return { totalMembers: 0, dailyStories: 0, onlineCount: 0, trendingTags: [], dailyReflection: null };
+  }
+}

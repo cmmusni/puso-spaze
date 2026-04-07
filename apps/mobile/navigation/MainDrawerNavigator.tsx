@@ -2,6 +2,7 @@
 // navigation/MainDrawerNavigator.tsx
 // Unified drawer navigator for all users
 // Shows/hides navigation items based on user role
+// On web: adds bottom tab bar for quick navigation
 // ─────────────────────────────────────────────
 
 import React from "react";
@@ -11,6 +12,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import {
   createDrawerNavigator,
@@ -27,6 +29,9 @@ import SendInviteScreen from "../screens/SendInviteScreen";
 import PostScreen from "../screens/PostScreen";
 import PostDetailScreen from "../screens/PostDetailScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import BottomTabBar from "../components/BottomTabBar";
+import WebSidebar from "../components/WebSidebar";
+import WebRightPanel from "../components/WebRightPanel";
 import { useUserStore } from "../context/UserContext";
 import { colors } from "../constants/theme";
 import type { Post } from "../../../packages/types";
@@ -130,9 +135,13 @@ function CustomDrawerContent({
               color={colors.card}
             />
             <Text style={styles.roleBadgeText}>
-              {isAdmin ? "Admin" : isCoach ? "Coach" : "Community Member"}
+              {isAdmin ? "Admin" : isCoach ? "Coach" : "Spaze Member"}
             </Text>
           </View>
+        </View>
+        <View style={styles.activeNowBadge}>
+          <View style={styles.activeNowDot} />
+          <Text style={styles.activeNowText}>ACTIVE NOW</Text>
         </View>
       </View>
 
@@ -174,6 +183,57 @@ function CustomDrawerContent({
   );
 }
 
+// ── Screen wrapper with bottom tabs (web only) ──
+function ScreenWithTabs({
+  children,
+  currentRoute,
+  navigation,
+}: {
+  children: React.ReactNode;
+  currentRoute: string;
+  navigation: any;
+}) {
+  const role = useUserStore((s) => s.role);
+  const isCoach = role === "COACH" || role === "ADMIN";
+  const { width } = useWindowDimensions();
+  const isWide = Platform.OS === "web" && width >= 900;
+
+  if (isWide) {
+    return (
+      <View style={{ flex: 1, flexDirection: "row" }}>
+        <WebSidebar
+          currentRoute={currentRoute}
+          onNavigate={(route) => navigation.navigate(route)}
+        />
+        <View style={{ flex: 1 }}>{children}</View>
+        <WebRightPanel />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      {children}
+      <BottomTabBar
+        currentRoute={currentRoute}
+        onNavigate={(route) => navigation.navigate(route)}
+        isCoach={isCoach}
+      />
+    </View>
+  );
+}
+
+function withTabs(Screen: React.ComponentType<any>, routeName: string) {
+  return function TabWrappedScreen(props: any) {
+    if (Platform.OS !== "web") return <Screen {...props} />;
+    return (
+      <ScreenWithTabs currentRoute={routeName} navigation={props.navigation}>
+        <Screen {...props} />
+      </ScreenWithTabs>
+    );
+  };
+}
+
 // ── Drawer navigator ──────────────────────────
 export default function MainDrawerNavigator() {
   const role = useUserStore((s) => s.role);
@@ -194,29 +254,29 @@ export default function MainDrawerNavigator() {
       {/* All screens are always defined - shown/hidden via drawer content */}
       <Drawer.Screen
         name="Home"
-        component={HomeScreen}
-        options={{ title: "PUSO Spaze — Feed" }}
+        component={withTabs(HomeScreen, "Home")}
+        options={{ title: "PUSO Spaze \u2014 Feed" }}
       />
       <Drawer.Screen
         name="Profile"
-        component={ProfileScreen}
-        options={{ title: "PUSO Spaze — Profile" }}
+        component={withTabs(ProfileScreen, "Profile")}
+        options={{ title: "PUSO Spaze \u2014 Profile" }}
       />
       <Drawer.Screen
         name="ReviewQueue"
-        component={CoachDashboard}
-        options={{ title: "PUSO Spaze — Coach Dashboard" }}
+        component={withTabs(CoachDashboard, "ReviewQueue")}
+        options={{ title: "PUSO Spaze \u2014 Coach Dashboard" }}
       />
       <Drawer.Screen
         name="SendInvite"
         component={SendInviteScreen}
-        options={{ title: "PUSO Spaze — Admin Settings" }}
+        options={{ title: "PUSO Spaze \u2014 Admin Settings" }}
       />
       <Drawer.Screen
         name="Post"
         component={PostScreen}
         options={{
-          title: "PUSO Spaze — Create Post",
+          title: "PUSO Spaze \u2014 Create Post",
           headerShown: true,
           headerStyle: {
             backgroundColor: colors.deep,
@@ -230,9 +290,9 @@ export default function MainDrawerNavigator() {
       />
       <Drawer.Screen
         name="Notifications"
-        component={NotificationsScreen}
+        component={withTabs(NotificationsScreen, "Notifications")}
         options={{
-          title: "PUSO Spaze — Notifications",
+          title: "PUSO Spaze \u2014 Notifications",
           headerShown: false,
         }}
       />
@@ -240,7 +300,7 @@ export default function MainDrawerNavigator() {
         name="PostDetail"
         component={PostDetailScreen}
         options={{
-          title: "PUSO Spaze — Post Detail",
+          title: "PUSO Spaze \u2014 Post Detail",
           headerShown: false,
         }}
       />
@@ -308,6 +368,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  activeNowBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+  },
+  activeNowDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.safe,
+  },
+  activeNowText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.safe,
+    letterSpacing: 0.8,
   },
 
   divider: {

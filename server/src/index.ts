@@ -51,6 +51,35 @@ app.get('/api/stats/online', async (_req, res) => {
   }
 });
 
+app.get('/api/stats/dashboard', async (_req, res) => {
+  try {
+    const now = new Date();
+    const h24 = new Date(now.getTime() - 24*60*60*1000);
+    const m15 = new Date(now.getTime() - 15*60*1000);
+    const [totalMembers,dailyStories,onlineCount,trendingTags,dailyReflection] = await Promise.all([
+      prisma.user.count(),
+      prisma.post.count({ where: { createdAt: { gte: h24 }, moderationStatus: 'SAFE' } }),
+      prisma.user.count({ where: { lastActiveAt: { gte: m15 } } }),
+      prisma.post.findMany({
+        where: { moderationStatus: 'SAFE', tags: { isEmpty: false } },
+        select: { tags: true }, orderBy: { createdAt: 'desc' }, take: 50,
+      }).then((posts) => {
+        const tc: Record<string,number> = {};
+        for (const p of posts) for (const t of p.tags) tc[t]=(tc[t]||0)+1;
+        return Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t])=>t);
+      }),
+      prisma.post.findFirst({
+        where: { moderationStatus: 'SAFE', userId: 'system-encouragement-bot' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, content: true, createdAt: true },
+      }),
+    ]);
+    res.json({ totalMembers, dailyStories, onlineCount, trendingTags, dailyReflection });
+  } catch {
+    res.json({ totalMembers:0, dailyStories:0, onlineCount:0, trendingTags:[], dailyReflection:null });
+  }
+});
+
 // ── API Routes ────────────────────────────────
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);

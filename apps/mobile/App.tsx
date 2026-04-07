@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import AppNavigator from './navigation/AppNavigator';
 import { useUserStore } from './context/UserContext';
 import { colors } from './constants/theme';
+import WebShell from './components/WebShell';
 
 export default function App() {
   const loadUser = useUserStore((s) => s.loadUser);
@@ -22,7 +23,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="light" backgroundColor={colors.darkest} />
-      <AppNavigator />
+      <WebShell>
+        <AppNavigator />
+      </WebShell>
     </GestureHandlerRootView>
   );
 }
