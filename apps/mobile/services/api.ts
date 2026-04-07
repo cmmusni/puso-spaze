@@ -474,3 +474,18 @@ export async function apiMarkAllNotificationsRead(
   );
   return data;
 }
+
+// ── Stats ─────────────────────────────────────
+
+/**
+ * GET /api/stats/online
+ * Returns count of users active in the last 15 minutes
+ */
+export async function apiGetOnlineCount(): Promise<number> {
+  try {
+    const { data } = await client.get<{ online: number }>('/api/stats/online');
+    return data.online;
+  } catch {
+    return 0;
+  }
+}

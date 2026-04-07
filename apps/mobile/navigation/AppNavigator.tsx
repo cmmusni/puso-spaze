@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
+import CoachLoginScreen from '../screens/CoachLoginScreen';
 import MainDrawerNavigator from './MainDrawerNavigator';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
@@ -18,6 +19,7 @@ import { colors } from '../constants/theme';
 // ── Route param types ────────────────────────
 export type RootStackParamList = {
   Login:      { code?: string };
+  CoachLogin: { code?: string };
   MainDrawer: undefined;
 
 };
@@ -30,6 +32,9 @@ const linking = {
   config: {
     screens: {
       Login: {
+        path: 'login',
+      },
+      CoachLogin: {
         path: 'signup',
         parse: {
           code: (code: string) => code?.toUpperCase(),
@@ -79,7 +84,7 @@ export default function AppNavigator() {
     console.log('[Navigation Guard] Checking auth - route:', currentRoute.name, 'isLoggedIn:', isLoggedIn);
     
     // Public routes that don't require authentication
-    const publicRoutes = ['Login'];
+    const publicRoutes = ['Login', 'CoachLogin'];
     
     // If logged in and on Login screen, redirect to MainDrawer
     if (isLoggedIn && currentRoute.name === 'Login') {
@@ -140,6 +145,7 @@ export default function AppNavigator() {
         formatter: (options, route) => {
           const browserTitles: Record<string, string> = {
             Login:      'PUSO Spaze — Welcome',
+            CoachLogin: 'PUSO Spaze — Coach Invitation',
             MainDrawer: 'PUSO Spaze — Feed',
             Post:       'PUSO Spaze — Share a Thought',
             PostDetail: 'PUSO Spaze — Post Details',
@@ -170,6 +176,13 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Login"
           component={LoginScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* ── Coach Invitation Screen ── */}
+        <Stack.Screen
+          name="CoachLogin"
+          component={CoachLoginScreen}
           options={{ headerShown: false }}
         />
 

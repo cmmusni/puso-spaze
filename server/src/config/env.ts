@@ -33,7 +33,7 @@ export const env = {
   ADMIN_SECRET: optional('ADMIN_SECRET', 'pusocoach_admin_2026'),
   ALLOWED_ORIGINS: optional(
     'ALLOWED_ORIGINS',
-    'http://localhost:8081,http://localhost:19006,https://api.puso-spaze.org,https://puso-spaze.org,https://www.puso-spaze.org'
+    'https://api.puso-spaze.org,https://puso-spaze.org,https://www.puso-spaze.org'
   )
     .split(',')
     .map((s) => s.trim()),

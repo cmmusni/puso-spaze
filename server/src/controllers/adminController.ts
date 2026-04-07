@@ -119,20 +119,20 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
       subject: '🛡️ Your PUSO Spaze Coach Invite Code',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:auto">
-          <h2 style="color:#7c3aed">🛡️ PUSO Spaze Coach Invitation</h2>
+          <h2 style="color:#A60550">🛡️ PUSO Spaze Coach Invitation</h2>
           <p>Hello,</p>
           <p>You have been invited to join <strong>PUSO Spaze</strong> as a Coach.</p>
-          <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
-            <p style="margin:0 0 16px;color:#6b7280;font-size:13px">Click the button below to get started:</p>
-            <a href="https://puso-spaze.org?code=${record.code}" style="display:inline-block;background:#7c3aed;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">Accept Invitation</a>
+          <div style="background:#E5DAF0;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
+            <p style="margin:0 0 16px;color:#6A4D75;font-size:13px">Click the button below to get started:</p>
+            <a href="https://puso-spaze.org/signup?code=${record.code}" style="display:inline-block;background:#A60550;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">Accept Invitation</a>
           </div>
           <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:12px 16px;margin:24px 0;border-radius:4px">
             <p style="margin:0;color:#92400e;font-size:14px"><strong>Note:</strong> If the button doesn't work, you can manually enter this code in the app:</p>
-            <p style="margin:8px 0 0;font-size:24px;font-weight:900;letter-spacing:4px;color:#7c3aed;text-align:center">${record.code}</p>
+            <p style="margin:8px 0 0;font-size:24px;font-weight:900;letter-spacing:4px;color:#A60550;text-align:center">${record.code}</p>
           </div>
-          <p style="color:#9ca3af;font-size:12px">This invitation can only be used once.</p>
-          <hr style="border:none;border-top:1px solid #e5e7eb">
-          <p style="color:#9ca3af;font-size:12px">— The PUSO Spaze Team</p>
+          <p style="color:#7E638E;font-size:12px">This invitation can only be used once.</p>
+          <hr style="border:none;border-top:1px solid #D8CCE8">
+          <p style="color:#7E638E;font-size:12px">— The PUSO Spaze Team</p>
         </div>
       `,
     });

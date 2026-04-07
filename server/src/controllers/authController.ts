@@ -39,7 +39,7 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
 
     const user = await prisma.user.upsert({
       where: { displayName },
-      update: {},  // preserve any manually elevated role (e.g. ADMIN)
+      update: { lastActiveAt: new Date() },  // preserve role, update activity
       create: { displayName, role: 'COACH' },
     });
 

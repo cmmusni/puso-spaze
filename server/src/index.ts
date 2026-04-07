@@ -38,6 +38,19 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ── Online user count (public, no auth) ───────
+app.get('/api/stats/online', async (_req, res) => {
+  try {
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const count = await prisma.user.count({
+      where: { lastActiveAt: { gte: fifteenMinAgo } },
+    });
+    res.json({ online: count });
+  } catch {
+    res.json({ online: 0 });
+  }
+});
+
 // ── API Routes ────────────────────────────────
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);

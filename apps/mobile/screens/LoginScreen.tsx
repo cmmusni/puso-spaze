@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────
 // screens/LoginScreen.tsx
 // Entry point: choose custom username or go anonymous
-// PUSO Coaches can log in via invite code (new coaches)
-// OR simply use their username (returning coaches)
+// Coaches who have already redeemed an invite code
+// can log in here with their username (device-bound).
 // ─────────────────────────────────────────────
 
 import React, { useState, useEffect } from 'react';
@@ -18,6 +18,8 @@ import {
   ScrollView,
   Image,
   StyleSheet,
+  useWindowDimensions,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +28,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
+import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
+import { apiGetOnlineCount } from '../services/api';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
@@ -38,7 +42,6 @@ export default function LoginScreen() {
   const {
     loginWithUsername,
     loginAnonymously,
-    loginAsCoach,
     getDeviceOwner,
     clearDeviceOwnerBinding,
   } = useUser();
@@ -46,33 +49,28 @@ export default function LoginScreen() {
   const [loading, setLoading]                 = useState(false);
   const [focused, setFocused]                 = useState(false);
 
-  // ── Coach panel state ─────────────────────
-  const [showCoachPanel, setShowCoachPanel]   = useState(false);
-  const [coachName, setCoachName]             = useState('');
-  const [coachCode, setCoachCode]             = useState('');
-  const [coachNameFocused, setCoachNameFocused] = useState(false);
-  const [coachCodeFocused, setCoachCodeFocused] = useState(false);
+  // ── Anonymous username preview ─────
+  const [anonUsername, setAnonUsername] = useState(() => generateAnonUsername());
+  const refreshAnon = () => setAnonUsername(generateAnonUsername());
 
-  // ── Auto-fill code from deep link ─────────
+  // ── Guidelines modal ─────
+  const [showGuidelines, setShowGuidelines] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
+  // ── Online count ─────
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
+
   useEffect(() => {
-    // Check route params first (from React Navigation deep linking)
-    const codeParam = route.params?.code;
-    if (codeParam) {
-      setShowCoachPanel(true);
-      setCoachCode(codeParam.toUpperCase());
-      return;
-    }
-
-    // On web, also check URL query params directly
-    if (Platform.OS === 'web') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const codeFromUrl = urlParams.get('code');
-      if (codeFromUrl) {
-        setShowCoachPanel(true);
-        setCoachCode(codeFromUrl.toUpperCase());
-      }
-    }
-  }, [route.params?.code]);
+    let mounted = true;
+    const fetchOnline = () =>
+      apiGetOnlineCount()
+        .then((count) => { if (mounted) setOnlineCount(count); })
+        .catch(() => {});
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 30_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
 
   // ── Handlers ──────────────────────────────
 
@@ -102,7 +100,6 @@ export default function LoginScreen() {
             `Do you want to sign in as "${deviceOwner}" instead?`
         );
         if (signInInstead) {
-          setShowCoachPanel(false);
           setCustomName(deviceOwner);
           showAlert(
             'Username Filled',
@@ -134,7 +131,6 @@ export default function LoginScreen() {
         );
 
         if (signInInstead) {
-          setShowCoachPanel(false);
           setCustomName(deviceOwner);
           showAlert(
             'Username Filled',
@@ -164,49 +160,19 @@ export default function LoginScreen() {
     }
   };
 
-  const handleCoachLogin = async () => {
-    const nameErr = validateUsername(coachName);
-    if (nameErr) {
-      showAlert('Invalid Name', nameErr);
-      return;
-    }
-    const trimmedCode = coachCode.trim().toUpperCase();
-    if (trimmedCode.length < 11) {
-      showAlert('Invalid Code', 'Enter the full invite code — format XXXXX-XXXXX.');
-      return;
-    }
-    setLoading(true);
-    try {
-      await loginAsCoach(coachName.trim(), trimmedCode);
-      navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
-    } catch (err: any) {
-      const msg = err?.message ?? err?.response?.data?.error ?? 'Invalid or already-used invite code.';
-      const deviceOwner = extractBoundUser(msg);
-      if (deviceOwner) {
-        const signInInstead = await showConfirm(
-          'Use Existing Account Instead?',
-          `This device is currently bound to "${deviceOwner}". ` +
-            `Using a different username will not give access to previous posts/comments owned by "${deviceOwner}".\n\n` +
-            `Do you want to sign in with that username instead?`
-        );
-        if (signInInstead) {
-          setShowCoachPanel(false);
-          setCustomName(deviceOwner);
-          showAlert(
-            'Switched to User Login',
-            `Use "Enter as ${deviceOwner}" to continue with the bound account.`
-          );
-        }
-        return;
-      }
-      showAlert('Coach Login Failed', msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const canSubmit = !loading && customName.trim().length >= 2;
 
-  const canSubmit      = !loading && customName.trim().length >= 2;
-  const canSubmitCoach = !loading && coachName.trim().length >= 2 && coachCode.trim().length >= 11;
+  const { width } = useWindowDimensions();
+  const isWide = width >= 600;
+  const containerMaxW = isWide ? Math.min(440, width * 0.45) : undefined;
+
+  /** Unified CTA — picks the right login path */
+  const handleEnterSpaze = async () => {
+    // Custom username path
+    if (customName.trim().length >= 2) { handleLoginWithUsername(); return; }
+    // Anonymous path
+    handleLoginAnonymously();
+  };
 
   // ── Render ────────────────────────────────
 
@@ -216,243 +182,381 @@ export default function LoginScreen() {
       style={styles.kav}
     >
       <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.ink, colors.fuchsia, colors.hot]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={[colors.canvas, colors.surface, colors.muted1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={styles.gradient}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[
+            styles.scroll,
+            isWide && { alignItems: 'center' as const },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Logo / Hero ── */}
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../assets/logo.png')}
-              style={styles.logo}
-              resizeMode="cover"
-            />
-          </View>
-
-          {/* ── Frosted card ── */}
-          <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="sparkles-outline" size={18} color="#ffffff" />
-              <Text style={styles.cardTitle}>Welcome to PUSO Spaze</Text>
-            </View>
-            <Text style={styles.cardSubtitle}>Your safe space awaits. Choose how to enter.</Text>
-
-            {!showCoachPanel && (
-              <>
-                {/* Anonymous Button - Primary Option */}
-                <TouchableOpacity
-                  onPress={handleLoginAnonymously}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                  style={styles.anonBtn}
-                >
-                  <LinearGradient
-                    colors={[colors.fuchsia, colors.ink, colors.deep, colors.darkest]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.anonGradient}
-                  >
-                    <View style={styles.anonContent}>
-                      <View style={styles.anonIconContainer}>
-                        <Ionicons name="person-outline" size={24} color="#ffffff" />
-                      </View>
-                      <View style={styles.anonTextContainer}>
-                        <Text style={styles.anonBtnText}>Enter Anonymously</Text>
-                        <Text style={styles.anonSubtext}>100% private · No name needed</Text>
-                      </View>
-                      <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Divider */}
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>or choose a name</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <Text style={styles.inputLabel}>Your Name (Optional)</Text>
-
-                {/* Input */}
-                <View style={[styles.inputWrapper, focused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
-                  <Ionicons name="create-outline" size={16} color="rgba(255,255,255,0.8)" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. GracefulSoul"
-                    placeholderTextColor={colors.muted5}
-                    value={customName}
-                    onChangeText={setCustomName}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    maxLength={30}
-                    editable={!loading}
-                  />
-                  {customName.length > 0 && (
-                    <TouchableOpacity onPress={() => setCustomName('')} activeOpacity={0.7}>
-                      <Ionicons name="close" size={16} color="rgba(255,255,255,0.6)" style={styles.clearBtn} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Username CTA */}
-                <TouchableOpacity
-                  onPress={handleLoginWithUsername}
-                  disabled={!canSubmit}
-                  activeOpacity={0.87}
-                  style={styles.ctaBtn}
-                >
-                  <LinearGradient
-                    colors={canSubmit ? [colors.ink, colors.lightPrimary] : [colors.muted4, colors.muted5]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.ctaGradient}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={[styles.ctaText, !canSubmit && styles.ctaTextDisabled]}>
-                        Enter as{' '}
-                        <Text style={styles.ctaNameHighlight}>{customName.trim() || '…'}</Text>
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* ── Coach toggle ── */}
-            <TouchableOpacity
-              onPress={() => setShowCoachPanel((v) => !v)}
-              activeOpacity={0.7}
-              style={styles.coachToggle}
-            >
-              <View style={styles.coachToggleRow}>
-                <Ionicons
-                  name={showCoachPanel ? 'chevron-up' : 'shield-checkmark-outline'}
-                  size={14}
-                  color={colors.lightAccent}
+          <View style={isWide ? { width: containerMaxW } : undefined}>
+            {/* ── Logo ── */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logoRing}>
+                <Image
+                  source={require('../assets/logo.png')}
+                  style={styles.logo}
+                  resizeMode="cover"
                 />
-                <Text style={styles.coachToggleText}>
-                  {showCoachPanel ? 'Anonymous User' : 'PUSO Coach? Enter invite code'}
-                </Text>
               </View>
-            </TouchableOpacity>
+            </View>
 
-            {/* ── Coach panel (collapsible) ── */}
-            {showCoachPanel && (
-              <View style={styles.coachPanel}>
-                <View style={styles.coachPanelDivider} />
+            {/* ── Title & Tagline ── */}
+            <Text style={styles.title}>PUSO Spaze</Text>
+            <Text style={styles.tagline}>
+              A Spaze to share, reflect, and connect without judgment.
+            </Text>
 
-                <Text style={styles.coachPanelTitle}>Coach Sign In</Text>
-                <Text style={styles.coachPanelSubtitle}>
-                  Enter your name and the invite code you received.
-                </Text>
-                <Text style={styles.coachPanelHint}>
-                  Returning coaches: Just use your name in the main login above.
-                </Text>
+            {/* ── Identity Card ── */}
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>IDENTITY</Text>
 
-                {/* Coach name input */}
-                <Text style={styles.inputLabel}>Coach Name</Text>
-                <View style={[styles.inputWrapper, coachNameFocused ? styles.inputWrapperFocused : styles.inputWrapperDefault]}>
-                  <Ionicons name="shield-outline" size={16} color="rgba(255,255,255,0.8)" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Your name"
-                    placeholderTextColor={colors.muted5}
-                    value={coachName}
-                    onChangeText={setCoachName}
-                    onFocus={() => setCoachNameFocused(true)}
-                    onBlur={() => setCoachNameFocused(false)}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    maxLength={30}
-                    editable={!loading}
-                  />
+              {/* Anonymous username preview */}
+              <View style={styles.anonCard}>
+                <View style={styles.anonAvatar}>
+                  <Ionicons name="person" size={18} color={colors.fuchsia} />
                 </View>
-
-                {/* Invite code input */}
-                <Text style={styles.inputLabel}>Invite Code</Text>
-                <View style={[styles.inputWrapper, coachCodeFocused ? styles.coachCodeFocused : styles.inputWrapperDefault]}>
-                  <Ionicons name="key-outline" size={16} color="rgba(255,255,255,0.8)" style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, styles.codeInput]}
-                    placeholder="XXXXX-XXXXX"
-                    placeholderTextColor={colors.muted5}
-                    value={coachCode}
-                    onChangeText={(t) => setCoachCode(t.toUpperCase())}
-                    onFocus={() => setCoachCodeFocused(true)}
-                    onBlur={() => setCoachCodeFocused(false)}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    maxLength={11}
-                    editable={!loading}
-                  />
+                <View style={styles.anonInfo}>
+                  <Text style={styles.anonName}>{anonUsername}</Text>
+                  <Text style={styles.anonHint}>
+                    Randomly generated for{'\n'}privacy
+                  </Text>
                 </View>
-
-                {/* Coach CTA */}
                 <TouchableOpacity
-                  onPress={handleCoachLogin}
-                  disabled={!canSubmitCoach}
-                  activeOpacity={0.87}
+                  onPress={refreshAnon}
+                  style={styles.refreshBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="refresh" size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Custom username input */}
+              <View
+                style={[styles.inputWrapper, focused && styles.inputFocused]}
+              >
+                <TextInput
+                  style={styles.input}
+                  placeholder="Or enter a custom username"
+                  placeholderTextColor={colors.muted4}
+                  value={customName}
+                  onChangeText={setCustomName}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={30}
+                  editable={!loading}
+                />
+              </View>
+
+              {/* CTA Button */}
+              <TouchableOpacity
+                onPress={handleEnterSpaze}
+                disabled={loading}
+                activeOpacity={0.87}
+                style={styles.ctaWrap}
+              >
+                <LinearGradient
+                  colors={[colors.primary, colors.fuchsia]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
                   style={styles.ctaBtn}
                 >
-                  <LinearGradient
-                    colors={canSubmitCoach
-                      ? ['#1a7a4a', '#2ea86a', '#1a7a4a']
-                      : [colors.muted2, colors.muted4]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.ctaGradient}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <View style={styles.ctaIconRow}>
-                        <Ionicons name="shield-checkmark-outline" size={16} color="#ffffff" />
-                        <Text style={styles.ctaText}>Enter as Coach</Text>
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.ctaText}>Enter Spaze</Text>
+                      <Ionicons name="arrow-forward" size={20} color="#fff" />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── Legal ── */}
+            <Text style={styles.legalText}>
+              By entering, you agree to our{' '}
+              <Text
+                style={styles.legalLink}
+                onPress={() => setShowGuidelines(true)}
+              >
+                Compassion Guidelines
+              </Text>
+              .
+            </Text>
+
+            {/* ── Compassion Guidelines Modal ── */}
+            <Modal
+              visible={showGuidelines}
+              animationType="slide"
+              transparent
+              onRequestClose={() => setShowGuidelines(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalCard}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={styles.modalHeader}>
+                      <Ionicons name="heart" size={28} color={colors.primary} />
+                      <Text style={styles.modalTitle}>Compassion Guidelines</Text>
+                      <Text style={styles.modalSubtitle}>
+                        PUSO Spaze is a safe space. To keep it that way, we ask everyone to follow these guidelines.
+                      </Text>
+                    </View>
+
+                    {[
+                      {
+                        icon: 'shield-checkmark' as const,
+                        title: 'Be Kind & Respectful',
+                        body: 'Treat every person with dignity. No bullying, shaming, or hurtful language — even if you disagree.',
+                      },
+                      {
+                        icon: 'eye-off' as const,
+                        title: 'Respect Privacy',
+                        body: 'Never share someone\'s identity or personal details outside of PUSO Spaze. What\'s shared here stays here.',
+                      },
+                      {
+                        icon: 'chatbubble-ellipses' as const,
+                        title: 'Encourage, Don\'t Judge',
+                        body: 'Respond with empathy and encouragement. Avoid unsolicited advice, criticism, or dismissing someone\'s feelings.',
+                      },
+                      {
+                        icon: 'hand-left' as const,
+                        title: 'No Hate Speech or Discrimination',
+                        body: 'Racism, sexism, homophobia, and any form of discrimination are strictly prohibited.',
+                      },
+                      {
+                        icon: 'alert-circle' as const,
+                        title: 'Report Harmful Content',
+                        body: 'If you see something that violates these guidelines or could put someone at risk, report it immediately. Our coaches review flagged content.',
+                      },
+                      {
+                        icon: 'medical' as const,
+                        title: 'Not a Substitute for Professional Help',
+                        body: 'PUSO Spaze is a peer support community, not a replacement for therapy or medical advice. If you or someone you know is in crisis, please reach out to a mental health professional.',
+                      },
+                      {
+                        icon: 'sparkles' as const,
+                        title: 'Share Hope',
+                        body: 'Your words matter. A single encouraging message can change someone\'s day — or even their life. Spread hope freely.',
+                      },
+                    ].map((g) => (
+                      <View key={g.title} style={styles.guidelineRow}>
+                        <View style={styles.guidelineIcon}>
+                          <Ionicons name={g.icon} size={18} color={colors.fuchsia} />
+                        </View>
+                        <View style={styles.guidelineContent}>
+                          <Text style={styles.guidelineTitle}>{g.title}</Text>
+                          <Text style={styles.guidelineBody}>{g.body}</Text>
+                        </View>
                       </View>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
+                    ))}
+
+                    <Text style={styles.guidelineFooter}>
+                      Violations may result in content removal or account restrictions. Let\'s protect this space together. 💜
+                    </Text>
+                  </ScrollView>
+
+                  <TouchableOpacity
+                    onPress={() => setShowGuidelines(false)}
+                    activeOpacity={0.87}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Text style={styles.modalCloseBtnText}>I Understand</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+
+            {/* ── Footer links ── */}
+            <View style={styles.footerLinks}>
+              <Text style={styles.footerLink} onPress={() => setShowAbout(true)}>About the Spaze</Text>
+              <Text style={styles.footerLink} onPress={() => setShowPrivacy(true)}>Privacy</Text>
+            </View>
+
+            {/* ── About the Spaze Modal ── */}
+            <Modal
+              visible={showAbout}
+              animationType="slide"
+              transparent
+              onRequestClose={() => setShowAbout(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalCard}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={styles.modalHeader}>
+                      <Ionicons name="heart-circle" size={32} color={colors.primary} />
+                      <Text style={styles.modalTitle}>About PUSO Spaze</Text>
+                      <Text style={styles.modalSubtitle}>
+                        A safe space for hearts that need to be heard.
+                      </Text>
+                    </View>
+
+                    {[
+                      {
+                        icon: 'people' as const,
+                        title: 'What is PUSO Spaze?',
+                        body: 'PUSO Spaze ("puso" means heart in Filipino) is an anonymous peer support community where you can share your struggles, receive encouragement, and find hope \u2014 without fear of judgment.',
+                      },
+                      {
+                        icon: 'sparkles' as const,
+                        title: 'AI-Powered Encouragement',
+                        body: 'Our \"Hourly Hope\" feature delivers AI-generated biblical encouragement in Taglish (Tagalog + English), crafted for Gen Z hearts that need a reminder they\'re not alone.',
+                      },
+                      {
+                        icon: 'eye-off' as const,
+                        title: 'Truly Anonymous',
+                        body: 'Post with a randomly generated username or choose your own. Your real identity is never revealed. Share freely, heal openly.',
+                      },
+                      {
+                        icon: 'shield-checkmark' as const,
+                        title: 'Coach-Moderated Safety',
+                        body: 'Trained PUSO Coaches review flagged content to keep the community safe. Harmful posts are caught by AI moderation and human review.',
+                      },
+                      {
+                        icon: 'chatbubbles' as const,
+                        title: 'React & Support',
+                        body: 'Show support through Pray and Care reactions. Leave encouraging comments with @mentions. Every interaction is a chance to lift someone up.',
+                      },
+                      {
+                        icon: 'globe' as const,
+                        title: 'Built for Filipinos',
+                        body: 'Designed with the Filipino Gen Z community in mind \u2014 blending faith, culture, and mental health support in one compassionate platform.',
+                      },
+                    ].map((item) => (
+                      <View key={item.title} style={styles.guidelineRow}>
+                        <View style={styles.guidelineIcon}>
+                          <Ionicons name={item.icon} size={18} color={colors.fuchsia} />
+                        </View>
+                        <View style={styles.guidelineContent}>
+                          <Text style={styles.guidelineTitle}>{item.title}</Text>
+                          <Text style={styles.guidelineBody}>{item.body}</Text>
+                        </View>
+                      </View>
+                    ))}
+
+                    <Text style={styles.guidelineFooter}>
+                      Made with \ud83d\udc9c by the PUSO Spaze team. You are not alone.
+                    </Text>
+                  </ScrollView>
+
+                  <TouchableOpacity
+                    onPress={() => setShowAbout(false)}
+                    activeOpacity={0.87}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Text style={styles.modalCloseBtnText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+
+            {/* ── Privacy Modal ── */}
+            <Modal
+              visible={showPrivacy}
+              animationType="slide"
+              transparent
+              onRequestClose={() => setShowPrivacy(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalCard}>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={styles.modalHeader}>
+                      <Ionicons name="lock-closed" size={28} color={colors.primary} />
+                      <Text style={styles.modalTitle}>Privacy Policy</Text>
+                      <Text style={styles.modalSubtitle}>
+                        Your privacy and safety are our top priorities.
+                      </Text>
+                    </View>
+
+                    {[
+                      {
+                        icon: 'finger-print' as const,
+                        title: 'No Personal Data Collected',
+                        body: 'We do not collect your real name, email, phone number, or location. Your identity within PUSO Spaze is limited to your chosen or auto-generated username.',
+                      },
+                      {
+                        icon: 'phone-portrait' as const,
+                        title: 'Device Binding',
+                        body: 'Your username is linked to your device via a secure, randomly generated device ID stored locally. This helps you keep your identity across sessions without creating an account.',
+                      },
+                      {
+                        icon: 'cloud' as const,
+                        title: 'What We Store',
+                        body: 'We store your posts, comments, and reactions on our secure servers. Posts go through AI moderation to ensure community safety before being published.',
+                      },
+                      {
+                        icon: 'trash' as const,
+                        title: 'Data Deletion',
+                        body: 'You can clear your device binding at any time from your Profile. Coaches and admins can remove individual posts or comments. Contact us to request full data deletion.',
+                      },
+                      {
+                        icon: 'shield' as const,
+                        title: 'AI Moderation',
+                        body: 'Posts are reviewed by OpenAI\'s content moderation API to detect harmful content. This is done to protect the community \u2014 no personal data is shared beyond the post text.',
+                      },
+                      {
+                        icon: 'notifications-off' as const,
+                        title: 'Push Notifications',
+                        body: 'Push notifications are opt-in and only used for reactions, comments, and mentions on your posts. You can disable them at any time.',
+                      },
+                      {
+                        icon: 'analytics' as const,
+                        title: 'No Tracking or Ads',
+                        body: 'PUSO Spaze does not use analytics trackers, advertising networks, or sell any user data to third parties. Ever.',
+                      },
+                    ].map((item) => (
+                      <View key={item.title} style={styles.guidelineRow}>
+                        <View style={styles.guidelineIcon}>
+                          <Ionicons name={item.icon} size={18} color={colors.fuchsia} />
+                        </View>
+                        <View style={styles.guidelineContent}>
+                          <Text style={styles.guidelineTitle}>{item.title}</Text>
+                          <Text style={styles.guidelineBody}>{item.body}</Text>
+                        </View>
+                      </View>
+                    ))}
+
+                    <Text style={styles.guidelineFooter}>
+                      Questions? Reach out to the PUSO Spaze team. We\'re here to help.
+                    </Text>
+                  </ScrollView>
+
+                  <TouchableOpacity
+                    onPress={() => setShowPrivacy(false)}
+                    activeOpacity={0.87}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Text style={styles.modalCloseBtnText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+
+            {/* ── Online counter ── */}
+            {onlineCount !== null && onlineCount > 0 && (
+              <View style={styles.onlineRow}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.onlineText}>
+                  {onlineCount.toLocaleString()} {onlineCount === 1 ? 'SOUL' : 'SOULS'} ONLINE NOW
+                </Text>
               </View>
             )}
           </View>
-
-          {/* Feature chips */}
-          <View style={styles.chipsRow}>
-            {[
-              { icon: 'lock-closed-outline', label: 'Private' },
-              { icon: 'people-outline', label: 'Community' },
-              { icon: 'sparkles-outline', label: 'Uplifting' },
-            ].map((chip) => (
-              <View key={chip.label} style={styles.chip}>
-                <View style={styles.chipRow}>
-                  <Ionicons name={chip.icon as keyof typeof Ionicons.glyphMap} size={12} color='rgba(255,255,255,0.8)' />
-                  <Text style={styles.chipText}>{chip.label}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* Footer */}
-          <Text style={styles.footerText}>
-            All posts are reviewed for safety.{'\n'}Your identity is always protected.
-          </Text>
         </ScrollView>
       </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
 
+// ── Styles ──────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   kav: {
     flex: 1,
@@ -464,251 +568,283 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingTop: 56,
     paddingBottom: 40,
   },
+
+  // ── Logo ────────────────────────────────────
   logoContainer: {
     alignItems: 'center',
     marginBottom: 24,
   },
+  logoRing: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 3,
+    borderColor: 'rgba(129,73,166,0.3)',
+    overflow: 'hidden',
+    shadowColor: colors.fuchsia,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+    elevation: 14,
+  },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
   },
+
+  // ── Title & Tagline ─────────────────────────
+  title: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: colors.heading,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  tagline: {
+    fontSize: 16,
+    color: colors.subtle,
+    lineHeight: 24,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+
+  // ── Card ────────────────────────────────────
   card: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
     marginBottom: 20,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 8px 32px rgba(0,0,0,0.08)' } as any)
+      : Platform.OS === 'ios'
+        ? {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.08,
+            shadowRadius: 24,
+          }
+        : { elevation: 8 }),
   },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  cardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  inputLabel: {
+  cardLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.65)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    fontWeight: '800',
+    color: colors.heading,
+    letterSpacing: 2,
     marginBottom: 16,
   },
-  inputWrapperDefault: {
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+
+  // ── Anonymous preview ───────────────────────
+  anonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
   },
-  inputWrapperFocused: {
-    borderColor: colors.lightAccent,
-    backgroundColor: colors.lightAccent + '14',
+  anonAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.lightFuchsia}40`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  coachCodeFocused: {
-    borderColor: colors.lightAccent,
-    backgroundColor: colors.lightAccent + '14',
+  anonInfo: {
+    flex: 1,
   },
-  inputIcon: {
-    marginRight: 8,
+  anonName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.heading,
+  },
+  anonHint: {
+    fontSize: 12,
+    color: colors.subtle,
+    marginTop: 2,
+    lineHeight: 17,
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Inputs ──────────────────────────────────
+  inputWrapper: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  inputFocused: {
+    borderColor: colors.fuchsia,
+    backgroundColor: colors.canvas,
   },
   input: {
-    flex: 1,
-    color: '#ffffff',
-    fontSize: 16,
-    paddingVertical: 12,
+    fontSize: 15,
+    color: colors.text,
+    paddingVertical: 14,
   },
   codeInput: {
-    letterSpacing: 2,
+    letterSpacing: 4,
     fontVariant: ['tabular-nums'],
+    fontWeight: '700',
   },
-  clearBtn: {
-    paddingLeft: 8,
+
+  // ── CTA Button ──────────────────────────────
+  ctaWrap: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginTop: 10,
   },
   ctaBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  ctaGradient: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 20,
   },
   ctaText: {
-    color: colors.card,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  ctaTextDisabled: {
-    color: 'rgba(255,255,255,0.4)',
-  },
-  ctaNameHighlight: {
-    color: colors.lightAccent,
-    fontWeight: '900',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-    marginBottom: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  dividerText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 12,
-    marginHorizontal: 10,
-  },
-  anonBtn: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 20,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  anonGradient: {
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-  },
-  anonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  anonIconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  anonTextContainer: {
-    flex: 1,
-  },
-  anonBtnText: {
     color: '#ffffff',
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
-  anonSubtext: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 3,
-  },
-  coachToggle: {
-    marginTop: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  coachToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  coachToggleText: {
-    color: colors.lightAccent,
+
+  // ── Legal / Footer ──────────────────────────
+  legalText: {
+    textAlign: 'center',
     fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    color: colors.subtle,
+    lineHeight: 20,
+    marginBottom: 28,
   },
-  coachPanel: {
-    marginTop: 4,
-  },
-  coachPanelDivider: {
-    height: 1,
-    backgroundColor: 'rgba(129,140,248,0.25)',
-    marginBottom: 16,
-  },
-  coachPanelTitle: {
-    fontSize: 16,
+  legalLink: {
+    color: colors.primary,
     fontWeight: '700',
-    color: '#a5b4fc',
-    marginBottom: 2,
   },
-  coachPanelSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginBottom: 16,
-  },
-  coachPanelHint: {
-    fontSize: 11,
-    color: colors.lightAccent,
-    backgroundColor: colors.accent + '15',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.accent,
-  },
-  chipsRow: {
+  footerLinks: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 32,
+    marginBottom: 28,
+  },
+  footerLink: {
+    fontSize: 14,
+    color: colors.subtle,
+  },
+  onlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 20,
   },
-  chip: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.safe,
   },
-  chipText: {
-    color: 'rgba(255,255,255,0.5)',
+  onlineText: {
     fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
+    color: colors.heading,
   },
-  chipRow: {
-    flexDirection: 'row',
+
+  // ── Guidelines Modal ────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    maxHeight: '85%',
+    ...(Platform.OS === 'ios'
+      ? { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24 }
+      : { elevation: 12 }),
+  },
+  modalHeader: {
     alignItems: 'center',
-    gap: 6,
+    marginBottom: 24,
   },
-  ctaIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  footerText: {
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.heading,
+    marginTop: 12,
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 12,
-    lineHeight: 18,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.subtle,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  guidelineRow: {
+    flexDirection: 'row',
+    marginBottom: 18,
+    gap: 12,
+  },
+  guidelineIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  guidelineContent: {
+    flex: 1,
+  },
+  guidelineTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.heading,
+    marginBottom: 4,
+  },
+  guidelineBody: {
+    fontSize: 13,
+    color: colors.subtle,
+    lineHeight: 19,
+  },
+  guidelineFooter: {
+    fontSize: 13,
+    color: colors.subtle,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  modalCloseBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  modalCloseBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
 

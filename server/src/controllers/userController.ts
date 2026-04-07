@@ -98,7 +98,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
     const user = await prisma.user.upsert({
       where: { displayName },
-      update: {},  // Preserve existing role (including COACH/ADMIN)
+      update: { lastActiveAt: new Date() },  // Preserve existing role, update activity
       create: { displayName },  // New users default to USER role
     });
 

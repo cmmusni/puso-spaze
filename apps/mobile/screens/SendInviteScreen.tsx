@@ -150,7 +150,7 @@ export default function SendInviteScreen() {
 
   return (
     <LinearGradient
-      colors={[colors.darkest, colors.deep, '#0a1628']}
+      colors={[colors.darkest, colors.deep, colors.darkest]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.root}
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#a5b4fc',
+    color: colors.lightPrimary,
     letterSpacing: 0.3,
   },
   pageTitleRow: {
@@ -440,8 +440,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   inputFocused: {
-    borderColor: '#818cf8',
-    backgroundColor: 'rgba(129,140,248,0.08)',
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(158,68,106,0.08)',
   },
   inputIcon: {
     marginRight: 8,
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   sendBtnActive: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: colors.primary,
   },
   sendBtnDisabled: {
     backgroundColor: 'rgba(255,255,255,0.1)',
