@@ -11,6 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../../../packages/types';
+import { apiCreateUser } from '../services/api';
 
 // ── Storage keys ─────────────────────────────
 const USER_ID_KEY    = 'puso_user_id';
@@ -18,6 +19,7 @@ const USERNAME_KEY   = 'puso_username';
 const ROLE_KEY       = 'puso_role';
 const DEV_OWNER_KEY  = 'puso_device_owner'; // Device-level username binding (persistent across logouts)
 const DEVICE_ID_KEY  = 'puso_device_id';    // Permanent device UUID (never cleared, sent to server)
+const DEVICE_SYNCED_KEY = 'puso_device_id_synced'; // Flag: deviceId has been sent to server
 
 // ── Platform-aware storage helper ────────────
 // expo-secure-store is native-only; fall back to AsyncStorage on web.
@@ -106,6 +108,20 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (userId && username) {
         set({ userId, username, role: role ?? 'USER', isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
+
+        // One-time deviceId sync for users who were already logged in before the update
+        const alreadySynced = await storage.getItem(DEVICE_SYNCED_KEY);
+        if (!alreadySynced) {
+          try {
+            const deviceId = await get().getDeviceId();
+            await apiCreateUser({ displayName: username, deviceId });
+            await storage.setItem(DEVICE_SYNCED_KEY, 'true');
+            console.log('[UserStore] deviceId synced to server');
+          } catch (syncErr) {
+            // Non-blocking — will retry on next app launch
+            console.warn('[UserStore] deviceId sync deferred:', syncErr);
+          }
+        }
       } else {
         console.log('[UserStore] No saved session found');
         set({ isLoading: false });
@@ -146,6 +162,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       await storage.setItem(USER_ID_KEY, userId);
       await storage.setItem(USERNAME_KEY, username);
       await storage.setItem(ROLE_KEY, role);
+      // Mark deviceId as synced (login already sent it to the server)
+      await storage.setItem(DEVICE_SYNCED_KEY, 'true');
     } catch (err) {
       console.warn('[UserStore] Could not persist session:', err);
     }
