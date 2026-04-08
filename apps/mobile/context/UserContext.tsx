@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../../../packages/types';
 
 // ── Storage keys ─────────────────────────────
@@ -16,6 +17,7 @@ const USER_ID_KEY    = 'puso_user_id';
 const USERNAME_KEY   = 'puso_username';
 const ROLE_KEY       = 'puso_role';
 const DEV_OWNER_KEY  = 'puso_device_owner'; // Device-level username binding (persistent across logouts)
+const DEVICE_ID_KEY  = 'puso_device_id';    // Permanent device UUID (never cleared, sent to server)
 
 // ── Platform-aware storage helper ────────────
 // expo-secure-store is native-only; fall back to AsyncStorage on web.
@@ -77,6 +79,13 @@ export interface UserState {
 
   /** Clear device owner binding to allow a fresh account binding. */
   clearDeviceOwnerBinding: () => Promise<void>;
+
+  /**
+   * Get or generate a permanent device UUID.
+   * This ID is generated once per install and NEVER cleared.
+   * Sent to the server to enforce username ownership.
+   */
+  getDeviceId: () => Promise<string>;
 }
 
 // ── Zustand store ────────────────────────────
@@ -210,6 +219,22 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (err) {
       console.warn('[UserStore] Could not clear device owner binding:', err);
       throw err;
+    }
+  },
+
+  getDeviceId: async () => {
+    try {
+      let deviceId = await storage.getItem(DEVICE_ID_KEY);
+      if (!deviceId) {
+        deviceId = uuidv4();
+        await storage.setItem(DEVICE_ID_KEY, deviceId);
+        console.log('[UserStore] Generated new device ID:', deviceId.slice(0, 8));
+      }
+      return deviceId;
+    } catch (err) {
+      console.warn('[UserStore] Could not get/generate device ID:', err);
+      // Fallback: generate a non-persisted UUID (less safe, but app won't crash)
+      return uuidv4();
     }
   },
 }));

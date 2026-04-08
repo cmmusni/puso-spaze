@@ -12,7 +12,7 @@ export interface UsePostsResult {
   loading: boolean;
   error: string | null;
   fetchPosts: () => Promise<void>;
-  submitPost: (req: CreatePostRequest) => Promise<{ flagged: boolean; underReview: boolean }>;
+  submitPost: (req: CreatePostRequest & { imageUri?: string }) => Promise<{ flagged: boolean; underReview: boolean }>;
 }
 
 export function usePosts(): UsePostsResult {
@@ -41,7 +41,7 @@ export function usePosts(): UsePostsResult {
    * Returns { flagged: true } if AI moderation rejected the content.
    */
   const submitPost = useCallback(
-    async (req: CreatePostRequest): Promise<{ flagged: boolean; underReview: boolean }> => {
+    async (req: CreatePostRequest & { imageUri?: string }): Promise<{ flagged: boolean; underReview: boolean }> => {
       const { flagged, underReview } = await apiCreatePost(req);
       if (!flagged) {
         // Refresh feed after submission (includes REVIEW posts)

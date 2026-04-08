@@ -46,6 +46,10 @@ import type {
 const BASE_URL: string =
   (Constants.expoConfig?.extra?.apiUrl as string) ?? 'http://localhost:4000';
 
+export function getBaseUrl(): string {
+  return BASE_URL;
+}
+
 const client = axios.create({
   baseURL: BASE_URL,
   timeout: 10_000,
@@ -127,11 +131,32 @@ export async function apiGetPostById(postId: string): Promise<{ post: Post }> {
 /**
  * POST /api/posts
  * Submits a new post for AI moderation + persistence.
+ * Supports optional image upload via multipart form data.
  * Returns { post, flagged }.
  */
 export async function apiCreatePost(
-  body: CreatePostRequest
+  body: CreatePostRequest & { imageUri?: string }
 ): Promise<CreatePostResponse> {
+  if (body.imageUri) {
+    const formData = new FormData();
+    formData.append('userId', body.userId);
+    formData.append('content', body.content);
+    if (body.tags) {
+      formData.append('tags', JSON.stringify(body.tags));
+    }
+    const uriParts = body.imageUri.split('.');
+    const ext = uriParts[uriParts.length - 1]?.toLowerCase() ?? 'jpg';
+    const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+    formData.append('image', {
+      uri: body.imageUri,
+      name: `photo.${ext}`,
+      type: mimeMap[ext] ?? 'image/jpeg',
+    } as any);
+    const { data } = await client.post<CreatePostResponse>('/api/posts', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  }
   const { data } = await client.post<CreatePostResponse>('/api/posts', body);
   return data;
 }

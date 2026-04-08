@@ -40,6 +40,7 @@ import {
   apiDeleteComment,
   apiUpdateComment,
   apiSearchUsers,
+  getBaseUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
@@ -748,6 +749,14 @@ export default function PostDetailScreen() {
                   mentionStyle={styles.mentionText}
                 />
 
+                {post.imageUrl && (
+                  <Image
+                    source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                  />
+                )}
+
                 {post.tags && post.tags.length > 0 && (
                   <View style={styles.tagsRow}>
                     {post.tags.map((tag: string) => (
@@ -1168,6 +1177,7 @@ const styles = StyleSheet.create({
   postAuthorTime: { color: colors.muted5, fontSize: 12 },
   postDivider: { height: 1, backgroundColor: colors.muted3, marginBottom: 14 },
   postContent: { color: colors.text, fontSize: 16, lineHeight: 26 },
+  postImage: { width: "100%", height: 220, borderRadius: 16, marginTop: 12 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, gap: 6 },
   tagChip: {
     backgroundColor: colors.surface,

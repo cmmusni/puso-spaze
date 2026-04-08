@@ -12,12 +12,39 @@
 
 import { Router } from 'express';
 import { body, param } from 'express-validator';
+import multer from 'multer';
+import path from 'path';
+import crypto from 'crypto';
 import { createPost, getPosts, getPostById, deletePost, updatePost } from '../controllers/postController';
 import { upsertReaction, getReactions } from '../controllers/reactionController';
 import { createComment, getComments, deleteComment, updateComment } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
+
+// ── Multer config for post images ──────────
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, '..', '..', 'uploads'),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${crypto.randomUUID()}${ext}`);
+  },
+});
+
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, GIF, and WebP images are allowed.'));
+    }
+  },
+});
 
 // ── GET /api/posts ─────────────────────────
 router.get('/', getPosts);
@@ -35,6 +62,7 @@ router.get(
 // ── POST /api/posts ────────────────────────
 router.post(
   '/',
+  upload.single('image'),
   [
     body('userId')
       .trim()
@@ -46,6 +74,12 @@ router.post(
       .withMessage('content must be 3–500 characters'),
     body('tags')
       .optional()
+      .customSanitizer((value) => {
+        if (typeof value === 'string') {
+          try { return JSON.parse(value); } catch { return value; }
+        }
+        return value;
+      })
       .isArray({ max: 5 })
       .withMessage('tags must be an array of up to 5 items'),
     validate,

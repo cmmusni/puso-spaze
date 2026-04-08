@@ -16,7 +16,9 @@ import {
   Alert,
   SafeAreaView,
   StyleSheet,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/theme';
@@ -43,6 +45,7 @@ export default function PostScreen() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   const MAX_CHARS = 500;
   const charsLeft = MAX_CHARS - content.length;
@@ -115,6 +118,17 @@ export default function PostScreen() {
     setTags(tags.filter((_, i) => i !== index));
   };
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const handleSubmit = async () => {
     setErrorMsg(null);
     setReviewMsg(null);
@@ -128,6 +142,7 @@ export default function PostScreen() {
         userId, 
         content: content.trim(),
         tags: tags.length > 0 ? tags : undefined,
+        imageUri: imageUri ?? undefined,
       });
       if (flagged) {
         setErrorMsg(
@@ -140,6 +155,7 @@ export default function PostScreen() {
         setContent('');
         setTags([]);
         setTagInput('');
+        setImageUri(null);
         navigation.goBack();
       }
     } catch (err: unknown) {
@@ -225,6 +241,23 @@ export default function PostScreen() {
           <Text style={[styles.charCounter, charsLeft < 50 ? styles.charCounterWarn : styles.charCounterDefault]}>
             {charsLeft}/{MAX_CHARS}
           </Text>
+
+          {/* ── Image picker ── */}
+          <View style={styles.imageSection}>
+            {imageUri ? (
+              <View style={styles.imagePreviewWrap}>
+                <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+                <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => setImageUri(null)} activeOpacity={0.8}>
+                  <Ionicons name="close-circle" size={26} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage} activeOpacity={0.8} disabled={loading}>
+                <Ionicons name="image-outline" size={22} color={colors.primary} />
+                <Text style={styles.imagePickerText}>Add Photo (optional)</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* ── Tags input ── */}
           <View style={styles.tagsSection}>
@@ -407,6 +440,24 @@ const styles = StyleSheet.create({
   charCounter: { textAlign: 'right', fontSize: 12, fontWeight: '600', marginBottom: 16 },
   charCounterDefault: { color: colors.muted5 },
   charCounterWarn: { color: colors.danger },
+
+  // ── Image picker ─────────────────────────
+  imageSection: { marginBottom: 16 },
+  imagePickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.muted3,
+    borderStyle: 'dashed',
+  },
+  imagePickerText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+  imagePreviewWrap: { borderRadius: 16, overflow: 'hidden', position: 'relative' },
+  imagePreview: { width: '100%', height: 200, borderRadius: 16 },
+  imageRemoveBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.card, borderRadius: 13 },
 
   // ── Tags ─────────────────────────────────
   tagsSection: {

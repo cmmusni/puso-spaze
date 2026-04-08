@@ -90,7 +90,19 @@ export default function LoginScreen() {
       await loginWithUsername(customName.trim());
       navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
-      const msg = err?.message ?? 'Could not connect to server. Please try again.';
+      const serverError = err?.response?.data?.error;
+      const msg = serverError ?? err?.message ?? 'Could not connect to server. Please try again.';
+
+      // Server-side: username owned by a different device
+      if (serverError === 'Username is already taken.') {
+        showAlert(
+          'Username Taken',
+          `"${customName.trim()}" is already in use by someone else. Please choose a different username.`
+        );
+        return;
+      }
+
+      // Client-side: device already bound to a different username
       const deviceOwner = extractBoundUser(msg);
       if (deviceOwner) {
         const signInInstead = await showConfirm(

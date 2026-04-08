@@ -23,6 +23,10 @@ router.post(
       .trim()
       .isLength({ min: 11, max: 11 })
       .withMessage('code must be in format XXXXX-XXXXX'),
+    body('deviceId')
+      .optional()
+      .isUUID()
+      .withMessage('deviceId must be a valid UUID'),
     validate,
   ],
   redeemInvite

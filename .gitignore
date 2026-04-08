@@ -40,6 +40,10 @@ yarn-error.*
 build/
 dist/
 
+# Uploads (keep .gitkeep)
+server/uploads/*
+!server/uploads/.gitkeep
+
 # TypeScript
 *.tsbuildinfo
 

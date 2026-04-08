@@ -36,6 +36,7 @@ import {
   apiFlagPost,
   apiPinPost,
   apiUnpinPost,
+  getBaseUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { colors } from "../constants/theme";
@@ -423,6 +424,15 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
           mentionStyle={styles.mentionText}
           numberOfLines={4}
         />
+
+        {/* ── Post Image ── */}
+        {post.imageUrl && (
+          <Image
+            source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+            style={styles.postImage}
+            resizeMode="cover"
+          />
+        )}
 
         {/* ── Tags ── */}
         {post.tags && post.tags.length > 0 && (
@@ -899,6 +909,12 @@ const styles = StyleSheet.create({
   mentionText: {
     color: colors.primary,
     fontWeight: "700",
+  },
+  postImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 16,
+    marginTop: 12,
   },
 
   // ── Tags ──────────────────────────────────

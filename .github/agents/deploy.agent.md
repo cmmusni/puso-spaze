@@ -1,5 +1,5 @@
 ---
-description: "Use when: deploying, preparing for deployment, pre-deploy checklist, pushing to production, git push, release, shipping code. Validates all environment-specific values, secrets, and build readiness before committing."
+description: "Use when: deploying, preparing for deployment, pre-deploy checklist, pushing to production, git push, release, shipping code. Validates all environment-specific values, secrets, and build readiness before committing. Once all checks pass, confirms it's safe to push to production and deploy."
 tools: [read, search, execute]
 ---
 

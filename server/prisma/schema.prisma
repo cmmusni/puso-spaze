@@ -24,6 +24,7 @@ enum UserRole {
 model User {
   id            String   @id @default(uuid())
   displayName   String   @unique
+  deviceId      String?  // Permanent device UUID — only this device can use this username
   role          UserRole @default(USER)
   expoPushToken String?  // For mobile push notifications
   createdAt     DateTime @default(now())
@@ -60,6 +61,7 @@ enum ModerationStatus {
 model Post {
   id               String           @id @default(uuid())
   content          String
+  imageUrl         String?
   userId           String
   createdAt        DateTime         @default(now())
   moderationStatus ModerationStatus @default(REVIEW)

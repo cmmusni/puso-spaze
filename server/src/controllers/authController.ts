@@ -9,13 +9,14 @@ import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/n
 
 /**
  * POST /api/auth/redeem-invite
- * Body: { displayName: string; code: string }
+ * Body: { displayName: string; code: string; deviceId?: string }
  *
  * Validates the invite code and creates (or promotes) the user as COACH.
+ * If the username is already owned by a different device, rejects with 409.
  * Returns: { userId, displayName, role }
  */
 export async function redeemInvite(req: Request, res: Response): Promise<void> {
-  const { displayName, code } = req.body as { displayName: string; code: string };
+  const { displayName, code, deviceId } = req.body as { displayName: string; code: string; deviceId?: string };
 
   try {
     // 1. Find the invite code
@@ -31,16 +32,25 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 2. Upsert the user — keep existing role on re-login, default to COACH on first login
+    // 2. Check device ownership if username already exists
     const existingUser = await prisma.user.findUnique({
       where: { displayName },
-      select: { id: true },
+      select: { id: true, deviceId: true },
     });
 
+    if (existingUser && existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId) {
+      res.status(409).json({ error: 'Username is already taken.' });
+      return;
+    }
+
+    // 3. Upsert the user — keep existing role on re-login, default to COACH on first login
     const user = await prisma.user.upsert({
       where: { displayName },
-      update: { lastActiveAt: new Date() },  // preserve role, update activity
-      create: { displayName, role: 'COACH' },
+      update: {
+        lastActiveAt: new Date(),
+        ...(deviceId && !existingUser?.deviceId ? { deviceId } : {}),
+      },
+      create: { displayName, role: 'COACH', ...(deviceId ? { deviceId } : {}) },
     });
 
     if (!existingUser) {
@@ -55,7 +65,7 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
       });
     }
 
-    // 3. Mark the invite code as used
+    // 4. Mark the invite code as used
     await prisma.inviteCode.update({
       where: { code: code.toUpperCase() },
       data: { used: true, usedBy: user.id, usedAt: new Date() },

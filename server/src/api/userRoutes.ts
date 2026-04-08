@@ -36,6 +36,10 @@ router.post(
       .withMessage('displayName must be 2–30 characters')
       .matches(/^[a-zA-Z0-9 _-]+$/)
       .withMessage('displayName contains invalid characters'),
+    body('deviceId')
+      .optional()
+      .isUUID()
+      .withMessage('deviceId must be a valid UUID'),
     validate,
   ],
   createUser

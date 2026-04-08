@@ -21,6 +21,7 @@ export function useUser() {
     validateDeviceOwner,
     getDeviceOwner,
     clearDeviceOwnerBinding,
+    getDeviceId,
   } =
     useUserStore();
 
@@ -38,12 +39,13 @@ export function useUser() {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
+      const deviceId = await getDeviceId();
       const generatedId = uuidv4();
       const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiCreateUser({ displayName });
+        await apiCreateUser({ displayName, deviceId });
       await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER');
     },
-    [loginUser, validateDeviceOwner]
+    [loginUser, validateDeviceOwner, getDeviceId]
   );
 
   /**
@@ -51,16 +53,17 @@ export function useUser() {
    */
   const loginAnonymously = useCallback(async (): Promise<void> => {
     const anonName = generateAnonUsername();
+    const deviceId = await getDeviceId();
     const generatedId = uuidv4();
     try {
       const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiCreateUser({ displayName: anonName });
+        await apiCreateUser({ displayName: anonName, deviceId });
       await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER');
     } catch {
       // Offline fallback — still allow local login
       await loginUser(generatedId, anonName, 'USER');
     }
-  }, [loginUser]);
+  }, [loginUser, getDeviceId]);
 
   /**
    * Login as PUSO Coach using an invite code.
@@ -71,11 +74,12 @@ export function useUser() {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
+      const deviceId = await getDeviceId();
       const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiRedeemInviteCode({ displayName, code });
+        await apiRedeemInviteCode({ displayName, code, deviceId });
       await loginUser(serverId, serverName, serverRole);
     },
-    [loginUser, validateDeviceOwner]
+    [loginUser, validateDeviceOwner, getDeviceId]
   );
 
   /**

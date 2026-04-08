@@ -28,6 +28,9 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     tags?: string[];
   };
 
+  const imageFile = (req as any).file as Express.Multer.File | undefined;
+  const imageUrl = imageFile ? `/uploads/${imageFile.filename}` : null;
+
   // ── Verify user exists ────────────────────
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
@@ -51,6 +54,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
       userId,
       moderationStatus,
       tags: tags ?? [],
+      imageUrl,
     },
     include: { user: { select: { displayName: true } } },
   });
@@ -114,6 +118,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     post: {
       id: post.id,
       content: post.content,
+      imageUrl: post.imageUrl,
       userId: post.userId,
       user: post.user,
       createdAt: post.createdAt.toISOString(),
@@ -176,6 +181,7 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
       return {
       id: p.id,
       content: p.content,
+      imageUrl: p.imageUrl,
       userId: p.userId,
       user: p.user,
       createdAt: p.createdAt.toISOString(),
@@ -234,6 +240,7 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
     post: {
       id: post.id,
       content: post.content,
+      imageUrl: post.imageUrl,
       userId: post.userId,
       user: post.user,
       createdAt: post.createdAt.toISOString(),
@@ -368,6 +375,7 @@ export async function updatePost(req: Request, res: Response): Promise<void> {
     post: {
       id: updated.id,
       content: updated.content,
+      imageUrl: updated.imageUrl,
       userId: updated.userId,
       user: updated.user,
       createdAt: updated.createdAt.toISOString(),

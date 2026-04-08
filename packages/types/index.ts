@@ -34,6 +34,7 @@ export interface MentionUser {
 export interface Post {
   id: string;
   content: string;
+  imageUrl?: string | null;
   userId: string;
   user?: Pick<User, 'displayName' | 'role'>;
   createdAt: string;
@@ -89,7 +90,7 @@ export interface ReactionCounts {
 }
 
 // ── API shapes ────────────────────────────────
-export interface CreateUserRequest { displayName: string; }
+export interface CreateUserRequest { displayName: string; deviceId?: string; }
 export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; }
 
 export interface CreatePostRequest { userId: string; content: string; tags?: string[]; }
@@ -120,7 +121,7 @@ export interface SearchUsersResponse { users: MentionUser[]; }
 export interface UserSession { userId: string; username: string; role: UserRole; isLoggedIn: boolean; }
 
 // Coach / Admin
-export interface RedeemInviteRequest { displayName: string; code: string; }
+export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; }
 export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; }
 
 export interface ReviewQueue { posts: Post[]; comments: Comment[]; }

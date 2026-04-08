@@ -78,41 +78,63 @@ export async function searchUsers(req: Request, res: Response): Promise<void> {
 
 /**
  * POST /api/users
- * Body: { displayName: string }
+ * Body: { displayName: string, deviceId?: string }
  * Returns: { userId, displayName, role }
  * 
  * Creates a user if they don't exist (default role: USER).
- * If user already exists, returns them with their existing role preserved.
+ * If user already exists, validates deviceId ownership before returning.
  * 
  * ⭐ COACHES: After signing out, can log back in with their username
  *    (no need for a new invite code). Their COACH role is retained.
  */
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { displayName } = req.body as { displayName: string };
+  const { displayName, deviceId } = req.body as { displayName: string; deviceId?: string };
 
   try {
     const existingUser = await prisma.user.findUnique({
       where: { displayName },
-      select: { id: true },
+      select: { id: true, deviceId: true, role: true, displayName: true },
     });
 
-    const user = await prisma.user.upsert({
-      where: { displayName },
-      update: { lastActiveAt: new Date() },  // Preserve existing role, update activity
-      create: { displayName },  // New users default to USER role
-    });
+    // ── Username exists: verify device ownership ──
+    if (existingUser) {
+      if (existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId) {
+        res.status(409).json({ error: 'Username is already taken.' });
+        return;
+      }
 
-    if (!existingUser) {
-      const context = extractNewUserAlertContext(req);
-      context.source = 'users.create';
+      // Same device or legacy user without deviceId — allow login
+      const user = await prisma.user.update({
+        where: { displayName },
+        data: {
+          lastActiveAt: new Date(),
+          // Back-fill deviceId for legacy users on first login with a device
+          ...(deviceId && !existingUser.deviceId ? { deviceId } : {}),
+        },
+      });
 
-      void sendNewUserAlertEmail({
+      res.status(200).json({
         userId: user.id,
         displayName: user.displayName,
         role: user.role,
-        context,
       });
+      return;
     }
+
+    // ── New user: create with deviceId ──
+    const user = await prisma.user.create({
+      data: { displayName, ...(deviceId ? { deviceId } : {}) },
+    });
+
+    const context = extractNewUserAlertContext(req);
+    context.source = 'users.create';
+
+    void sendNewUserAlertEmail({
+      userId: user.id,
+      displayName: user.displayName,
+      role: user.role,
+      context,
+    });
 
     res.status(201).json({
       userId: user.id,
