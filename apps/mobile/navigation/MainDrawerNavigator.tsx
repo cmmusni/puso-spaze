@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Platform,
   useWindowDimensions,
+  Image,
 } from "react-native";
 import {
   createDrawerNavigator,
@@ -33,7 +34,7 @@ import BottomTabBar from "../components/BottomTabBar";
 import WebSidebar from "../components/WebSidebar";
 import WebRightPanel from "../components/WebRightPanel";
 import { useUserStore } from "../context/UserContext";
-import { colors } from "../constants/theme";
+import { colors, fonts, radii } from "../constants/theme";
 import type { Post } from "../../../packages/types";
 
 // ── Param list ────────────────────────────────
@@ -97,7 +98,7 @@ function CustomDrawerContent({
     >
       {/* Gradient fill */}
       <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.fuchsia]}
+        colors={[colors.primaryContainer, colors.secondary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.4, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -109,11 +110,11 @@ function CustomDrawerContent({
           onPress={() => navigation.navigate("Profile")}
           activeOpacity={0.75}
         >
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarLetter}>
-              {(username ?? "?").charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Image
+            source={require("../assets/logo.png")}
+            style={styles.drawerLogo}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
         <Text style={styles.userName} numberOfLines={1}>
           {username ?? "User"}
@@ -205,8 +206,8 @@ function ScreenWithTabs({
           currentRoute={currentRoute}
           onNavigate={(route) => navigation.navigate(route)}
         />
-        <View style={{ flex: 1 }}>{children}</View>
-        <WebRightPanel />
+        <View style={{ flex: 100, minWidth: 600 }}>{children}</View>
+        {width >= 1200 && <WebRightPanel />}
       </View>
     );
   }
@@ -317,52 +318,42 @@ const styles = StyleSheet.create({
 
   // ── User header ──────────────────────────
   userHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
     alignItems: "flex-start",
-    gap: 6,
+    gap: 8,
   },
-  avatarCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.fuchsia,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  avatarLetter: {
-    color: colors.card,
-    fontSize: 24,
-    fontWeight: "800",
+  drawerLogo: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 6,
   },
   userName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.card,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    color: colors.onPrimary,
     maxWidth: 220,
   },
 
   roleBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radii.full,
   },
   roleBadgeAdmin: {
-    backgroundColor: colors.hot + "33",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   roleBadgeCoach: {
-    backgroundColor: colors.fuchsia + "33",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   roleBadgeUser: {
-    backgroundColor: colors.primary + "33",
-    borderWidth: 1,
-    borderColor: colors.primary + "80",
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   roleBadgeText: {
     fontSize: 11,
-    fontWeight: "700",
-    color: colors.card,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onPrimary,
   },
   roleBadgeContent: {
     flexDirection: "row",
@@ -372,8 +363,8 @@ const styles = StyleSheet.create({
   activeNowBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginTop: 6,
+    gap: 6,
+    marginTop: 8,
   },
   activeNowDot: {
     width: 8,
@@ -383,56 +374,54 @@ const styles = StyleSheet.create({
   },
   activeNowText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontFamily: fonts.displaySemiBold,
     color: colors.safe,
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
 
   divider: {
-    height: 1,
-    backgroundColor: colors.muted3,
-    marginVertical: 12,
-    marginHorizontal: 20,
+    height: 16,
+    marginHorizontal: 24,
   },
 
   // ── Navigation items ─────────────────────
   navSection: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     gap: 4,
   },
   navItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: radii.md,
     position: "relative",
   },
   navItemActive: {
-    backgroundColor: colors.fuchsia + "26",
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
   navItemIconWrap: {
-    marginRight: 12,
+    marginRight: 14,
     width: 24,
     alignItems: "center",
     textAlign: "center",
   },
   navItemText: {
     fontSize: 15,
-    fontWeight: "600",
-    color: colors.muted5,
+    fontFamily: fonts.bodyMedium,
+    color: "rgba(255,255,255,0.55)",
     flex: 1,
   },
   navItemTextActive: {
-    color: colors.card,
-    fontWeight: "700",
+    color: colors.onPrimary,
+    fontFamily: fonts.bodySemiBold,
   },
   activeIndicator: {
     position: "absolute",
     left: 0,
     width: 4,
     height: 24,
-    backgroundColor: colors.fuchsia,
+    backgroundColor: colors.onPrimary,
     borderRadius: 0,
     borderTopRightRadius: 4,
     borderBottomRightRadius: 4,
@@ -442,18 +431,18 @@ const styles = StyleSheet.create({
   signOutItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 28,
-    marginHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginHorizontal: 16,
+    borderRadius: radii.md,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   signOutIcon: {
-    marginRight: 12,
+    marginRight: 14,
   },
   signOutText: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "white",
+    fontFamily: fonts.bodyMedium,
+    color: "rgba(255,255,255,0.6)",
   },
 });

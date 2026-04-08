@@ -39,7 +39,7 @@ import {
   getBaseUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
-import { colors } from "../constants/theme";
+import { colors, fonts, radii, ambientShadow } from "../constants/theme";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
 
@@ -337,11 +337,11 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     .slice(0, 3);
 
   const avatarPalette: [string, string][] = [
-    [colors.hot, colors.primary],
-    [colors.primary, colors.deep],
-    [colors.fuchsia, colors.ink],
-    [colors.ink, colors.deep],
-    [colors.hot, colors.fuchsia],
+    [colors.secondary, colors.primary],
+    [colors.primaryContainer, colors.gradientStart],
+    [colors.secondary, colors.primaryContainer],
+    [colors.primaryContainer, colors.primary],
+    [colors.secondary, colors.tertiary],
   ];
   const colorPair = avatarPalette[initial.charCodeAt(0) % avatarPalette.length];
 
@@ -380,17 +380,30 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             )}
 
             <View>
-              <Text style={styles.authorName}>{displayName}</Text>
-              <View style={styles.authorSubtitleRow}>
-                <Ionicons
-                  name="person-sharp"
-                  size={12}
-                  color={colors.primary}
-                />
-                <Text style={styles.authorSubtitle}>
-                  {`Spaze ${post.userId === "system-encouragement-bot" ? "AI" : post.user?.role === "COACH" ? "Coach" : post.user?.role === "ADMIN" ? "Admin" : "Member"}`}
-                </Text>
+              <View style={styles.authorNameRow}>
+                <Text style={styles.authorName}>{displayName}</Text>
+                {post.userId !== "system-encouragement-bot" && (
+                  <View style={[
+                    styles.roleBadge,
+                    post.user?.role === "COACH" ? styles.roleBadgeCoach :
+                    post.user?.role === "ADMIN" ? styles.roleBadgeAdmin :
+                    styles.roleBadgeMember,
+                  ]}>
+                    <Text style={[
+                      styles.roleBadgeText,
+                      post.user?.role === "COACH" ? styles.roleBadgeTextCoach :
+                      post.user?.role === "ADMIN" ? styles.roleBadgeTextAdmin :
+                      styles.roleBadgeTextMember,
+                    ]}>
+                      {post.userId === "system-encouragement-bot" ? "PUSO AI" :
+                       post.user?.role === "COACH" ? "SUPPORT LEADER" :
+                       post.user?.role === "ADMIN" ? "COMMUNITY HOST" :
+                       "MEMBER"}
+                    </Text>
+                  </View>
+                )}
               </View>
+              <Text style={styles.authorSubtitle}>{timeAgo}</Text>
             </View>
           </View>
           <View style={styles.headerRight}>
@@ -400,22 +413,16 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                 <Text style={styles.pinnedPillText}>Pinned</Text>
               </View>
             )}
-            <View style={styles.timePill}>
-              <Text style={styles.timeText}>{timeAgo}</Text>
-            </View>
             <TouchableOpacity
               onPress={openMenu}
               activeOpacity={0.7}
               style={styles.menuButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="ellipsis-vertical" size={16} color={colors.ink} />
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.muted5} />
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* ── Divider ── */}
-        <View style={styles.divider} />
 
         {/* ── Post Content ── */}
         <MentionText
@@ -449,50 +456,41 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         <View style={styles.footer}>
           <View style={styles.footerLeft}>
             <TouchableOpacity
-              onPress={() => handleReaction(userReaction ?? "PRAY")}
+              onPress={() => handleReaction("CARE")}
               onLongPress={openPicker}
               delayLongPress={300}
               activeOpacity={0.75}
               style={styles.countButton}
             >
-              {userReaction ? (
-                renderReactionIcon(userReaction, 22, colors.primary)
-              ) : (
-                <PrayIcon
-                  size={22}
-                  color={colors.lightPrimary}
-                  style={{ top: -1 }}
-                />
-              )}
+              <Ionicons name={userReaction === "CARE" ? getCareIcon() : "heart"} size={16} color={userReaction === "CARE" ? colors.primary : colors.lightPrimary} />
               <Text style={styles.footerCount}>
-                {reactionLoading ? "…" : `${localTotal}`}
+                {reactionLoading ? "…" : counts.CARE ?? 0} Care
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleReaction("PRAY")}
+              onLongPress={openPicker}
+              delayLongPress={300}
+              activeOpacity={0.75}
+              style={styles.countButton}
+            >
+              <PrayIcon
+                size={16}
+                color={userReaction === "PRAY" ? colors.primary : colors.lightPrimary}
+              />
+              <Text style={styles.footerCount}>
+                {counts.PRAY ?? 0} Pray
               </Text>
             </TouchableOpacity>
             <View style={styles.countButton}>
               <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={16}
-                color={colors.primary}
+                name="chatbubble"
+                size={14}
+                color={colors.muted5}
               />
-              <Text style={styles.footerCount}>{post.commentCount ?? 0}</Text>
+              <Text style={styles.footerCountMuted}>{post.commentCount ?? 0} Comments</Text>
             </View>
           </View>
-
-          {topReactions.length > 0 && (
-            <View style={styles.reactionSummaryRight}>
-              {topReactions.map((type, i) => (
-                <View
-                  key={type}
-                  style={[
-                    styles.iconChip,
-                    i > 0 ? styles.reactionSummaryOffset : undefined,
-                  ]}
-                >
-                  {renderReactionIcon(type, 13, colors.card)}
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         {post.latestComment && post.latestComment.userId !== SYSTEM_USER_ID && (
@@ -789,34 +787,29 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
 }
 
 // ─────────────────────────────────────────────
-// Styles
+// Styles — Sacred Journal design system
+// No 1px borders. Tonal layering. xl corners. Generous padding.
 // ─────────────────────────────────────────────
 const styles = StyleSheet.create({
-  // ── Card ──────────────────────────────────
+  // ── Card — "fresh page" ───────────────────
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radii.xl,
+    padding: 24,
+    marginBottom: 20,
+    marginHorizontal: 4,
+    ...ambientShadow,
   },
-  cardDefault: {
-    borderWidth: 1,
-    borderColor: colors.muted3,
-  },
+  cardDefault: {},
   cardPinned: {
-    borderColor: colors.accent,
+    backgroundColor: colors.surfaceBright,
   },
   // ── Author ────────────────────────────────
   authorRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   row: {
     flexDirection: "row",
@@ -831,204 +824,202 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  pinnedPillText: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  avatarInitial: {
-    color: colors.card,
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  authorName: {
-    color: colors.heading,
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  authorSubtitle: {
-    color: colors.muted5,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  authorSubtitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  memberIcon: {
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
-  },
-  timePill: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
+    backgroundColor: colors.secondaryFixed,
+    borderRadius: radii.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  timeText: {
-    color: colors.ink,
+  pinnedPillText: {
+    color: colors.onSecondaryFixed,
     fontSize: 11,
-    fontWeight: "600",
+    fontFamily: fonts.bodySemiBold,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  avatarInitial: {
+    color: colors.onPrimary,
+    fontSize: 17,
+    fontFamily: fonts.displayBold,
+  },
+  authorNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  authorName: {
+    color: colors.onSurface,
+    fontFamily: fonts.displaySemiBold,
+    fontSize: 15,
+  },
+  roleBadge: {
+    borderRadius: radii.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  roleBadgeCoach: {
+    backgroundColor: colors.primary,
+  },
+  roleBadgeAdmin: {
+    backgroundColor: colors.safe,
+  },
+  roleBadgeMember: {
+    backgroundColor: colors.surfaceVariant,
+  },
+  roleBadgeText: {
+    fontSize: 9,
+    fontFamily: fonts.displaySemiBold,
+    letterSpacing: 0.8,
+  },
+  roleBadgeTextCoach: {
+    color: colors.onPrimary,
+  },
+  roleBadgeTextAdmin: {
+    color: colors.onPrimary,
+  },
+  roleBadgeTextMember: {
+    color: colors.onSurfaceVariant,
+  },
+  authorSubtitle: {
+    color: colors.onSurfaceVariant,
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    marginTop: 2,
   },
   menuButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
   // ── Body ──────────────────────────────────
-  divider: {
-    height: 1,
-    backgroundColor: colors.muted3,
-    marginBottom: 12,
-  },
   content: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 24,
+    color: colors.onSurface,
+    fontSize: 16,
+    fontFamily: fonts.bodyRegular,
+    lineHeight: 26,
   },
   mentionText: {
     color: colors.primary,
-    fontWeight: "700",
+    fontFamily: fonts.bodyBold,
   },
   postImage: {
     width: "100%",
-    height: 200,
-    borderRadius: 16,
-    marginTop: 12,
+    height: 260,
+    borderRadius: radii.lg,
+    marginTop: 16,
   },
 
-  // ── Tags ──────────────────────────────────
+  // ── Tags — reflection chips ───────────────
   tagsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginTop: 12,
-    gap: 6,
+    marginTop: 16,
+    gap: 8,
   },
   tagChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: colors.muted2,
+    backgroundColor: colors.secondaryFixed,
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   tagText: {
-    color: colors.ink,
-    fontSize: 11,
-    fontWeight: "600",
+    color: colors.onSecondaryFixed,
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
   },
 
-  // ── Footer ────────────────────────────────
+  // ── Footer — no top border, use spacing ───
   footer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.muted3,
+    justifyContent: "flex-start",
+    marginTop: 20,
+    paddingTop: 16,
   },
   footerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-  },
-  iconChip: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reactionSummaryRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  reactionSummaryOffset: {
-    marginLeft: -6,
+    gap: 20,
   },
   footerCount: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.primary,
+    fontFamily: fonts.bodySemiBold,
+  },
+  footerCountMuted: {
+    fontSize: 14,
+    color: colors.onSurfaceVariant,
+    fontFamily: fonts.bodySemiBold,
   },
   countButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    height: 24,
+    height: 28,
   },
   latestCommentWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.muted3,
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 14,
+    backgroundColor: colors.surfaceContainerLow,
+    marginHorizontal: -24,
+    marginBottom: -24,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    borderBottomLeftRadius: radii.xl,
+    borderBottomRightRadius: radii.xl,
   },
   latestCommentText: {
     flex: 1,
-    color: colors.muted5,
-    fontSize: 12,
-    lineHeight: 16,
+    color: colors.onSurfaceVariant,
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    lineHeight: 18,
   },
   reactBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
   },
   reactBtnDefault: {
     backgroundColor: "transparent",
-    borderWidth: 0,
-    borderColor: "transparent",
   },
   reactBtnEmoji: {
     fontSize: 14,
   },
   reactBtnLabel: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
   },
   reactBtnLabelDefault: {
-    color: colors.subtle,
+    color: colors.onSurfaceVariant,
   },
   reactBtnLabelActive: {
-    color: colors.fuchsia,
+    color: colors.secondary,
   },
   reactBtnHint: {
     fontSize: 10,
-    color: colors.muted5,
+    color: colors.onSurfaceVariant,
+    fontFamily: fonts.bodyRegular,
     marginLeft: 2,
   },
 
   // ── Modal / Picker ────────────────────────
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(28,27,35,0.35)",
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1040,66 +1031,59 @@ const styles = StyleSheet.create({
   },
   pickerPill: {
     flexDirection: "row",
-    backgroundColor: colors.card,
-    borderRadius: 50,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    gap: 6,
-    shadowColor: colors.darkest,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radii.full,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+    ...ambientShadow,
+    shadowOpacity: 0.15,
+    shadowRadius: 40,
     elevation: 20,
-    borderWidth: 1,
-    borderColor: colors.muted1,
   },
   reactionOption: {
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 40,
-    minWidth: 76,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: radii.full,
+    minWidth: 80,
   },
   reactionOptionDefault: {
     backgroundColor: "transparent",
-    borderWidth: 0,
-    borderColor: "transparent",
   },
   reactionOptionActive: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.fuchsia,
+    backgroundColor: colors.secondaryFixed,
   },
   reactionIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   reactionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 5,
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    marginTop: 6,
   },
   reactionLabelDefault: {
-    color: colors.subtle,
+    color: colors.onSurfaceVariant,
   },
   reactionLabelActive: {
-    color: colors.fuchsia,
+    color: colors.secondary,
   },
   reactionCount: {
     fontSize: 11,
-    color: colors.muted5,
-    fontWeight: "600",
+    color: colors.onSurfaceVariant,
+    fontFamily: fonts.bodyMedium,
     marginTop: 2,
   },
   dismissHint: {
     color: "rgba(255,255,255,0.7)",
     fontSize: 13,
     marginTop: 24,
-    fontWeight: "500",
+    fontFamily: fonts.bodyMedium,
   },
 
   // ── 3-Dot Menu ────────────────────────────
@@ -1108,29 +1092,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   menuDropdown: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radii.lg,
     paddingVertical: 8,
     minWidth: 200,
-    shadowColor: colors.darkest,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    ...ambientShadow,
+    shadowOpacity: 0.12,
     elevation: 12,
-    borderWidth: 1,
-    borderColor: colors.muted2,
   },
   menuOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 14,
   },
   menuDivider: {
-    height: 1,
-    backgroundColor: colors.muted2,
-    marginVertical: 4,
+    height: 8,
   },
   menuOptionIcon: {
     fontSize: 20,
@@ -1138,12 +1116,12 @@ const styles = StyleSheet.create({
   menuOptionText: {
     color: colors.primary,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: fonts.bodySemiBold,
   },
   menuOptionTextAccent: {
-    color: colors.accent,
+    color: colors.tertiary,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: fonts.bodySemiBold,
   },
   menuOptionTextWarning: {
     color: colors.warningText,
@@ -1153,68 +1131,64 @@ const styles = StyleSheet.create({
   },
   editBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(28,27,35,0.35)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   editSheet: {
     width: "100%",
     maxWidth: 520,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.muted2,
-    padding: 14,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radii.xl,
+    padding: 24,
   },
   editTitle: {
-    color: colors.heading,
-    fontWeight: "700",
-    fontSize: 16,
-    marginBottom: 10,
+    color: colors.onSurface,
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    marginBottom: 16,
   },
   editInput: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.muted2,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.lg,
     minHeight: 120,
     maxHeight: 220,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: colors.heading,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: colors.onSurface,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 15,
     textAlignVertical: "top",
   },
   editActions: {
-    marginTop: 12,
+    marginTop: 16,
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 10,
+    gap: 12,
   },
   editCancelBtn: {
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: colors.muted3,
-    backgroundColor: colors.surface,
+    borderRadius: radii.full,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: colors.surfaceVariant,
   },
   editCancelText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
+    color: colors.onSurfaceVariant,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
   },
   editSaveBtn: {
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    borderRadius: radii.full,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     backgroundColor: colors.primary,
-    minWidth: 70,
+    minWidth: 80,
     alignItems: "center",
   },
   editSaveText: {
-    color: colors.card,
-    fontSize: 13,
-    fontWeight: "700",
+    color: colors.onPrimary,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
   },
 });

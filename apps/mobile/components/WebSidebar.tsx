@@ -4,14 +4,16 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../constants/theme";
+import { colors, fonts, radii } from "../constants/theme";
 import { useUserStore } from "../context/UserContext";
 
 const NAV_ITEMS = [
+  { key: "journal", label: "Journal", icon: "book-outline" as any, iconActive: "book" as any, route: "Home" },
   { key: "feed", label: "Feed", icon: "newspaper-outline" as any, iconActive: "newspaper" as any, route: "Home" },
-  { key: "community", label: "Community", icon: "people-outline" as any, iconActive: "people" as any, route: "Home" },
-  { key: "review", label: "Review Queue", icon: "clipboard-outline" as any, iconActive: "clipboard" as any, route: "ReviewQueue", coachOnly: true },
+  { key: "community", label: "Community", icon: "people-outline" as any, iconActive: "people" as any, route: "Home", isDefault: true },
+  { key: "resources", label: "Resources", icon: "library-outline" as any, iconActive: "library" as any, route: "Home" },
   { key: "profile", label: "Profile", icon: "person-outline" as any, iconActive: "person" as any, route: "Profile" },
+  { key: "review", label: "Review Queue", icon: "clipboard-outline" as any, iconActive: "clipboard" as any, route: "ReviewQueue", coachOnly: true },
 ];
 
 interface Props {
@@ -26,7 +28,7 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.darkest, colors.deep]}
+        colors={[colors.primaryContainer, colors.secondary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -38,7 +40,7 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
           resizeMode="contain"
         />
         <View>
-          <Text style={styles.brandName}>PUSOSpaze</Text>
+          <Text style={styles.brandName}>PUSO Spaze</Text>
           <Text style={styles.brandSub}>YOUR SACRED SPACE</Text>
         </View>
       </View>
@@ -48,7 +50,9 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
           if (item.coachOnly && !isCoach) return false;
           return true;
         }).map((item) => {
-          const active = currentRoute === item.route && item.key !== "community";
+          const active = item.isDefault
+            ? currentRoute === "Home"
+            : currentRoute === item.route && !item.isDefault && item.key !== "journal" && item.key !== "feed" && item.key !== "resources";
           return (
             <TouchableOpacity
               key={item.key}
@@ -85,59 +89,59 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 200,
+    width: 220,
     height: "100%" as any,
-    paddingTop: 24,
-    paddingBottom: 20,
-    paddingHorizontal: 12,
+    paddingTop: 28,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
   },
   brandSection: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 8,
-    marginBottom: 32,
+    marginBottom: 40,
   },
-  brandLogo: { width: 32, height: 32 },
+  brandLogo: { width: 34, height: 34 },
   brandName: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.card,
+    fontSize: 17,
+    fontFamily: fonts.displayExtraBold,
+    color: colors.onPrimary,
     letterSpacing: -0.3,
   },
   brandSub: {
     fontSize: 8,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.4)",
-    letterSpacing: 1.5,
-    marginTop: 1,
+    fontFamily: fonts.bodySemiBold,
+    color: "rgba(255,255,255,0.45)",
+    letterSpacing: 2,
+    marginTop: 2,
   },
-  navSection: { gap: 2 },
+  navSection: { gap: 6 },
   navItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    gap: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: radii.md,
   },
-  navItemActive: { backgroundColor: colors.primary },
+  navItemActive: { backgroundColor: "rgba(255,255,255,0.18)" },
   navLabel: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
     color: "rgba(255,255,255,0.6)",
   },
-  navLabelActive: { color: colors.card, fontWeight: "700" },
+  navLabelActive: { color: colors.onPrimary, fontFamily: fonts.bodySemiBold },
   signOutBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    gap: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
   },
   signOutText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.5)",
+    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
+    color: "rgba(255,255,255,0.45)",
   },
 });

@@ -3,10 +3,11 @@ import {
   View, Text, FlatList, TouchableOpacity, ActivityIndicator,
   RefreshControl, SafeAreaView, ListRenderItem, StatusBar,
   StyleSheet, ScrollView, Platform, Image, useWindowDimensions,
+  TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../constants/theme";
+import { colors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
@@ -19,7 +20,7 @@ import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 
 type HomeNav = DrawerNavigationProp<MainDrawerParamList, "Home">;
 
-const CATEGORIES = ["All Stories", "Daily Reflection", "Community", "Devotional", "Personal Story"] as const;
+const CATEGORIES = ["All Stories", "Daily Reflection", "Community"] as const;
 type Category = typeof CATEGORIES[number];
 
 function getGreeting(): string {
@@ -88,7 +89,7 @@ export default function HomeScreen() {
           {displayName}.
         </Text>
         <Text style={styles.greetingSub}>
-          Welcome to your sacred space for reflection and connection.
+          Welcome to your sacred space. What is on your heart today?
         </Text>
       </View>
 
@@ -133,13 +134,13 @@ export default function HomeScreen() {
       {!isWide && (<>
       <View style={styles.section}>
         <LinearGradient
-          colors={[colors.surface, colors.muted1]}
+          colors={[colors.surfaceContainerLow, colors.surfaceVariant]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.encourageCard}
         >
           <View style={styles.encourageSparkles}>
-            <Ionicons name="sparkles" size={28} color={colors.fuchsia} />
+            <Ionicons name="sparkles" size={28} color={colors.secondary} />
           </View>
           <Text style={styles.encourageTitle}>Keep Glowing</Text>
           <Text style={styles.encourageQuote}>
@@ -177,10 +178,7 @@ export default function HomeScreen() {
 
       </>)}
 
-      <View style={styles.feedHeader}>
-        <Ionicons name="newspaper-outline" size={16} color={colors.primary} />
-        <Text style={styles.feedHeaderText}>Community Feed</Text>
-      </View>
+      <View style={styles.feedHeaderSpacer} />
     </View>
   );
 
@@ -198,7 +196,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.deep} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.gradientStart} />
 
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
@@ -212,35 +210,62 @@ export default function HomeScreen() {
               <Ionicons name="menu-outline" size={24} color={colors.heading} />
             </TouchableOpacity>
           )}
-          <Image
-            source={require("../assets/logo.png")}
-            style={styles.topBarLogo}
-            resizeMode="contain"
+          {!isWide && (
+            <Image
+              source={require("../assets/logo.png")}
+              style={styles.topBarLogo}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+
+        {/* Search bar */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color={colors.muted4} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search for encouragement, stories..."
+            placeholderTextColor={colors.muted4}
+            editable={false}
           />
         </View>
 
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Profile")}
-          activeOpacity={0.7}
-          style={styles.avatarBtn}
-        >
-          <LinearGradient
-            colors={[colors.primary, colors.deep]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.topBarAvatar}
+        <View style={styles.topBarRight}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Notifications")}
+            activeOpacity={0.7}
+            style={styles.topBarIconBtn}
           >
-            <Text style={styles.topBarAvatarText}>{initial}</Text>
-          </LinearGradient>
-          {unreadCount > 0 && (
-            <View style={styles.avatarBadge}>
-              <Text style={styles.avatarBadgeText}>
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            <Ionicons name="notifications-outline" size={20} color={colors.heading} />
+            {unreadCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.topBarIconBtn}
+          >
+            <Ionicons name="settings-outline" size={20} color={colors.heading} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Profile")}
+            activeOpacity={0.7}
+            style={styles.avatarBtn}
+          >
+            <LinearGradient
+              colors={[colors.primaryContainer, colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.topBarAvatar}
+            >
+              <Text style={styles.topBarAvatarText}>{initial}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {error && (
@@ -275,18 +300,22 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.fabWrap}>
+
+        <View style={{ flex: 1 }} />
+
+        {/* FAB */}
         <TouchableOpacity
           onPress={() => navigation.getParent()?.navigate("Post")}
           activeOpacity={0.85}
           style={styles.fab}
         >
           <LinearGradient
-            colors={[colors.hot, colors.primary, colors.deep]}
+            colors={[colors.secondary, colors.primaryContainer, colors.primary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fabGrad}
           >
-            <Text style={styles.fabIcon}>+</Text>
+            <Ionicons name="chatbubble-ellipses" size={24} color={colors.onPrimary} />
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -295,129 +324,155 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.canvas, padding: 24 },
+  screen: { flex: 1, backgroundColor: colors.background },
 
-  // ── Top bar ──
+  // ── Top bar — glass-like, no hard border ──
   topBar: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1, borderBottomColor: colors.muted3,
+    paddingHorizontal: 20, paddingVertical: 12,
+    backgroundColor: colors.surfaceContainerLowest,
+    gap: 12,
   },
   hamburger: { padding: 4 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   topBarLogo: { width: 36, height: 36 },
+  searchBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.full,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurface,
+    padding: 0,
+  },
+  topBarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  topBarIconBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: "center", justifyContent: "center",
+    position: "relative",
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  notifBadge: {
+    position: "absolute", top: 4, right: 4,
+    backgroundColor: colors.danger, borderRadius: 6,
+    minWidth: 12, height: 12,
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  notifBadgeText: { color: colors.onPrimary, fontSize: 7, fontFamily: fonts.bodyBold },
   avatarBtn: { position: "relative" },
   topBarAvatar: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 38, height: 38, borderRadius: 19,
     alignItems: "center", justifyContent: "center",
   },
   topBarAvatarText: {
-    color: colors.card, fontSize: 14, fontWeight: "800",
+    color: colors.onPrimary, fontSize: 14, fontFamily: fonts.displayBold,
   },
-  avatarBadge: {
-    position: "absolute", top: -4, right: -4,
-    backgroundColor: colors.danger, borderRadius: 8,
-    minWidth: 16, height: 16,
-    alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 3, borderWidth: 1.5, borderColor: colors.card,
-  },
-  avatarBadgeText: { color: colors.card, fontSize: 8, fontWeight: "700" },
 
-  // ── Greeting ──
-  greetingSection: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 4 },
+  // ── Greeting — display-lg, generous leading ──
+  greetingSection: { paddingHorizontal: 28, paddingTop: 32, paddingBottom: 8 },
   greetingText: {
-    fontSize: 28, fontWeight: "800", color: colors.heading, lineHeight: 34,
+    fontSize: 32, fontFamily: fonts.displayBold, color: colors.onSurface, lineHeight: 42,
+    letterSpacing: -0.5,
   },
   greetingSub: {
-    fontSize: 14, color: colors.subtle, marginTop: 6, lineHeight: 20,
+    fontSize: 16, fontFamily: fonts.bodyRegular, color: colors.onSurfaceVariant,
+    marginTop: 8, lineHeight: 24,
   },
 
-  // ── Category filter tabs ──
-  categoryScroll: { marginTop: 16 },
-  categoryRow: { paddingHorizontal: 20, gap: 8 },
+  // ── Category filter — reflection chips ──
+  categoryScroll: { marginTop: 24 },
+  categoryRow: { paddingHorizontal: 28, gap: 10 },
   categoryChip: {
-    paddingHorizontal: 18, paddingVertical: 10,
-    borderRadius: 24, backgroundColor: colors.card,
-    borderWidth: 1, borderColor: colors.muted3,
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerLowest,
   },
   categoryChipActive: {
-    backgroundColor: colors.primary, borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   categoryText: {
-    fontSize: 13, fontWeight: "600", color: colors.subtle,
+    fontSize: 14, fontFamily: fonts.bodySemiBold, color: colors.onSurfaceVariant,
   },
-  categoryTextActive: { color: colors.card },
+  categoryTextActive: { color: colors.onPrimary },
 
-  // ── Sections ──
-  section: { paddingHorizontal: 20, marginTop: 20 },
+  // ── Sections — generous sacred space ──
+  section: { paddingHorizontal: 28, marginTop: 28 },
   sectionLabel: {
-    fontSize: 11, fontWeight: "800", color: colors.muted5,
-    letterSpacing: 1.2, marginBottom: 10,
+    fontSize: 11, fontFamily: fonts.displaySemiBold, color: colors.onSurfaceVariant,
+    letterSpacing: 1.5, marginBottom: 12, textTransform: "uppercase" as any,
   },
 
   // ── Daily reflection card ──
   reflectionCard: {
-    backgroundColor: colors.surface, borderRadius: 16,
-    padding: 20, borderWidth: 1, borderColor: colors.muted3,
+    backgroundColor: colors.surfaceContainerLowest, borderRadius: radii.xl,
+    padding: 28,
+    ...ambientShadow,
   },
   reflectionQuote: {
-    fontSize: 14, fontStyle: "italic", color: colors.text, lineHeight: 22,
+    fontSize: 16, fontFamily: fonts.bodyItalic, color: colors.onSurface, lineHeight: 26,
   },
 
-  // ── Encouragement card ──
+  // ── Encouragement card — soft gradient, no border ──
   encourageCard: {
-    borderRadius: 20, padding: 28, alignItems: "center",
-    borderWidth: 1, borderColor: colors.muted2,
+    borderRadius: radii.xl, padding: 32, alignItems: "center",
   },
-  encourageSparkles: { marginBottom: 12 },
+  encourageSparkles: { marginBottom: 16 },
   encourageTitle: {
-    fontSize: 20, fontWeight: "800", color: colors.heading, marginBottom: 12,
+    fontSize: 22, fontFamily: fonts.displayBold, color: colors.onSurface, marginBottom: 14,
   },
   encourageQuote: {
-    fontSize: 14, color: colors.text, fontStyle: "italic",
-    textAlign: "center", lineHeight: 22,
+    fontSize: 15, fontFamily: fonts.bodyRegular, color: colors.onSurfaceVariant,
+    fontStyle: "italic", textAlign: "center", lineHeight: 24,
   },
 
-  // ── Stats ──
-  statsRow: { flexDirection: "row", gap: 12 },
+  // ── Stats — tonal layering ──
+  statsRow: { flexDirection: "row", gap: 16 },
   statCard: {
-    flex: 1, backgroundColor: colors.card, borderRadius: 16,
-    padding: 16, borderWidth: 1, borderColor: colors.muted3, alignItems: "center",
+    flex: 1, backgroundColor: colors.surfaceContainerLowest, borderRadius: radii.xl,
+    padding: 20, alignItems: "center",
+    ...ambientShadow,
   },
-  statNum: { fontSize: 28, fontWeight: "800", color: colors.primary },
+  statNum: { fontSize: 30, fontFamily: fonts.displayExtraBold, color: colors.primary },
   statLbl: {
-    fontSize: 12, color: colors.muted5, textAlign: "center",
-    marginTop: 4, lineHeight: 16,
+    fontSize: 13, fontFamily: fonts.bodyRegular, color: colors.onSurfaceVariant,
+    textAlign: "center", marginTop: 6, lineHeight: 18,
   },
 
-  // ── Tags ──
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  // ── Tags — reflection chips ──
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tagChip: {
-    backgroundColor: colors.surface, borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderWidth: 1, borderColor: colors.muted2,
+    backgroundColor: colors.secondaryFixed, borderRadius: radii.full,
+    paddingHorizontal: 16, paddingVertical: 8,
   },
-  tagText: { fontSize: 13, fontWeight: "600", color: colors.fuchsia },
+  tagText: { fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.onSecondaryFixed },
 
-  // ── Feed header ──
-  feedHeader: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 20, marginTop: 24, marginBottom: 12,
-  },
-  feedHeaderText: { fontSize: 16, fontWeight: "700", color: colors.heading },
+  // ── Feed spacer ──
+  feedHeaderSpacer: { height: 24 },
 
   // ── Error ──
   errorBanner: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    marginHorizontal: 20, marginTop: 8,
-    backgroundColor: colors.errorLight, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 8,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginHorizontal: 28, marginTop: 12,
+    backgroundColor: colors.errorLight, borderRadius: radii.lg,
+    paddingHorizontal: 16, paddingVertical: 10,
   },
-  errorText: { color: colors.errorText, fontSize: 13 },
+  errorText: { color: colors.errorText, fontSize: 14, fontFamily: fonts.bodyMedium },
 
   // ── List ──
-  listContent: { paddingBottom: 110 },
+  listContent: { paddingBottom: 120, paddingHorizontal: 24 },
 
   // ── Loader ──
   loaderOverlay: {
@@ -428,31 +483,42 @@ const styles = StyleSheet.create({
   // ── Empty state ──
   emptyWrap: {
     alignItems: "center", justifyContent: "center",
-    paddingVertical: 80, paddingHorizontal: 32,
+    paddingVertical: 100, paddingHorizontal: 40,
   },
   emptyIcon: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 72, height: 72, borderRadius: 36,
     backgroundColor: colors.primary,
-    alignItems: "center", justifyContent: "center", marginBottom: 16,
+    alignItems: "center", justifyContent: "center", marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18, fontWeight: "700", color: colors.deep,
-    marginBottom: 8, textAlign: "center",
+    fontSize: 20, fontFamily: fonts.displayBold, color: colors.onSurface,
+    marginBottom: 10, textAlign: "center",
   },
   emptySub: {
-    fontSize: 14, color: colors.muted4, textAlign: "center", lineHeight: 22,
+    fontSize: 15, fontFamily: fonts.bodyRegular, color: colors.onSurfaceVariant,
+    textAlign: "center", lineHeight: 24,
   },
 
-  // ── FAB ──
-  fabWrap: { position: "absolute", bottom: Platform.OS === "web" ? 60 : 32, right: 24 },
+  // ── FAB & Journal button ──
+  fabWrap: {
+    position: "absolute", bottom: Platform.OS === "web" ? 60 : 36,
+    left: 28, right: 28,
+    flexDirection: "row", alignItems: "center",
+  },
+  journalBtn: {
+    borderRadius: radii.full,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    backgroundColor: colors.surfaceContainerLowest,
+    ...ambientShadow,
+  },
+  journalBtnText: {
+    fontSize: 15, fontFamily: fonts.displaySemiBold, color: colors.primary,
+  },
   fab: {
-    width: 62, height: 62, borderRadius: 31, overflow: "hidden",
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
+    width: 60, height: 60, borderRadius: 30, overflow: "hidden",
+    ...ambientShadow,
+    shadowOpacity: 0.12,
   },
   fabGrad: { flex: 1, alignItems: "center", justifyContent: "center" },
-  fabIcon: {
-    color: colors.card, fontSize: 30, fontWeight: "300", lineHeight: 34,
-  },
 });

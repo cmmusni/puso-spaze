@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FBF8FE"
+      "backgroundColor": "#FCF8FF"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -27,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FBF8FE"
+        "backgroundColor": "#FCF8FF"
       },
       "package": "com.pusospaze.app"
     },
