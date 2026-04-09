@@ -26,6 +26,7 @@ model User {
   displayName   String   @unique
   deviceId      String?  // Permanent device UUID — only this device can use this username
   role          UserRole @default(USER)
+  isAnonymous   Boolean  @default(false) // Hide identity from community
   expoPushToken String?  // For mobile push notifications
   createdAt     DateTime @default(now())
   lastActiveAt  DateTime @default(now())
@@ -34,6 +35,10 @@ model User {
   reactions     Reaction[]
   comments      Comment[]
   notifications Notification[]
+  journals      Journal[]
+  conversationsAsUser  Conversation[] @relation("ConversationUser")
+  conversationsAsCoach Conversation[] @relation("ConversationCoach")
+  messages      Message[]
 
   @@map("users")
 }
@@ -67,6 +72,8 @@ model Post {
   moderationStatus ModerationStatus @default(REVIEW)
   tags             String[]
   pinned           Boolean          @default(false)
+  isAnonymous      Boolean          @default(false) // Was posted in anonymous mode
+  anonDisplayName  String?          // Frozen anon name at time of posting
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   reactions Reaction[]
@@ -106,6 +113,8 @@ model Comment {
   content          String
   createdAt        DateTime         @default(now())
   moderationStatus ModerationStatus @default(REVIEW)
+  isAnonymous      Boolean          @default(false)
+  anonDisplayName  String?
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -137,6 +146,59 @@ model Notification {
   @@index([userId, read])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// ── Journal ───────────────────────────────────
+model Journal {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  content   String
+  mood      String?  // e.g. "grateful", "anxious", "hopeful", "peaceful", "sad"
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("journals")
+}
+
+// ── Conversation ──────────────────────────────
+// A conversation between a user and a coach.
+// All coaches/admins can see all conversations (no private DMs).
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String   // The member who started the conversation
+  coachId   String   // The coach the conversation is with
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation("ConversationUser", fields: [userId], references: [id], onDelete: Cascade)
+  coach    User      @relation("ConversationCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  // One conversation per user-coach pair
+  @@unique([userId, coachId])
+  @@index([userId])
+  @@index([coachId])
+  @@map("conversations")
+}
+
+// ── Message ───────────────────────────────────
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
 
 // ── AppConfig ───────────────────────────────

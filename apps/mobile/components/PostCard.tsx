@@ -94,7 +94,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
 
   const displayName = post.user?.displayName ?? "Anonymous";
   const timeAgo = formatRelativeTime(post.createdAt);
-  const initial = displayName.charAt(0).toUpperCase();
+  const initial = post.isAnonymous ? "?" : displayName.charAt(0).toUpperCase();
 
   // ── Local reaction state (optimistic) ────────
   const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
@@ -382,7 +382,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             <View>
               <View style={styles.authorNameRow}>
                 <Text style={styles.authorName}>{displayName}</Text>
-                {post.userId !== "system-encouragement-bot" && (
+                {post.userId !== "system-encouragement-bot" && post.user?.role !== "USER" && !post.isAnonymous && (
                   <View style={[
                     styles.roleBadge,
                     post.user?.role === "COACH" ? styles.roleBadgeCoach :
@@ -396,9 +396,9 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                       styles.roleBadgeTextMember,
                     ]}>
                       {post.userId === "system-encouragement-bot" ? "PUSO AI" :
-                       post.user?.role === "COACH" ? "SUPPORT LEADER" :
-                       post.user?.role === "ADMIN" ? "COMMUNITY HOST" :
-                       "MEMBER"}
+                       post.user?.role === "COACH" ? "Spaze Coach" :
+                       post.user?.role === "ADMIN" ? "ADMIN" :
+                       ""}
                     </Text>
                   </View>
                 )}
@@ -464,7 +464,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             >
               <Ionicons name={userReaction === "CARE" ? getCareIcon() : "heart"} size={16} color={userReaction === "CARE" ? colors.primary : colors.lightPrimary} />
               <Text style={styles.footerCount}>
-                {reactionLoading ? "…" : counts.CARE ?? 0} Care
+                {reactionLoading ? "…" : counts.CARE === 0 || counts.CARE === undefined ? '' : counts.CARE}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -479,7 +479,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                 color={userReaction === "PRAY" ? colors.primary : colors.lightPrimary}
               />
               <Text style={styles.footerCount}>
-                {counts.PRAY ?? 0} Pray
+                {reactionLoading ? "…" : counts.PRAY === 0 || counts.PRAY === undefined ? '' : counts.PRAY}
               </Text>
             </TouchableOpacity>
             <View style={styles.countButton}>
@@ -488,7 +488,9 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                 size={14}
                 color={colors.muted5}
               />
-              <Text style={styles.footerCountMuted}>{post.commentCount ?? 0} Comments</Text>
+              <Text style={styles.footerCountMuted}>
+                {reactionLoading ? "…" : post.commentCount === 0 || post.commentCount === undefined ? '' : post.commentCount}
+              </Text>
             </View>
           </View>
         </View>
@@ -946,7 +948,7 @@ const styles = StyleSheet.create({
   footerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
+    gap: 8,
   },
   footerCount: {
     fontSize: 14,

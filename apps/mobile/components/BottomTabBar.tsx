@@ -25,6 +25,8 @@ interface Tab {
 
 const TABS: Tab[] = [
   { key: "feed", label: "Feed", icon: "newspaper-outline", iconActive: "newspaper", route: "Home" },
+  { key: "journal", label: "Journal", icon: "book-outline", iconActive: "book", route: "Journal" },
+  { key: "coach", label: "Coach", icon: "chatbubbles-outline", iconActive: "chatbubbles", route: "SpazeCoach" },
   { key: "alerts", label: "Alerts", icon: "notifications-outline", iconActive: "notifications", route: "Notifications" },
   { key: "review", label: "Review", icon: "clipboard-outline", iconActive: "clipboard", route: "ReviewQueue" },
   { key: "profile", label: "Profile", icon: "person-outline", iconActive: "person", route: "Profile" },

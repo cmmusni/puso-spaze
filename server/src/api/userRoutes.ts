@@ -6,7 +6,7 @@
 
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
-import { createUser, getUserById, searchUsers, updateUsername } from '../controllers/userController';
+import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
@@ -67,6 +67,16 @@ router.patch(
     validate,
   ],
   updateUsername
+);
+
+router.patch(
+  '/:userId/anonymous',
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    body('isAnonymous').isBoolean().withMessage('isAnonymous must be a boolean'),
+    validate,
+  ],
+  toggleAnonymous
 );
 
 export default router;

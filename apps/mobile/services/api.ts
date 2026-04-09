@@ -5,9 +5,11 @@
 // ─────────────────────────────────────────────
 
 import axios from 'axios';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import type {
   Post,
+  Journal,
   CreateUserRequest,
   CreateUserResponse,
   CreatePostRequest,
@@ -39,6 +41,19 @@ import type {
   MarkAllNotificationsReadRequest,
   MarkAllNotificationsReadResponse,
   SearchUsersResponse,
+  CreateJournalRequest,
+  CreateJournalResponse,
+  UpdateJournalRequest,
+  UpdateJournalResponse,
+  GetJournalsResponse,
+  GetJournalResponse,
+  GetCoachesResponse,
+  GetConversationsResponse,
+  GetOrCreateConversationRequest,
+  GetOrCreateConversationResponse,
+  GetMessagesResponse,
+  SendMessageRequest,
+  SendMessageResponse,
 } from '../../../packages/types';
 
 // ── Base URL ─────────────────────────────────
@@ -108,6 +123,20 @@ export async function apiSearchUsers(
   return data;
 }
 
+/**
+ * PATCH /api/users/:userId/anonymous
+ * Toggles anonymous mode for the user.
+ */
+export async function apiToggleAnonymous(
+  userId: string,
+  isAnonymous: boolean
+): Promise<{ success: boolean; isAnonymous: boolean }> {
+  const { data } = await client.patch(`/api/users/${userId}/anonymous`, {
+    isAnonymous,
+  });
+  return data;
+}
+
 // ── Post endpoints ───────────────────────────
 
 /**
@@ -147,15 +176,30 @@ export async function apiCreatePost(
     const uriParts = body.imageUri.split('.');
     const ext = uriParts[uriParts.length - 1]?.toLowerCase() ?? 'jpg';
     const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
-    formData.append('image', {
-      uri: body.imageUri,
-      name: `photo.${ext}`,
-      type: mimeMap[ext] ?? 'image/jpeg',
-    } as any);
-    const { data } = await client.post<CreatePostResponse>('/api/posts', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const mimeType = mimeMap[ext] ?? 'image/jpeg';
+
+    if (Platform.OS === 'web') {
+      // On web, fetch the blob from the data/blob URI and append as a File
+      const blob = await fetch(body.imageUri).then((r) => r.blob());
+      formData.append('image', blob, `photo.${ext}`);
+    } else {
+      // On native, use the RN-specific {uri, name, type} object
+      formData.append('image', {
+        uri: body.imageUri,
+        name: `photo.${ext}`,
+        type: mimeType,
+      } as any);
+    }
+
+    const response = await fetch(`${BASE_URL}/api/posts`, {
+      method: 'POST',
+      body: formData,
     });
-    return data;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error ?? 'Failed to create post');
+    }
+    return response.json();
   }
   const { data } = await client.post<CreatePostResponse>('/api/posts', body);
   return data;
@@ -531,4 +575,139 @@ export async function apiGetDashboardStats(): Promise<DashboardStats> {
   } catch {
     return { totalMembers: 0, dailyStories: 0, onlineCount: 0, trendingTags: [], dailyReflection: null };
   }
+}
+
+// ── Journal endpoints ─────────────────────────
+
+/**
+ * GET /api/journals?userId=...
+ * Returns all journal entries for the user, newest first.
+ */
+export async function apiFetchJournals(userId: string): Promise<GetJournalsResponse> {
+  const { data } = await client.get<GetJournalsResponse>('/api/journals', {
+    params: { userId },
+  });
+  return data;
+}
+
+/**
+ * GET /api/journals/:journalId?userId=...
+ * Returns a single journal entry.
+ */
+export async function apiGetJournalById(
+  journalId: string,
+  userId: string
+): Promise<GetJournalResponse> {
+  const { data } = await client.get<GetJournalResponse>(
+    `/api/journals/${journalId}`,
+    { params: { userId } }
+  );
+  return data;
+}
+
+/**
+ * POST /api/journals
+ * Creates a new journal entry.
+ */
+export async function apiCreateJournal(
+  body: CreateJournalRequest
+): Promise<CreateJournalResponse> {
+  const { data } = await client.post<CreateJournalResponse>('/api/journals', body);
+  return data;
+}
+
+/**
+ * PATCH /api/journals/:journalId
+ * Updates an existing journal entry.
+ */
+export async function apiUpdateJournal(
+  journalId: string,
+  body: UpdateJournalRequest
+): Promise<UpdateJournalResponse> {
+  const { data } = await client.patch<UpdateJournalResponse>(
+    `/api/journals/${journalId}`,
+    body
+  );
+  return data;
+}
+
+/**
+ * DELETE /api/journals/:journalId
+ * Deletes a journal entry.
+ */
+export async function apiDeleteJournal(
+  journalId: string,
+  userId: string
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await client.delete<{ success: boolean; message: string }>(
+    `/api/journals/${journalId}`,
+    { data: { userId } }
+  );
+  return data;
+}
+
+// ── Conversation / Messaging endpoints ────────
+
+/**
+ * GET /api/conversations/coaches
+ * Returns all available coaches.
+ */
+export async function apiFetchCoaches(): Promise<GetCoachesResponse> {
+  const { data } = await client.get<GetCoachesResponse>('/api/conversations/coaches');
+  return data;
+}
+
+/**
+ * GET /api/conversations?userId=...
+ * Returns conversations for the user (or all, if coach).
+ */
+export async function apiFetchConversations(userId: string): Promise<GetConversationsResponse> {
+  const { data } = await client.get<GetConversationsResponse>('/api/conversations', {
+    params: { userId },
+  });
+  return data;
+}
+
+/**
+ * POST /api/conversations
+ * Get or create a conversation between user and coach.
+ */
+export async function apiGetOrCreateConversation(
+  body: GetOrCreateConversationRequest
+): Promise<GetOrCreateConversationResponse> {
+  const { data } = await client.post<GetOrCreateConversationResponse>(
+    '/api/conversations',
+    body
+  );
+  return data;
+}
+
+/**
+ * GET /api/conversations/:conversationId/messages?userId=...
+ * Returns messages in a conversation.
+ */
+export async function apiFetchMessages(
+  conversationId: string,
+  userId: string
+): Promise<GetMessagesResponse> {
+  const { data } = await client.get<GetMessagesResponse>(
+    `/api/conversations/${conversationId}/messages`,
+    { params: { userId } }
+  );
+  return data;
+}
+
+/**
+ * POST /api/conversations/:conversationId/messages
+ * Send a message in a conversation.
+ */
+export async function apiSendMessage(
+  conversationId: string,
+  body: SendMessageRequest
+): Promise<SendMessageResponse> {
+  const { data } = await client.post<SendMessageResponse>(
+    `/api/conversations/${conversationId}/messages`,
+    body
+  );
+  return data;
 }

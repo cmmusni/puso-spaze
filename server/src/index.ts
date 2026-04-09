@@ -15,6 +15,8 @@ import authRoutes from './api/authRoutes';
 import adminRoutes from './api/adminRoutes';
 import coachRoutes from './api/coachRoutes';
 import notificationRoutes from './api/notificationRoutes';
+import journalRoutes from './api/journalRoutes';
+import conversationRoutes from './api/conversationRoutes';
 import { startEncouragementScheduler } from './services/encouragementScheduler';
 
 // ── App ───────────────────────────────────────
@@ -91,6 +93,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/coach', coachRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/journals', journalRoutes);
+app.use('/api/conversations', conversationRoutes);
 
 // ── 404 handler ───────────────────────────────
 app.use((_req, res) => {

@@ -33,7 +33,7 @@ This overview page serves as comprehensive project documentation with an elegant
 - 📱 **Cross-Platform** - Mobile (iOS/Android) via Expo
 
 ### For Coaches
-- 📋 **Review Queue** - Moderate content flagged by AI
+- 📋 **Coach Dashboard** - Moderate content flagged by AI
 - 🚩 **Flag Posts** - Report inappropriate content
 - ✅ **Approve/Reject** - Manage community safety
 

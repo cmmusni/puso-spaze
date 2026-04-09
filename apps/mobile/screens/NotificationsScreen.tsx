@@ -3,7 +3,7 @@
 // Display user notifications with read/unread states
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,10 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  TextInput,
+  SectionList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
@@ -27,9 +28,86 @@ import {
   apiGetPostById,
 } from '../services/api';
 import type { Notification, Post } from '../../../packages/types';
-import { colors } from '../constants/theme';
+import { colors, fonts } from '../constants/theme';
 
 type NavigationType = DrawerNavigationProp<any>;
+
+// ── Helpers ────────────────────────────────────────────────────
+
+const getNotificationIcon = (type: string): keyof typeof Ionicons.glyphMap => {
+  switch (type) {
+    case 'REACTION':
+      return 'heart';
+    case 'COMMENT':
+      return 'chatbubble';
+    case 'ENCOURAGEMENT':
+      return 'sparkles';
+    case 'SYSTEM':
+      return 'megaphone';
+    default:
+      return 'notifications';
+  }
+};
+
+const getNotificationIconColor = (type: string): string => {
+  switch (type) {
+    case 'REACTION':
+      return colors.primary;
+    case 'COMMENT':
+      return colors.secondary;
+    case 'ENCOURAGEMENT':
+      return colors.tertiary;
+    case 'SYSTEM':
+      return colors.onSurfaceVariant;
+    default:
+      return colors.primary;
+  }
+};
+
+const getAvatarColor = (type: string): string => {
+  switch (type) {
+    case 'REACTION':
+      return colors.outlineVariant;
+    case 'COMMENT':
+      return colors.secondaryFixed;
+    case 'ENCOURAGEMENT':
+      return colors.surfaceContainerHigh;
+    default:
+      return colors.surfaceVariant;
+  }
+};
+
+const formatRelativeTime = (dateStr: string): string => {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = Math.floor((now - then) / 1000);
+
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+  const days = Math.floor(diff / 86400);
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  return new Date(dateStr).toLocaleDateString();
+};
+
+const getDateSection = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (itemDate.getTime() === today.getTime()) return 'TODAY';
+  if (itemDate.getTime() === yesterday.getTime()) return 'YESTERDAY';
+
+  const diffDays = Math.floor((today.getTime() - itemDate.getTime()) / 86400000);
+  if (diffDays < 7) return 'THIS WEEK';
+  return 'EARLIER';
+};
+
+// ── Component ──────────────────────────────────────────────────
 
 export default function NotificationsScreen() {
   const { userId } = useUser();
@@ -37,10 +115,7 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const goToFeed = useCallback(() => {
-    navigation.navigate('Home');
-  }, [navigation]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadNotifications = useCallback(async () => {
     if (!userId) return;
@@ -89,23 +164,15 @@ export default function NotificationsScreen() {
   };
 
   const handleNotificationPress = async (notification: Notification) => {
-    // Mark as read first
     if (!notification.read) {
       markAsRead(notification.id);
     }
 
-    // Navigate based on notification type
     const postId = notification.data?.postId;
-    if (!postId) {
-      // No navigation data available
-      return;
-    }
+    if (!postId) return;
 
     try {
-      // Fetch the post
       const { post } = await apiGetPostById(postId);
-      
-      // Navigate to PostDetail
       navigation.navigate('PostDetail', {
         postId: post.id,
         openedFrom: 'notifications',
@@ -116,74 +183,92 @@ export default function NotificationsScreen() {
     }
   };
 
-  const getNotificationIcon = (type: string): keyof typeof Ionicons.glyphMap => {
-    switch (type) {
-      case 'REACTION':
-        return 'heart-outline';
-      case 'COMMENT':
-        return 'chatbubble-ellipses-outline';
-      case 'ENCOURAGEMENT':
-        return 'sparkles-outline';
-      case 'SYSTEM':
-        return 'megaphone-outline';
-      default:
-        return 'notifications-outline';
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const filteredNotifications = useMemo(() => {
+    if (!searchQuery.trim()) return notifications;
+    const q = searchQuery.toLowerCase();
+    return notifications.filter(
+      (n) =>
+        n.title.toLowerCase().includes(q) ||
+        n.body.toLowerCase().includes(q)
+    );
+  }, [notifications, searchQuery]);
+
+  const sections = useMemo(() => {
+    const grouped: Record<string, Notification[]> = {};
+    const order = ['TODAY', 'YESTERDAY', 'THIS WEEK', 'EARLIER'];
+
+    for (const n of filteredNotifications) {
+      const section = getDateSection(n.createdAt);
+      if (!grouped[section]) grouped[section] = [];
+      grouped[section].push(n);
     }
+
+    return order
+      .filter((key) => grouped[key]?.length)
+      .map((key) => ({ title: key, data: grouped[key] }));
+  }, [filteredNotifications]);
+
+  // ── Render notification card ─────────────────────────────────
+
+  const renderNotification = ({ item }: { item: Notification }) => {
+    const iconName = getNotificationIcon(item.type);
+    const iconColor = getNotificationIconColor(item.type);
+    const avatarBg = getAvatarColor(item.type);
+
+    return (
+      <TouchableOpacity
+        style={styles.notificationCard}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
+        {/* Avatar with badge icon */}
+        <View style={styles.avatarContainer}>
+          <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
+            <Ionicons
+              name={item.type === 'ENCOURAGEMENT' ? 'sparkles' : 'person'}
+              size={24}
+              color={item.type === 'ENCOURAGEMENT' ? colors.tertiary : colors.onSurfaceVariant}
+            />
+          </View>
+          <View style={[styles.avatarBadge, { backgroundColor: iconColor }]}>
+            <Ionicons name={iconName} size={10} color="#FFFFFF" />
+          </View>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          <Text style={[styles.bodyText, !item.read && styles.bodyTextUnread]} numberOfLines={2}>
+            <Text style={styles.titleBold}>{item.title}</Text>
+            {' '}{item.body}
+          </Text>
+          <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
+        </View>
+
+        {/* Unread dot */}
+        {!item.read && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
   };
 
-  const formatRelativeTime = (dateStr: string): string => {
-    const now = Date.now();
-    const then = new Date(dateStr).getTime();
-    const diff = Math.floor((now - then) / 1000); // seconds
-
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    const days = Math.floor(diff / 86400);
-    if (days === 1) return 'yesterday';
-    if (days < 7) return `${days}d ago`;
-    return new Date(dateStr).toLocaleDateString();
-  };
-
-  const renderNotification = ({ item }: { item: Notification }) => (
-    <TouchableOpacity
-      style={[styles.notificationCard, item.read ? styles.read : styles.unread]}
-      onPress={() => handleNotificationPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.iconContainer}>
-        <Ionicons name={getNotificationIcon(item.type)} size={18} color={colors.primary} />
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.body} numberOfLines={2}>
-          {item.body}
-        </Text>
-        <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
-      </View>
-      {!item.read && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
+  const renderSectionHeader = ({ section }: { section: { title: string } }) => (
+    <View style={styles.sectionHeaderRow}>
+      <Text style={styles.sectionHeaderText}>{section.title}</Text>
+      <View style={styles.sectionHeaderLine} />
+    </View>
   );
+
+  // ── Loading state ────────────────────────────────────────────
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={[colors.darkest, colors.deep, colors.fuchsia]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            activeOpacity={0.7}
-            style={styles.hamburger}
-          >
-            <Ionicons name="menu-outline" size={22} color={colors.card} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          <View style={{ width: 40 }} />
-        </LinearGradient>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle}>Notifications</Text>
+          </View>
+        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -191,33 +276,52 @@ export default function NotificationsScreen() {
     );
   }
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // ── Main render ──────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.fuchsia]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.openDrawer()}
-          activeOpacity={0.7}
-          style={styles.hamburger}
-        >
-          <Ionicons name="menu-outline" size={22} color={colors.card} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        {unreadCount > 0 ? (
-          <TouchableOpacity onPress={markAllAsRead} style={styles.markAllBtn}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
-      </LinearGradient>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount} New</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+        </View>
 
+        {/* Search + actions row */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={16} color={colors.placeholder} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search notification history..."
+              placeholderTextColor={colors.placeholder}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+            <Ionicons name="options-outline" size={20} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
+
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={markAllAsRead}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="checkmark-done-outline" size={20} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Content */}
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconWrap}>
@@ -228,12 +332,22 @@ export default function NotificationsScreen() {
             You'll see reactions, comments, and encouragements here
           </Text>
         </View>
+      ) : sections.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="search-outline" size={32} color={colors.placeholder} />
+          <Text style={[styles.emptyText, { marginTop: 12 }]}>No results</Text>
+          <Text style={styles.emptySubtext}>
+            Try a different search term
+          </Text>
+        </View>
       ) : (
-        <FlatList
-          data={notifications}
+        <SectionList
+          sections={sections}
           renderItem={renderNotification}
+          renderSectionHeader={renderSectionHeader}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -243,57 +357,102 @@ export default function NotificationsScreen() {
           }
         />
       )}
-
-      <View style={styles.bottomFeedBtnWrap}>
-        <TouchableOpacity
-          onPress={goToFeed}
-          activeOpacity={0.85}
-          style={styles.bottomFeedBtn}
-        >
-          <Ionicons name="home-outline" size={18} color={colors.card} />
-          <Text style={styles.bottomFeedBtnText}>Back to Feed</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.background,
   },
+
+  // Header
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    backgroundColor: colors.background,
   },
-  hamburger: {
-    padding: 8,
-    marginLeft: -8,
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.card,
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 30,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
   },
-  markAllBtn: {
+  badge: {
+    marginLeft: 10,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
   },
-  markAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.card,
+  badgeText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: '#FFFFFF',
   },
+
+  // Search row
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    height: 40,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurface,
+    paddingVertical: 0,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceContainerHigh,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Section headers
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  sectionHeaderText: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+    letterSpacing: 1.2,
+    marginRight: 12,
+  },
+  sectionHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.outlineVariant,
+  },
+
+  // Loading & empty
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -316,102 +475,96 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: colors.heading,
+    fontFamily: fonts.displaySemiBold,
+    color: colors.onSurface,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: colors.subtle,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 20,
   },
+
+  // List
   list: {
     padding: 16,
-    paddingBottom: 120,
+    paddingBottom: 32,
   },
+
+  // Notification card
   notificationCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: colors.ink,
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 20,
+    marginBottom: 10,
+    backgroundColor: colors.surfaceContainerLowest,
+    shadowColor: colors.onSurface,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
     elevation: 2,
   },
-  unread: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.primary,
+
+  // Avatar
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 14,
   },
-  read: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.muted3,
-    opacity: 0.7,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    borderWidth: 2,
+    borderColor: colors.outlineVariant,
   },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.surfaceContainerLowest,
+  },
+
+  // Content
   content: {
     flex: 1,
   },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.heading,
-    marginBottom: 4,
-  },
-  body: {
+  bodyText: {
     fontSize: 14,
-    color: colors.text,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
-    marginBottom: 6,
+  },
+  bodyTextUnread: {
+    color: colors.onSurface,
+  },
+  titleBold: {
+    fontFamily: fonts.bodyBold,
+    color: colors.onSurface,
   },
   time: {
     fontSize: 12,
-    color: colors.subtle,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginLeft: 8,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
     marginTop: 4,
   },
-  bottomFeedBtnWrap: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 16,
-  },
-  bottomFeedBtn: {
-    height: 52,
-    borderRadius: 14,
+
+  // Unread dot
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  bottomFeedBtnText: {
-    color: colors.card,
-    fontSize: 15,
-    fontWeight: '700',
+    marginLeft: 10,
   },
 });

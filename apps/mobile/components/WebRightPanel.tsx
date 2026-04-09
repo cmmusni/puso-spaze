@@ -117,9 +117,11 @@ export default function WebRightPanel() {
 
 const styles = StyleSheet.create({
   container: {
-    minWidth: 200,
-    padding: 20,
-    backgroundColor: colors.surfaceContainerLow,
+    maxWidth: 400,
+    paddingTop: 24,
+    paddingRight: 24,
+    paddingBottom: 16,
+    backgroundColor: colors.background,
   },
   panelCard: {
     backgroundColor: colors.surfaceContainerLowest,

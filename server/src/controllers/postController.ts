@@ -11,6 +11,7 @@ import { notifyComment } from '../services/notificationService';
 import { getHourlyHopeConfig } from '../services/appConfigService';
 import { env } from '../config/env';
 import { notifyMentionsInPost } from '../services/mentionService';
+import { generateAnonUsername } from '../utils/generateAnonUsername';
 
 const SYSTEM_USER_ID = 'system-encouragement-bot';
 const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
@@ -32,11 +33,15 @@ export async function createPost(req: Request, res: Response): Promise<void> {
   const imageUrl = imageFile ? `/uploads/${imageFile.filename}` : null;
 
   // ── Verify user exists ────────────────────
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, isAnonymous: true } });
   if (!user) {
     res.status(404).json({ error: 'User not found.' });
     return;
   }
+
+  // ── Anonymous mode ────────────────────────
+  const postIsAnonymous = user.isAnonymous;
+  const anonDisplayName = postIsAnonymous ? generateAnonUsername() : null;
 
   // ── AI Moderation ────────────────────────
   let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
@@ -55,6 +60,8 @@ export async function createPost(req: Request, res: Response): Promise<void> {
       moderationStatus,
       tags: tags ?? [],
       imageUrl,
+      isAnonymous: postIsAnonymous,
+      anonDisplayName,
     },
     include: { user: { select: { displayName: true } } },
   });
@@ -120,11 +127,15 @@ export async function createPost(req: Request, res: Response): Promise<void> {
       content: post.content,
       imageUrl: post.imageUrl,
       userId: post.userId,
-      user: post.user,
+      user: post.isAnonymous
+        ? { displayName: post.anonDisplayName ?? 'Anonymous' }
+        : post.user,
       createdAt: post.createdAt.toISOString(),
       moderationStatus: post.moderationStatus,
       tags: post.tags,
       pinned: post.pinned,
+      isAnonymous: post.isAnonymous,
+      anonDisplayName: post.anonDisplayName,
     },
     flagged,
     underReview,
@@ -183,11 +194,15 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
       content: p.content,
       imageUrl: p.imageUrl,
       userId: p.userId,
-      user: p.user,
+      user: p.isAnonymous
+        ? { displayName: p.anonDisplayName ?? 'Anonymous', role: p.user.role }
+        : p.user,
       createdAt: p.createdAt.toISOString(),
       moderationStatus: p.moderationStatus,
       tags: p.tags,
       pinned: p.pinned,
+      isAnonymous: p.isAnonymous,
+      anonDisplayName: p.anonDisplayName,
       commentCount: p._count.comments,
       reactionCount: p._count.reactions,
       latestComment: latestComment
@@ -242,11 +257,15 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
       content: post.content,
       imageUrl: post.imageUrl,
       userId: post.userId,
-      user: post.user,
+      user: post.isAnonymous
+        ? { displayName: post.anonDisplayName ?? 'Anonymous', role: post.user.role }
+        : post.user,
       createdAt: post.createdAt.toISOString(),
       moderationStatus: post.moderationStatus,
       tags: post.tags,
       pinned: post.pinned,
+      isAnonymous: post.isAnonymous,
+      anonDisplayName: post.anonDisplayName,
       commentCount: post._count.comments,
       reactionCount: post._count.reactions,
     },

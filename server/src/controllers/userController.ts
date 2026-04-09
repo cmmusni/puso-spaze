@@ -162,6 +162,7 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
         id: true,
         displayName: true,
         role: true,
+        isAnonymous: true,
         createdAt: true,
       },
     });
@@ -207,6 +208,37 @@ export async function updateUsername(req: Request, res: Response): Promise<void>
     } else {
       console.error('[UserController] updateUsername error:', err);
       res.status(500).json({ error: 'Failed to update username.' });
+    }
+  }
+}
+
+/**
+ * PATCH /api/users/:userId/anonymous
+ * Body: { isAnonymous: boolean }
+ * Toggles anonymous mode for the user.
+ */
+export async function toggleAnonymous(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const { isAnonymous } = req.body as { isAnonymous: boolean };
+
+  if (typeof isAnonymous !== 'boolean') {
+    res.status(400).json({ error: 'isAnonymous must be a boolean.' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { isAnonymous },
+      select: { id: true, isAnonymous: true },
+    });
+    res.json({ success: true, isAnonymous: user.isAnonymous });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] toggleAnonymous error:', err);
+      res.status(500).json({ error: 'Failed to update anonymous mode.' });
     }
   }
 }

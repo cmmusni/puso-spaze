@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../../../packages/types';
-import { apiCreateUser } from '../services/api';
+import { apiCreateUser, apiToggleAnonymous } from '../services/api';
 
 // ── Storage keys ─────────────────────────────
 const USER_ID_KEY    = 'puso_user_id';
@@ -20,6 +20,7 @@ const ROLE_KEY       = 'puso_role';
 const DEV_OWNER_KEY  = 'puso_device_owner'; // Device-level username binding (persistent across logouts)
 const DEVICE_ID_KEY  = 'puso_device_id';    // Permanent device UUID (never cleared, sent to server)
 const DEVICE_SYNCED_KEY = 'puso_device_id_synced'; // Flag: deviceId has been sent to server
+const ANONYMOUS_KEY  = 'puso_anonymous';     // Anonymous mode on/off
 
 // ── Platform-aware storage helper ────────────
 // expo-secure-store is native-only; fall back to AsyncStorage on web.
@@ -49,6 +50,7 @@ export interface UserState {
   userId: string | null;
   username: string | null;
   role: UserRole | null;
+  isAnonymous: boolean;
   isLoggedIn: boolean;
   isLoading: boolean;
 
@@ -82,6 +84,9 @@ export interface UserState {
   /** Clear device owner binding to allow a fresh account binding. */
   clearDeviceOwnerBinding: () => Promise<void>;
 
+  /** Toggle anonymous mode on/off, persists to server + local storage */
+  toggleAnonymous: (value: boolean) => Promise<void>;
+
   /**
    * Get or generate a permanent device UUID.
    * This ID is generated once per install and NEVER cleared.
@@ -95,6 +100,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   userId: null,
   username: null,
   role: null,
+  isAnonymous: false,
   isLoggedIn: false,
   isLoading: true,
 
@@ -106,7 +112,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       const role     = (await storage.getItem(ROLE_KEY)) as UserRole | null;
       console.log('[UserStore] Loading user:', { userId: userId?.slice(0, 8), username, role });
       if (userId && username) {
-        set({ userId, username, role: role ?? 'USER', isLoggedIn: true, isLoading: false });
+        const savedAnon = await storage.getItem(ANONYMOUS_KEY);
+        const isAnonymous = savedAnon === 'true';
+        set({ userId, username, role: role ?? 'USER', isAnonymous, isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
 
         // One-time deviceId sync for users who were already logged in before the update
@@ -180,7 +188,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (err) {
       console.warn('[UserStore] Could not clear session:', err);
     }
-    set({ userId: null, username: null, role: null, isLoggedIn: false, isLoading: false });
+    set({ userId: null, username: null, role: null, isAnonymous: false, isLoggedIn: false, isLoading: false });
   },
 
   updateUsername: async (newUsername: string) => {
@@ -238,6 +246,14 @@ export const useUserStore = create<UserState>((set, get) => ({
       console.warn('[UserStore] Could not clear device owner binding:', err);
       throw err;
     }
+  },
+
+  toggleAnonymous: async (value: boolean) => {
+    const { userId } = get();
+    if (!userId) return;
+    await apiToggleAnonymous(userId, value);
+    await storage.setItem(ANONYMOUS_KEY, String(value));
+    set({ isAnonymous: value });
   },
 
   getDeviceId: async () => {

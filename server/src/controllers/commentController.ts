@@ -10,6 +10,7 @@ import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
 import { notifyComment } from '../services/notificationService';
 import { notifyMentionsInComment } from '../services/mentionService';
+import { generateAnonUsername } from '../utils/generateAnonUsername';
 
 // ── POST /api/posts/:postId/comments ─────────
 export async function createComment(req: Request, res: Response): Promise<void> {
@@ -29,6 +30,12 @@ export async function createComment(req: Request, res: Response): Promise<void> 
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) { res.status(404).json({ error: 'Post not found.' }); return; }
 
+  // ── Check anonymous mode ──────────────────
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAnonymous: true } });
+  if (!user) { res.status(404).json({ error: 'User not found.' }); return; }
+  const commentIsAnonymous = user.isAnonymous;
+  const anonDisplayName = commentIsAnonymous ? generateAnonUsername() : null;
+
   // ── AI Moderation ────────────────────────
   let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
   try {
@@ -39,7 +46,7 @@ export async function createComment(req: Request, res: Response): Promise<void> 
 
   try {
     const comment = await prisma.comment.create({
-      data: { postId, userId, content: content.trim(), moderationStatus },
+      data: { postId, userId, content: content.trim(), moderationStatus, isAnonymous: commentIsAnonymous, anonDisplayName },
       include: { user: { select: { displayName: true } } },
     });
 
@@ -73,7 +80,11 @@ export async function createComment(req: Request, res: Response): Promise<void> 
         content: comment.content,
         createdAt: comment.createdAt.toISOString(),
         moderationStatus: comment.moderationStatus,
-        user: comment.user,
+        isAnonymous: comment.isAnonymous,
+        anonDisplayName: comment.anonDisplayName,
+        user: comment.isAnonymous
+          ? { displayName: comment.anonDisplayName ?? 'Anonymous' }
+          : comment.user,
       },
       flagged,
       underReview,
@@ -107,7 +118,11 @@ export async function getComments(req: Request, res: Response): Promise<void> {
       content: c.content,
       createdAt: c.createdAt.toISOString(),
       moderationStatus: c.moderationStatus,
-      user: c.user,
+      isAnonymous: c.isAnonymous,
+      anonDisplayName: c.anonDisplayName,
+      user: c.isAnonymous
+        ? { displayName: c.anonDisplayName ?? 'Anonymous', role: c.user.role }
+        : c.user,
     })),
   });
 }
@@ -229,7 +244,11 @@ export async function updateComment(req: Request, res: Response): Promise<void> 
         content: updated.content,
         createdAt: updated.createdAt.toISOString(),
         moderationStatus: updated.moderationStatus,
-        user: updated.user,
+        isAnonymous: updated.isAnonymous,
+        anonDisplayName: updated.anonDisplayName,
+        user: updated.isAnonymous
+          ? { displayName: updated.anonDisplayName ?? 'Anonymous', role: updated.user.role }
+          : updated.user,
       },
       flagged: false,
       underReview: moderationStatus === 'REVIEW',

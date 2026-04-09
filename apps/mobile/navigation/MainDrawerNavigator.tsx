@@ -30,9 +30,11 @@ import SendInviteScreen from "../screens/SendInviteScreen";
 import PostScreen from "../screens/PostScreen";
 import PostDetailScreen from "../screens/PostDetailScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import JournalScreen from "../screens/JournalScreen";
+import SpazeCoachScreen from "../screens/SpazeCoachScreen";
+import ChatScreen from "../screens/ChatScreen";
 import BottomTabBar from "../components/BottomTabBar";
 import WebSidebar from "../components/WebSidebar";
-import WebRightPanel from "../components/WebRightPanel";
 import { useUserStore } from "../context/UserContext";
 import { colors, fonts, radii } from "../constants/theme";
 import type { Post } from "../../../packages/types";
@@ -46,50 +48,30 @@ export type MainDrawerParamList = {
   Post: undefined;
   PostDetail: { postId?: string; post?: Post; openedFrom?: "notifications" };
   Notifications: undefined;
+  Journal: undefined;
+  SpazeCoach: undefined;
+  Chat: { conversationId: string };
 };
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
+
+// ── Drawer nav items (mirrors WebSidebar) ─────
+const DRAWER_NAV_ITEMS = [
+  { key: "community", label: "Community", icon: "people-outline" as const, iconActive: "people" as const, route: "Home" as keyof MainDrawerParamList, isDefault: true },
+  { key: "journal", label: "Journal", icon: "book-outline" as const, iconActive: "book" as const, route: "Journal" as keyof MainDrawerParamList },
+  { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as const, iconActive: "chatbubbles" as const, route: "SpazeCoach" as keyof MainDrawerParamList },
+  { key: "review", label: "Coach Dashboard", icon: "clipboard-outline" as const, iconActive: "clipboard" as const, route: "ReviewQueue" as keyof MainDrawerParamList, coachOnly: true },
+  { key: "profile", label: "Profile", icon: "person-outline" as const, iconActive: "person" as const, route: "Profile" as keyof MainDrawerParamList },
+];
 
 // ── Custom drawer content ─────────────────────
 function CustomDrawerContent({
   navigation,
   state,
 }: DrawerContentComponentProps) {
-  const { username, role, logoutUser } = useUserStore();
+  const { role, logoutUser } = useUserStore();
   const isCoach = role === "COACH" || role === "ADMIN";
-  const isAdmin = role === "ADMIN";
   const currentRoute = state.routes[state.index].name;
-
-  const NavItem = ({
-    icon,
-    label,
-    routeName,
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    routeName: keyof MainDrawerParamList;
-  }) => {
-    const active = currentRoute === routeName;
-    return (
-      <TouchableOpacity
-        onPress={() => navigation.navigate(routeName)}
-        style={[styles.navItem, active && styles.navItemActive]}
-        activeOpacity={0.75}
-      >
-        <View style={styles.navItemIconWrap}>
-          <Ionicons
-            name={icon}
-            size={18}
-            color={active ? colors.card : colors.muted5}
-          />
-        </View>
-        <Text style={[styles.navItemText, active && styles.navItemTextActive]}>
-          {label}
-        </Text>
-        {active && <View style={styles.activeIndicator} />}
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <DrawerContentScrollView
@@ -100,81 +82,60 @@ function CustomDrawerContent({
       <LinearGradient
         colors={[colors.primaryContainer, colors.secondary]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0.4, y: 1 }}
+        end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* ── User header ── */}
-      <View style={styles.userHeader}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Profile")}
-          activeOpacity={0.75}
-        >
-          <Image
-            source={require("../assets/logo.png")}
-            style={styles.drawerLogo}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-        <Text style={styles.userName} numberOfLines={1}>
-          {username ?? "User"}
-        </Text>
-        <View
-          style={[
-            styles.roleBadge,
-            isAdmin
-              ? styles.roleBadgeAdmin
-              : isCoach
-                ? styles.roleBadgeCoach
-                : styles.roleBadgeUser,
-          ]}
-        >
-          <View style={styles.roleBadgeContent}>
-            <Ionicons
-              name={isAdmin ? "shield-checkmark-outline" : isCoach ? "shield-outline" : "person-outline"}
-              size={12}
-              color={colors.card}
-            />
-            <Text style={styles.roleBadgeText}>
-              {isAdmin ? "Admin" : isCoach ? "Coach" : "Spaze Member"}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.activeNowBadge}>
-          <View style={styles.activeNowDot} />
-          <Text style={styles.activeNowText}>ACTIVE NOW</Text>
+      {/* ── Brand header ── */}
+      <View style={styles.brandSection}>
+        <Image
+          source={require("../assets/logo.png")}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+        <View>
+          <Text style={styles.brandName}>PUSO Spaze</Text>
+          <Text style={styles.brandSub}>YOUR SAFE SPACE</Text>
         </View>
       </View>
-
-      <View style={styles.divider} />
 
       {/* ── Navigation items ── */}
       <View style={styles.navSection}>
-        {/* Common items */}
-        <NavItem icon="person-outline" label="Profile" routeName="Profile" />
-        <NavItem icon="notifications-outline" label="Notifications" routeName="Notifications" />
-        <NavItem icon="newspaper-outline" label="Community Feed" routeName="Home" />
-
-        {/* Coach/Admin items */}
-        {isCoach && (
-          <NavItem icon="list-outline" label="Review Queue" routeName="ReviewQueue" />
-        )}
-        {isAdmin && (
-          <NavItem icon="settings-outline" label="Admin Settings" routeName="SendInvite" />
-        )}
+        {DRAWER_NAV_ITEMS.filter((item) => {
+          if (item.coachOnly && !isCoach) return false;
+          return true;
+        }).map((item) => {
+          const active = item.isDefault
+            ? currentRoute === "Home"
+            : currentRoute === item.route;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              onPress={() => navigation.navigate(item.route)}
+              style={[styles.navItem, active && styles.navItemActive]}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={active ? item.iconActive : item.icon}
+                size={18}
+                color={active ? colors.card : "rgba(255,255,255,0.6)"}
+              />
+              <Text style={[styles.navItemText, active && styles.navItemTextActive]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
-
-      <View style={styles.divider} />
 
       {/* ── Sign Out ── */}
       <View style={{ flex: 1 }} />
-      <View style={styles.divider} />
       <TouchableOpacity
         onPress={logoutUser}
         style={styles.signOutItem}
-        activeOpacity={0.75}
+        activeOpacity={0.7}
       >
-        <Ionicons name="log-out-outline" size={18} color={colors.card} style={styles.signOutIcon} />
+        <Ionicons name="log-out-outline" size={18} color="rgba(255,255,255,0.5)" />
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
 
@@ -207,7 +168,6 @@ function ScreenWithTabs({
           onNavigate={(route) => navigation.navigate(route)}
         />
         <View style={{ flex: 100, minWidth: 600 }}>{children}</View>
-        {width >= 1200 && <WebRightPanel />}
       </View>
     );
   }
@@ -239,6 +199,8 @@ function withTabs(Screen: React.ComponentType<any>, routeName: string) {
 export default function MainDrawerNavigator() {
   const role = useUserStore((s) => s.role);
   const isCoach = role === "COACH" || role === "ADMIN";
+  const { width } = useWindowDimensions();
+  const isWideWeb = Platform.OS === "web" && width >= 900;
 
   return (
     <Drawer.Navigator
@@ -246,10 +208,12 @@ export default function MainDrawerNavigator() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
-        drawerStyle: { width: 280, backgroundColor: "transparent" },
+        drawerStyle: isWideWeb
+          ? { display: "none" as any, width: 0 }
+          : { width: 280, backgroundColor: "transparent" },
         overlayColor: "rgba(0,0,0,0.55)",
         drawerType: "slide",
-        swipeEdgeWidth: 60,
+        swipeEdgeWidth: isWideWeb ? 0 : 60,
       }}
     >
       {/* All screens are always defined - shown/hidden via drawer content */}
@@ -298,6 +262,30 @@ export default function MainDrawerNavigator() {
         }}
       />
       <Drawer.Screen
+        name="Journal"
+        component={withTabs(JournalScreen, "Journal")}
+        options={{
+          title: "PUSO Spaze \u2014 My Journal",
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
+        name="SpazeCoach"
+        component={withTabs(SpazeCoachScreen, "SpazeCoach")}
+        options={{
+          title: "PUSO Spaze \u2014 Spaze Coach",
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          title: "PUSO Spaze \u2014 Chat",
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
         name="PostDetail"
         component={PostDetailScreen}
         options={{
@@ -314,135 +302,68 @@ const styles = StyleSheet.create({
   drawerRoot: {
     flex: 1,
     paddingTop: Platform.OS === "ios" ? 48 : 32,
+    paddingHorizontal: 16,
   },
 
-  // ── User header ──────────────────────────
-  userHeader: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    alignItems: "flex-start",
-    gap: 8,
+  // ── Brand header ─────────────────────────
+  brandSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 8,
+    marginBottom: 40,
   },
-  drawerLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginBottom: 6,
-  },
-  userName: {
-    fontSize: 18,
-    fontFamily: fonts.displayBold,
+  brandLogo: { width: 34, height: 34 },
+  brandName: {
+    fontSize: 17,
+    fontFamily: fonts.displayExtraBold,
     color: colors.onPrimary,
-    maxWidth: 220,
+    letterSpacing: -0.3,
   },
-
-  roleBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radii.full,
-  },
-  roleBadgeAdmin: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  roleBadgeCoach: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  roleBadgeUser: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  roleBadgeText: {
-    fontSize: 11,
+  brandSub: {
+    fontSize: 8,
     fontFamily: fonts.bodySemiBold,
-    color: colors.onPrimary,
-  },
-  roleBadgeContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  activeNowBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
-  },
-  activeNowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.safe,
-  },
-  activeNowText: {
-    fontSize: 10,
-    fontFamily: fonts.displaySemiBold,
-    color: colors.safe,
-    letterSpacing: 1,
-  },
-
-  divider: {
-    height: 16,
-    marginHorizontal: 24,
+    color: "rgba(255,255,255,0.45)",
+    letterSpacing: 2,
+    marginTop: 2,
   },
 
   // ── Navigation items ─────────────────────
   navSection: {
-    paddingHorizontal: 16,
-    gap: 4,
+    gap: 6,
   },
   navItem: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 14,
     paddingVertical: 13,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     borderRadius: radii.md,
-    position: "relative",
   },
   navItemActive: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  navItemIconWrap: {
-    marginRight: 14,
-    width: 24,
-    alignItems: "center",
-    textAlign: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   navItemText: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
-    color: "rgba(255,255,255,0.55)",
-    flex: 1,
+    color: "rgba(255,255,255,0.6)",
   },
   navItemTextActive: {
     color: colors.onPrimary,
     fontFamily: fonts.bodySemiBold,
-  },
-  activeIndicator: {
-    position: "absolute",
-    left: 0,
-    width: 4,
-    height: 24,
-    backgroundColor: colors.onPrimary,
-    borderRadius: 0,
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
   },
 
   // ── Sign out ─────────────────────────────
   signOutItem: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 14,
     paddingVertical: 13,
-    paddingHorizontal: 28,
-    marginHorizontal: 16,
-    borderRadius: radii.md,
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  signOutIcon: {
-    marginRight: 14,
+    paddingHorizontal: 16,
   },
   signOutText: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.45)",
   },
 });

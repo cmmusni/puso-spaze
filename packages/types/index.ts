@@ -22,6 +22,7 @@ export interface User {
   displayName: string;
   role: UserRole;
   createdAt: string;
+  isAnonymous?: boolean;
 }
 
 export interface MentionUser {
@@ -41,6 +42,8 @@ export interface Post {
   moderationStatus: ModerationStatus;
   tags?: string[];
   pinned?: boolean;
+  isAnonymous?: boolean;
+  anonDisplayName?: string | null;
   commentCount?: number;
   reactionCount?: number;
   latestComment?: {
@@ -59,6 +62,8 @@ export interface Comment {
   content: string;
   createdAt: string;
   moderationStatus?: ModerationStatus;
+  isAnonymous?: boolean;
+  anonDisplayName?: string | null;
   user?: Pick<User, 'displayName' | 'role'>;
   post?: Pick<Post, 'id' | 'content'>;
 }
@@ -81,6 +86,18 @@ export interface InviteCode {
   usedBy?: string | null;
   createdAt: string;
   usedAt?: string | null;
+}
+
+export interface Journal {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  mood?: string | null;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+  user?: Pick<User, 'displayName' | 'role'>;
 }
 
 export interface ReactionCounts {
@@ -146,3 +163,47 @@ export interface MarkNotificationReadRequest { userId: string; }
 export interface MarkNotificationReadResponse { notification: Notification; }
 export interface MarkAllNotificationsReadRequest { userId: string; }
 export interface MarkAllNotificationsReadResponse { success: boolean; }
+
+// Journal
+export interface CreateJournalRequest { userId: string; title: string; content: string; mood?: string; tags?: string[]; }
+export interface CreateJournalResponse { journal: Journal; }
+export interface UpdateJournalRequest { userId: string; title: string; content: string; mood?: string; tags?: string[]; }
+export interface UpdateJournalResponse { journal: Journal; }
+export interface GetJournalsResponse { journals: Journal[]; }
+export interface GetJournalResponse { journal: Journal; }
+
+// Conversation / Messaging
+export interface Conversation {
+  id: string;
+  userId: string;
+  coachId: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: Pick<User, 'displayName' | 'role'>;
+  coach?: Pick<User, 'displayName' | 'role'>;
+  lastMessage?: Message | null;
+  unreadCount?: number;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+  sender?: Pick<User, 'displayName' | 'role'>;
+}
+
+export interface CoachProfile {
+  id: string;
+  displayName: string;
+  role: UserRole;
+}
+
+export interface GetCoachesResponse { coaches: CoachProfile[]; }
+export interface GetConversationsResponse { conversations: Conversation[]; }
+export interface GetOrCreateConversationRequest { userId: string; coachId: string; }
+export interface GetOrCreateConversationResponse { conversation: Conversation; }
+export interface GetMessagesResponse { messages: Message[]; }
+export interface SendMessageRequest { senderId: string; content: string; }
+export interface SendMessageResponse { message: Message; }

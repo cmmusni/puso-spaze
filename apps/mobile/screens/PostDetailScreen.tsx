@@ -540,7 +540,7 @@ export default function PostDetailScreen() {
       item.user?.role === "COACH" || item.user?.role === "ADMIN"
         ? `Coach ${item.user?.displayName ?? "Anonymous"}`
         : (item.user?.displayName ?? "Anonymous");
-    const initial = name.charAt(0).toUpperCase();
+    const initial = item.isAnonymous ? "?" : name.charAt(0).toUpperCase();
     const avatarGrad = avatarColors(initial);
     const isUnderReview = item.moderationStatus === "REVIEW";
     const isOwnComment = item.userId === userId;
@@ -667,7 +667,7 @@ export default function PostDetailScreen() {
   }
 
   const displayName = post.user?.displayName ?? "Anonymous";
-  const initial = displayName.charAt(0).toUpperCase();
+  const initial = post.isAnonymous ? "?" : displayName.charAt(0).toUpperCase();
 
   return (
     <SafeAreaView style={styles.screen}>
