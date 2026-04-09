@@ -13,11 +13,61 @@ import { prisma } from '../config/db';
 export async function getCoaches(_req: Request, res: Response): Promise<void> {
   const coaches = await prisma.user.findMany({
     where: { role: { in: ['COACH', 'ADMIN'] } },
-    select: { id: true, displayName: true, role: true },
+    select: { id: true, displayName: true, role: true, avatarUrl: true },
     orderBy: { displayName: 'asc' },
   });
 
   res.json({ coaches });
+}
+
+// ── GET /api/conversations/all ───────────────
+// Returns all conversations for the community view (Spaze Conversations).
+// Only shows conversations that have at least one message.
+export async function getAllConversations(_req: Request, res: Response): Promise<void> {
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        messages: { some: {} }, // Only conversations with at least one message
+      },
+      include: {
+        user: { select: { displayName: true, role: true, avatarUrl: true } },
+        coach: { select: { displayName: true, role: true, avatarUrl: true } },
+        _count: { select: { messages: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { sender: { select: { displayName: true, role: true, avatarUrl: true } } },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const result = conversations.map((c) => ({
+      id: c.id,
+      userId: c.userId,
+      coachId: c.coachId,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      user: c.user,
+      coach: c.coach,
+      messageCount: c._count.messages,
+      lastMessage: c.messages[0]
+        ? {
+            id: c.messages[0].id,
+            conversationId: c.messages[0].conversationId,
+            senderId: c.messages[0].senderId,
+            content: c.messages[0].content,
+            createdAt: c.messages[0].createdAt.toISOString(),
+            sender: c.messages[0].sender,
+          }
+        : null,
+    }));
+
+    res.json({ conversations: result });
+  } catch (err) {
+    console.error('[ConversationController] getAllConversations error:', err);
+    res.status(500).json({ error: 'Failed to fetch conversations.' });
+  }
 }
 
 // ── GET /api/conversations?userId=... ────────
@@ -44,12 +94,12 @@ export async function getConversations(req: Request, res: Response): Promise<voi
   const conversations = await prisma.conversation.findMany({
     where,
     include: {
-      user: { select: { displayName: true, role: true } },
-      coach: { select: { displayName: true, role: true } },
+      user: { select: { displayName: true, role: true, avatarUrl: true } },
+      coach: { select: { displayName: true, role: true, avatarUrl: true } },
       messages: {
         orderBy: { createdAt: 'desc' },
         take: 1,
-        include: { sender: { select: { displayName: true, role: true } } },
+        include: { sender: { select: { displayName: true, role: true, avatarUrl: true } } },
       },
     },
     orderBy: { updatedAt: 'desc' },
@@ -108,8 +158,8 @@ export async function getOrCreateConversation(req: Request, res: Response): Prom
     update: {},
     create: { userId, coachId },
     include: {
-      user: { select: { displayName: true, role: true } },
-      coach: { select: { displayName: true, role: true } },
+      user: { select: { displayName: true, role: true, avatarUrl: true } },
+      coach: { select: { displayName: true, role: true, avatarUrl: true } },
     },
   });
 
@@ -163,7 +213,7 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
   const messages = await prisma.message.findMany({
     where: { conversationId },
     orderBy: { createdAt: 'asc' },
-    include: { sender: { select: { displayName: true, role: true } } },
+    include: { sender: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   res.json({
@@ -210,7 +260,7 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
   const [message] = await prisma.$transaction([
     prisma.message.create({
       data: { conversationId, senderId, content },
-      include: { sender: { select: { displayName: true, role: true } } },
+      include: { sender: { select: { displayName: true, role: true, avatarUrl: true } } },
     }),
     prisma.conversation.update({
       where: { id: conversationId },

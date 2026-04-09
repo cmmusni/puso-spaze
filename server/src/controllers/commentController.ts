@@ -107,7 +107,7 @@ export async function getComments(req: Request, res: Response): Promise<void> {
   const comments = await prisma.comment.findMany({
     where: { postId, moderationStatus: { not: 'FLAGGED' } },
     orderBy: { createdAt: 'asc' },
-    include: { user: { select: { displayName: true, role: true } } },
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   res.json({
@@ -189,7 +189,7 @@ export async function updateComment(req: Request, res: Response): Promise<void> 
   try {
     const comment = await prisma.comment.findUnique({
       where: { id: commentId },
-      include: { user: { select: { displayName: true, role: true } } },
+      include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
     });
 
     if (!comment || comment.postId !== postId) {
@@ -223,7 +223,7 @@ export async function updateComment(req: Request, res: Response): Promise<void> 
         content: content.trim(),
         moderationStatus,
       },
-      include: { user: { select: { displayName: true, role: true } } },
+      include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
     });
 
     if (moderationStatus === 'SAFE') {

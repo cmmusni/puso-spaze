@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 
 interface Tab {
   key: string;
@@ -27,6 +28,7 @@ const TABS: Tab[] = [
   { key: "feed", label: "Feed", icon: "newspaper-outline", iconActive: "newspaper", route: "Home" },
   { key: "journal", label: "Journal", icon: "book-outline", iconActive: "book", route: "Journal" },
   { key: "coach", label: "Coach", icon: "chatbubbles-outline", iconActive: "chatbubbles", route: "SpazeCoach" },
+  { key: "conversations", label: "Convos", icon: "people-outline", iconActive: "people", route: "SpazeConversations" },
   { key: "alerts", label: "Alerts", icon: "notifications-outline", iconActive: "notifications", route: "Notifications" },
   { key: "review", label: "Review", icon: "clipboard-outline", iconActive: "clipboard", route: "ReviewQueue" },
   { key: "profile", label: "Profile", icon: "person-outline", iconActive: "person", route: "Profile" },
@@ -39,6 +41,7 @@ interface Props {
 }
 
 export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Props) {
+  const { colors: themeColors } = useThemeStore();
   if (Platform.OS !== "web") return null;
 
   const visibleTabs = TABS.filter((tab) => {
@@ -47,7 +50,7 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Prop
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.card, borderTopColor: themeColors.muted3 }]}>
       <View style={styles.inner}>
         {visibleTabs.map((tab) => {
           const active = currentRoute === tab.route;
@@ -61,12 +64,12 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Prop
               <Ionicons
                 name={active ? tab.iconActive : tab.icon}
                 size={22}
-                color={active ? colors.primary : colors.muted5}
+                color={active ? themeColors.primary : themeColors.muted5}
               />
-              <Text style={[styles.label, active && styles.labelActive]}>
+              <Text style={[styles.label, { color: themeColors.muted5 }, active && { color: themeColors.primary, fontWeight: "700" }]}>
                 {tab.label}
               </Text>
-              {active && <View style={styles.activeDot} />}
+              {active && <View style={[styles.activeDot, { backgroundColor: themeColors.primary }]} />}
             </TouchableOpacity>
           );
         })}

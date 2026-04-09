@@ -1,8 +1,6 @@
 // ─────────────────────────────────────────────
-// screens/SpazeCoachScreen.tsx
-// Coach list + conversation history — Sacred Journal design
-// Users: see coaches to message + their conversations
-// Coaches: see all conversations across all users
+// screens/SpazeConversationsScreen.tsx
+// Community-wide view of all member ↔ coach conversations
 // ─────────────────────────────────────────────
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -18,53 +16,39 @@ import {
   ActivityIndicator,
   Image,
   useWindowDimensions,
-  ScrollView,
+  TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
-import {
-  apiFetchCoaches,
-  apiFetchConversations,
-  apiGetOrCreateConversation,
-  getBaseUrl,
-} from "../services/api";
+import { apiFetchAllConversations, getBaseUrl } from "../services/api";
 import { colors as staticColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
-import type { CoachProfile, Conversation } from "../../../packages/types";
+import type { Conversation } from "../../../packages/types";
 
-const DEFAULT_SPECIALTIES = ["Wellness", "Support"];
-
-export default function SpazeCoachScreen({ navigation }: any) {
+export default function SpazeConversationsScreen({ navigation }: any) {
   const { userId, role } = useUserStore();
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
-  const isCoach = role === "COACH" || role === "ADMIN";
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
 
-  const [coaches, setCoaches] = useState<CoachProfile[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [startingChat, setStartingChat] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const fetchData = useCallback(async () => {
-    if (!userId) return;
     try {
-      const [coachRes, convRes] = await Promise.all([
-        apiFetchCoaches(),
-        apiFetchConversations(userId),
-      ]);
-      setCoaches(coachRes.coaches.filter((c) => c.id !== userId));
-      setConversations(convRes.conversations);
+      const res = await apiFetchAllConversations();
+      setConversations(res.conversations);
     } catch (err) {
-      console.error("Failed to fetch coach data:", err);
+      console.error("Failed to fetch conversations:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -82,23 +66,17 @@ export default function SpazeCoachScreen({ navigation }: any) {
     fetchData();
   }, [fetchData]);
 
-  // ── Start or open conversation ────────────
-  const handleMessageCoach = async (coachId: string) => {
-    if (!userId) return;
-    setStartingChat(coachId);
-    try {
-      const res = await apiGetOrCreateConversation({ userId, coachId });
-      navigation.navigate("Chat", { conversationId: res.conversation.id });
-    } catch (err) {
-      console.error("Failed to start conversation:", err);
-    } finally {
-      setStartingChat(null);
-    }
-  };
-
-  const handleOpenConversation = (conversationId: string) => {
-    navigation.navigate("Chat", { conversationId });
-  };
+  // ── Filter conversations ──────────────────
+  const filtered = search.trim()
+    ? conversations.filter((c) => {
+        const q = search.toLowerCase();
+        return (
+          c.user?.displayName?.toLowerCase().includes(q) ||
+          c.coach?.displayName?.toLowerCase().includes(q) ||
+          c.lastMessage?.content?.toLowerCase().includes(q)
+        );
+      })
+    : conversations;
 
   // ── Format date ───────────────────────────
   const formatTime = (dateStr: string) => {
@@ -133,141 +111,124 @@ export default function SpazeCoachScreen({ navigation }: any) {
     return avatarPalette[ch.charCodeAt(0) % avatarPalette.length];
   };
 
-  // ── Render coach card (horizontal) ────────
-  const renderCoachCard = (item: CoachProfile) => {
-    const isStarting = startingChat === item.id;
-    const grad = getAvatarColors(item.displayName);
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        onPress={() => handleMessageCoach(item.id)}
-        disabled={isStarting}
-        activeOpacity={0.85}
-        style={[s.coachCard, { backgroundColor: colors.surfaceContainerLowest }]}
-      >
-        <View style={s.coachAvatarWrap}>
-          {item.avatarUrl ? (
-            <Image
-              source={{ uri: `${getBaseUrl()}${item.avatarUrl}` }}
-              style={s.coachAvatarImg}
-            />
-          ) : (
-            <LinearGradient
-              colors={grad}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={s.coachAvatarGrad}
-            >
-              <Text style={[s.coachAvatarText, { color: colors.onPrimary }]}>
-                {getInitial(item.displayName)}
-              </Text>
-            </LinearGradient>
-          )}
-          <View style={[s.onlineDot, { borderColor: colors.surfaceContainerLowest }]} />
-        </View>
-        <Text style={[s.coachCardName, { color: colors.onSurface }]} numberOfLines={1}>
-          {item.displayName}
-        </Text>
-        <Text style={[s.coachCardRole, { color: colors.muted5 }]}>
-          {item.role === "ADMIN" ? "Lead Coach" : "Wellness Coach"}
-        </Text>
-        <View style={s.specialtyRow}>
-          {DEFAULT_SPECIALTIES.map((tag) => (
-            <View key={tag} style={[s.specialtyChip, { backgroundColor: colors.secondaryFixed }]}>
-              <Text style={[s.specialtyText, { color: colors.onSecondaryFixed }]}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-        {isStarting ? (
-          <View style={[s.coachMsgBtn, { backgroundColor: colors.primary }]}>
-            <ActivityIndicator size="small" color={colors.onPrimary} />
-          </View>
-        ) : (
-          <View style={[s.coachMsgBtn, { backgroundColor: colors.primary }]}>
-            <Ionicons name="chatbubble" size={13} color={colors.onPrimary} />
-            <Text style={[s.coachMsgBtnText, { color: colors.onPrimary }]}>Message</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
   // ── Render conversation card ──────────────
-  const renderConversationCard = ({ item }: { item: Conversation }) => {
-    const otherName = isCoach
-      ? item.user?.displayName ?? "User"
-      : item.coach?.displayName ?? "Coach";
-    const otherAvatar = isCoach ? item.user?.avatarUrl : item.coach?.avatarUrl;
-    const initial = getInitial(otherName);
-    const grad = getAvatarColors(otherName);
+  const renderConversation = ({ item }: { item: Conversation }) => {
+    const memberName = item.user?.displayName ?? "Member";
+    const coachName = item.coach?.displayName ?? "Coach";
+    const memberAvatar = item.user?.avatarUrl;
+    const coachAvatar = item.coach?.avatarUrl;
+    const memberInitial = getInitial(memberName);
+    const coachInitial = getInitial(coachName);
+    const memberGrad = getAvatarColors(memberName);
+    const coachGrad = getAvatarColors(coachName);
     const lastMsg = item.lastMessage;
     const preview = lastMsg ? lastMsg.content : "No messages yet";
-    const senderLabel = lastMsg?.sender?.displayName
-      ? `${lastMsg.sender.displayName}: `
-      : "";
-    const time = lastMsg ? formatTime(lastMsg.createdAt) : formatTime(item.createdAt);
+    const senderLabel = lastMsg?.sender?.displayName ?? "";
+    const time = lastMsg ? formatTime(lastMsg.createdAt) : formatTime(item.updatedAt);
+    const msgCount = item.messageCount ?? 0;
+    const isMyConversation = item.userId === userId || item.coachId === userId;
 
     return (
       <TouchableOpacity
-        onPress={() => handleOpenConversation(item.id)}
-        activeOpacity={0.8}
+        onPress={() => navigation.navigate("Chat", { conversationId: item.id })}
+        activeOpacity={0.85}
         style={[s.convCard, { backgroundColor: colors.surfaceContainerLowest }]}
       >
-        <View style={s.convAvatarWrap}>
-          {otherAvatar ? (
+        {/* Dual avatar */}
+        <View style={s.dualAvatarWrap}>
+          {memberAvatar ? (
             <Image
-              source={{ uri: `${getBaseUrl()}${otherAvatar}` }}
-              style={s.convAvatarImg}
+              source={{ uri: `${getBaseUrl()}${memberAvatar}` }}
+              style={s.avatarLeft}
             />
           ) : (
             <LinearGradient
-              colors={grad}
+              colors={memberGrad}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={s.convAvatarGrad}
+              style={s.avatarLeft}
             >
-              <Text style={[s.convAvatarText, { color: colors.onPrimary }]}>{initial}</Text>
+              <Text style={[s.avatarText, { color: colors.onPrimary }]}>{memberInitial}</Text>
+            </LinearGradient>
+          )}
+          {coachAvatar ? (
+            <Image
+              source={{ uri: `${getBaseUrl()}${coachAvatar}` }}
+              style={[s.avatarRight, { borderColor: colors.surfaceContainerLowest }]}
+            />
+          ) : (
+            <LinearGradient
+              colors={coachGrad}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[s.avatarRight, { borderColor: colors.surfaceContainerLowest }]}
+            >
+              <Text style={[s.avatarTextSmall, { color: colors.onPrimary }]}>{coachInitial}</Text>
             </LinearGradient>
           )}
         </View>
+
+        {/* Content */}
         <View style={s.convBody}>
           <View style={s.convTopRow}>
-            <Text style={[s.convName, { color: colors.onSurface }]} numberOfLines={1}>
-              {otherName}
-            </Text>
+            <View style={s.convNames}>
+              <Text style={[s.memberName, { color: colors.onSurface }]} numberOfLines={1}>
+                {memberName}
+              </Text>
+              <Ionicons name="arrow-forward" size={12} color={colors.muted4} style={{ marginHorizontal: 4 }} />
+              <Text style={[s.coachNameLabel, { color: colors.secondary }]} numberOfLines={1}>
+                {coachName}
+              </Text>
+            </View>
             <Text style={[s.convTime, { color: colors.muted4 }]}>{time}</Text>
           </View>
+
           <Text style={[s.convPreview, { color: colors.muted5 }]} numberOfLines={1}>
             {senderLabel ? (
               <Text style={[s.convPreviewSender, { color: colors.onSurfaceVariant }]}>
-                {senderLabel}
+                {senderLabel}:{" "}
               </Text>
             ) : null}
             {preview}
           </Text>
+
+          {/* Meta row */}
+          <View style={s.metaRow}>
+            {msgCount > 0 && (
+              <View style={s.metaChip}>
+                <Ionicons name="chatbubble-outline" size={11} color={colors.muted5} />
+                <Text style={[s.metaText, { color: colors.muted5 }]}>
+                  {msgCount} {msgCount === 1 ? "message" : "messages"}
+                </Text>
+              </View>
+            )}
+            {isMyConversation && (
+              <View style={[s.myBadge, { backgroundColor: colors.secondaryFixed }]}>
+                <Text style={[s.myBadgeText, { color: colors.onSecondaryFixed }]}>You</Text>
+              </View>
+            )}
+          </View>
         </View>
+
         <Ionicons name="chevron-forward" size={16} color={colors.muted3} style={{ marginLeft: 4 }} />
       </TouchableOpacity>
     );
   };
 
   // ── Empty state ───────────────────────────
-  const renderEmptyConversations = () => (
+  const renderEmpty = () => (
     <View style={s.emptyState}>
       <View style={s.emptyIconWrap}>
         <LinearGradient
           colors={[colors.secondaryFixed, colors.surfaceContainerHigh]}
           style={s.emptyIconGrad}
         >
-          <Ionicons name="chatbubbles-outline" size={36} color={colors.secondary} />
+          <Ionicons name="people-outline" size={36} color={colors.secondary} />
         </LinearGradient>
       </View>
       <Text style={[s.emptyTitle, { color: colors.onSurface }]}>No conversations yet</Text>
       <Text style={[s.emptySubtext, { color: colors.muted5 }]}>
-        {isCoach
-          ? "When members reach out, their conversations will appear here."
-          : "Tap on a coach above to start a private, safe conversation."}
+        When members start chatting with coaches, conversations will appear here.
       </Text>
     </View>
   );
@@ -280,9 +241,9 @@ export default function SpazeCoachScreen({ navigation }: any) {
       />
 
       <FlatList
-        data={conversations}
+        data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={renderConversationCard}
+        renderItem={renderConversation}
         refreshing={refreshing}
         onRefresh={onRefresh}
         showsVerticalScrollIndicator={false}
@@ -310,50 +271,69 @@ export default function SpazeCoachScreen({ navigation }: any) {
                 </View>
                 <View style={s.heroContent}>
                   <View style={s.heroIconWrap}>
-                    <Ionicons name="heart-circle" size={38} color="rgba(255,255,255,0.9)" />
+                    <Ionicons name="people-circle" size={38} color="rgba(255,255,255,0.9)" />
                   </View>
-                  <Text style={s.heroTitle}>Spaze Coach</Text>
+                  <Text style={s.heroTitle}>Spaze Conversations</Text>
                   <Text style={s.heroSubtitle}>
-                    {isCoach
-                      ? "Manage conversations and support your community"
-                      : "Connect with a coach for guidance and support"}
+                    All conversations between members and coaches in the community
                   </Text>
                 </View>
               </LinearGradient>
             </View>
 
-            {/* ── Coach carousel ── */}
-            {coaches.length > 0 && (
-              <View style={s.section}>
-                <View style={s.sectionHeader}>
-                  <Ionicons name="people" size={18} color={colors.primary} />
-                  <Text style={[s.sectionTitle, { color: colors.onSurface }]}>Available Coaches</Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={s.coachScroll}
-                >
-                  {coaches.map((coach) => renderCoachCard(coach))}
-                </ScrollView>
-              </View>
-            )}
+            {/* ── Search bar ── */}
+            <View style={[s.searchWrap, { backgroundColor: colors.surfaceContainerHigh }]}>
+              <Ionicons name="search" size={16} color={colors.muted4} />
+              <TextInput
+                style={[s.searchInput, { color: colors.onSurface }]}
+                placeholder="Search by name or message…"
+                placeholderTextColor={colors.muted4}
+                value={search}
+                onChangeText={setSearch}
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch("")}>
+                  <Ionicons name="close-circle" size={16} color={colors.muted4} />
+                </TouchableOpacity>
+              )}
+            </View>
 
-            {/* ── Conversations header ── */}
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
+            {/* ── Stats row ── */}
+            <View style={s.statsRow}>
+              <View style={[s.statCard, { backgroundColor: colors.surfaceContainerLowest }]}>
                 <Ionicons name="chatbubbles" size={18} color={colors.primary} />
-                <Text style={[s.sectionTitle, { color: colors.onSurface }]}>
-                  {isCoach ? "All Conversations" : "My Conversations"}
-                </Text>
-                {conversations.length > 0 && (
-                  <View style={[s.countBadge, { backgroundColor: colors.primaryContainer }]}>
-                    <Text style={[s.countBadgeText, { color: colors.onPrimary }]}>
-                      {conversations.length}
-                    </Text>
-                  </View>
-                )}
+                <Text style={[s.statNumber, { color: colors.onSurface }]}>{conversations.length}</Text>
+                <Text style={[s.statLabel, { color: colors.muted5 }]}>Active Chats</Text>
               </View>
+              <View style={[s.statCard, { backgroundColor: colors.surfaceContainerLowest }]}>
+                <Ionicons name="people" size={18} color={colors.secondary} />
+                <Text style={[s.statNumber, { color: colors.onSurface }]}>
+                  {new Set(conversations.map((c) => c.userId)).size}
+                </Text>
+                <Text style={[s.statLabel, { color: colors.muted5 }]}>Members</Text>
+              </View>
+              <View style={[s.statCard, { backgroundColor: colors.surfaceContainerLowest }]}>
+                <Ionicons name="heart" size={18} color={colors.tertiary} />
+                <Text style={[s.statNumber, { color: colors.onSurface }]}>
+                  {new Set(conversations.map((c) => c.coachId)).size}
+                </Text>
+                <Text style={[s.statLabel, { color: colors.muted5 }]}>Coaches</Text>
+              </View>
+            </View>
+
+            {/* ── Section header ── */}
+            <View style={s.sectionHeader}>
+              <Ionicons name="chatbubbles" size={18} color={colors.primary} />
+              <Text style={[s.sectionTitle, { color: colors.onSurface }]}>
+                All Conversations
+              </Text>
+              {filtered.length > 0 && (
+                <View style={[s.countBadge, { backgroundColor: colors.primaryContainer }]}>
+                  <Text style={[s.countBadgeText, { color: colors.onPrimary }]}>
+                    {filtered.length}
+                  </Text>
+                </View>
+              )}
             </View>
           </>
         }
@@ -363,7 +343,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
-            renderEmptyConversations()
+            renderEmpty()
           )
         }
       />
@@ -373,9 +353,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
 
 // ── Styles ────────────────────────────────────
 const s = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
 
   loadingWrap: {
     paddingTop: 80,
@@ -392,7 +370,7 @@ const s = StyleSheet.create({
     width: "100%" as any,
   },
 
-  // ── Hero header ───────────────────────────
+  // ── Hero ──────────────────────────────────
   heroCard: {
     borderRadius: radii.xl,
     overflow: "hidden",
@@ -443,13 +421,50 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.75)",
     textAlign: "center",
     lineHeight: 20,
-    maxWidth: 300,
+    maxWidth: 320,
+  },
+
+  // ── Search ────────────────────────────────
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    padding: 0,
+  },
+
+  // ── Stats ─────────────────────────────────
+  statsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: radii.xl,
+    padding: 14,
+    alignItems: "center",
+    gap: 4,
+    ...ambientShadow,
+  },
+  statNumber: {
+    fontSize: 22,
+    fontFamily: fonts.displayExtraBold,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
   },
 
   // ── Section ───────────────────────────────
-  section: {
-    marginBottom: spacing.md,
-  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -471,89 +486,6 @@ const s = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
   },
 
-  // ── Coach carousel ────────────────────────
-  coachScroll: {
-    paddingRight: spacing.md,
-    gap: 12,
-  },
-  coachCard: {
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    alignItems: "center",
-    width: 154,
-    ...ambientShadow,
-  },
-  coachAvatarWrap: {
-    position: "relative",
-    marginBottom: 10,
-  },
-  coachAvatarGrad: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  coachAvatarImg: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  coachAvatarText: {
-    fontSize: 22,
-    fontFamily: fonts.displayBold,
-  },
-  onlineDot: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#22C55E",
-    borderWidth: 2.5,
-  },
-  coachCardName: {
-    fontSize: 15,
-    fontFamily: fonts.displaySemiBold,
-    textAlign: "center",
-    marginBottom: 2,
-  },
-  coachCardRole: {
-    fontSize: 12,
-    fontFamily: fonts.bodyRegular,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  specialtyRow: {
-    flexDirection: "row",
-    gap: 4,
-    marginBottom: 12,
-  },
-  specialtyChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-  },
-  specialtyText: {
-    fontSize: 10,
-    fontFamily: fonts.bodySemiBold,
-  },
-  coachMsgBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    width: "100%" as any,
-  },
-  coachMsgBtnText: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-  },
-
   // ── Conversation card ─────────────────────
   convCard: {
     flexDirection: "row",
@@ -563,39 +495,63 @@ const s = StyleSheet.create({
     marginBottom: 10,
     ...ambientShadow,
   },
-  convAvatarWrap: {
+  dualAvatarWrap: {
+    width: 52,
+    height: 44,
     marginRight: 12,
+    position: "relative",
   },
-  convAvatarGrad: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  avatarLeft: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
-  convAvatarImg: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  avatarRight: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    borderWidth: 2,
   },
-  convAvatarText: {
-    fontSize: 18,
+  avatarText: {
+    fontSize: 15,
     fontFamily: fonts.displayBold,
   },
-  convBody: {
-    flex: 1,
+  avatarTextSmall: {
+    fontSize: 11,
+    fontFamily: fonts.displayBold,
   },
+  convBody: { flex: 1 },
   convTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 3,
   },
-  convName: {
-    fontSize: 15,
-    fontFamily: fonts.displaySemiBold,
+  convNames: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     marginRight: 8,
+  },
+  memberName: {
+    fontSize: 14,
+    fontFamily: fonts.displaySemiBold,
+    flexShrink: 1,
+  },
+  coachNameLabel: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    flexShrink: 1,
   },
   convTime: {
     fontSize: 12,
@@ -604,8 +560,32 @@ const s = StyleSheet.create({
   convPreview: {
     fontSize: 13,
     fontFamily: fonts.bodyRegular,
+    marginBottom: 4,
   },
   convPreviewSender: {
+    fontFamily: fonts.bodySemiBold,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  metaText: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+  },
+  myBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  myBadgeText: {
+    fontSize: 10,
     fontFamily: fonts.bodySemiBold,
   },
 

@@ -156,7 +156,7 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
       ...(hourlyHopeVisible ? {} : { userId: { not: SYSTEM_USER_ID } }),
     },
     include: {
-      user: { select: { displayName: true, role: true } },
+      user: { select: { displayName: true, role: true, avatarUrl: true } },
       _count: { select: { reactions: true, comments: true } },
       comments: {
         where: {
@@ -168,7 +168,7 @@ export async function getPosts(_req: Request, res: Response): Promise<void> {
           userId: true,
           content: true,
           createdAt: true,
-          user: { select: { displayName: true, role: true } },
+          user: { select: { displayName: true, role: true, avatarUrl: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 1,
@@ -230,7 +230,7 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id: postId },
     include: {
-      user: { select: { displayName: true, role: true } },
+      user: { select: { displayName: true, role: true, avatarUrl: true } },
       _count: { select: { reactions: true, comments: true } },
     },
   });
@@ -376,7 +376,7 @@ export async function updatePost(req: Request, res: Response): Promise<void> {
       tags: tags ?? post.tags,
       moderationStatus,
     },
-    include: { user: { select: { displayName: true, role: true } } },
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   if (moderationStatus === 'SAFE') {

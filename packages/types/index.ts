@@ -37,7 +37,7 @@ export interface Post {
   content: string;
   imageUrl?: string | null;
   userId: string;
-  user?: Pick<User, 'displayName' | 'role'>;
+  user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
   createdAt: string;
   moderationStatus: ModerationStatus;
   tags?: string[];
@@ -51,7 +51,7 @@ export interface Post {
     userId: string;
     content: string;
     createdAt: string;
-    user?: Pick<User, 'displayName' | 'role'>;
+    user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
   };
 }
 
@@ -64,7 +64,7 @@ export interface Comment {
   moderationStatus?: ModerationStatus;
   isAnonymous?: boolean;
   anonDisplayName?: string | null;
-  user?: Pick<User, 'displayName' | 'role'>;
+  user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
   post?: Pick<Post, 'id' | 'content'>;
 }
 
@@ -97,7 +97,7 @@ export interface Journal {
   tags?: string[];
   createdAt: string;
   updatedAt: string;
-  user?: Pick<User, 'displayName' | 'role'>;
+  user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
 }
 
 export interface ReactionCounts {
@@ -179,10 +179,11 @@ export interface Conversation {
   coachId: string;
   createdAt: string;
   updatedAt: string;
-  user?: Pick<User, 'displayName' | 'role'>;
-  coach?: Pick<User, 'displayName' | 'role'>;
+  user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
+  coach?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
   lastMessage?: Message | null;
   unreadCount?: number;
+  messageCount?: number;
 }
 
 export interface Message {
@@ -191,13 +192,14 @@ export interface Message {
   senderId: string;
   content: string;
   createdAt: string;
-  sender?: Pick<User, 'displayName' | 'role'>;
+  sender?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
 }
 
 export interface CoachProfile {
   id: string;
   displayName: string;
   role: UserRole;
+  avatarUrl?: string | null;
 }
 
 export interface GetCoachesResponse { coaches: CoachProfile[]; }

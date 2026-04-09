@@ -15,6 +15,7 @@ import CoachLoginScreen from '../screens/CoachLoginScreen';
 import MainDrawerNavigator from './MainDrawerNavigator';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
+import { useThemeStore } from '../context/ThemeContext';
 
 // ── Route param types ────────────────────────
 export type RootStackParamList = {
@@ -64,6 +65,7 @@ const linking = {
 export default function AppNavigator() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const isLoading = useUserStore((s) => s.isLoading);
+  const { colors: themeColors } = useThemeStore();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [isReady, setIsReady] = React.useState(false);
 
@@ -130,8 +132,8 @@ export default function AppNavigator() {
       ref={navigationRef}
       linking={linking}
       fallback={
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.darkest }}>
-          <ActivityIndicator size="large" color={colors.accent} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: themeColors.darkest }}>
+          <ActivityIndicator size="large" color={themeColors.accent} />
         </View>
       }
       onReady={() => {

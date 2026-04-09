@@ -45,6 +45,7 @@ import {
 import { useUser } from "../hooks/useUser";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import { colors } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import MentionText from "../components/MentionText";
 import {
   extractTrailingMentionQuery,
@@ -111,6 +112,7 @@ function renderReactionIcon(type: ReactionType, size: number, color: string) {
 }
 
 export default function PostDetailScreen() {
+  const { colors: themeColors, isDark } = useThemeStore();
   const navigation = useNavigation();
   const route = useRoute<PostDetailRouteProp>();
   const routePost = route.params?.post;
@@ -641,9 +643,9 @@ export default function PostDetailScreen() {
 
   if (postLoading) {
     return (
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -651,13 +653,13 @@ export default function PostDetailScreen() {
 
   if (!post) {
     return (
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
-          <Text style={{ color: colors.text, fontSize: 16, textAlign: "center", marginBottom: 14 }}>
+          <Text style={{ color: themeColors.text, fontSize: 16, textAlign: "center", marginBottom: 14 }}>
             Post not available. Please open it again from the feed or notifications.
           </Text>
           <TouchableOpacity onPress={handleBackPress} activeOpacity={0.8}>
-            <Text style={{ color: colors.primary, fontWeight: "700" }}>
+            <Text style={{ color: themeColors.primary, fontWeight: "700" }}>
               {openedFromNotifications ? "Back to notifications" : "Back to feed"}
             </Text>
           </TouchableOpacity>
@@ -670,10 +672,10 @@ export default function PostDetailScreen() {
   const initial = post.isAnonymous ? "?" : displayName.charAt(0).toUpperCase();
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
       {/* ── Gradient Header ── */}
       <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.ink]}
+        colors={[themeColors.darkest, themeColors.deep, themeColors.ink]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}

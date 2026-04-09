@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 
 import { colors, fonts, radii, ambientShadow } from '../constants/theme';
+import { useThemeStore } from '../context/ThemeContext';
 import { useUserStore } from '../context/UserContext';
 import {
   apiGetReviewQueue,
@@ -86,6 +87,7 @@ function getTagColor(tag: string) {
 export default function CoachDashboard() {
   const navigation = useNavigation<Nav>();
   const { userId, username, role } = useUserStore();
+  const { colors: themeColors, isDark } = useThemeStore();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 1000;
 
@@ -339,10 +341,10 @@ export default function CoachDashboard() {
   // ── Loading state ─────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={s.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <SafeAreaView style={[s.root, { backgroundColor: themeColors.background }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
         <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
           <Text style={s.loadingText}>Loading dashboard…</Text>
         </View>
       </SafeAreaView>
@@ -357,8 +359,8 @@ export default function CoachDashboard() {
   // ── Main render ───────────────────────────
 
   return (
-    <SafeAreaView style={s.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[s.root, { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       <View style={s.mainRow}>
         {/* Left / Main content */}

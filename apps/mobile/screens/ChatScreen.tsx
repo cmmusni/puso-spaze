@@ -23,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
 import { apiFetchMessages, apiSendMessage } from "../services/api";
 import { colors, fonts, radii, spacing } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import type { Message } from "../../../packages/types";
 
 const POLL_INTERVAL = 5000;
@@ -30,6 +31,7 @@ const POLL_INTERVAL = 5000;
 export default function ChatScreen({ navigation, route }: any) {
   const { conversationId } = route.params as { conversationId: string };
   const { userId, role } = useUserStore();
+  const { colors: themeColors, isDark } = useThemeStore();
   const isCoach = role === "COACH" || role === "ADMIN";
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -172,12 +174,12 @@ export default function ChatScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "light-content"} />
 
       {/* ── Top bar ── */}
       <LinearGradient
-        colors={[colors.primaryContainer, colors.secondary]}
+        colors={[themeColors.primaryContainer, themeColors.secondary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.topBar}

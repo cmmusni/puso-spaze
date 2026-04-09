@@ -40,6 +40,7 @@ import {
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
 
@@ -89,6 +90,7 @@ type CardNavProp = any;
 export default function PostCard({ post, onDelete }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
   const { userId, role } = useUser();
+  const { colors: themeColors } = useThemeStore();
   const screenWidth = Dimensions.get("window").width;
   const screenHeight = Dimensions.get("window").height;
 
@@ -358,6 +360,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
           styles.card,
           post.pinned ? styles.cardPinned : null,
           styles.cardDefault,
+          { backgroundColor: themeColors.card },
         ]}
       >
         {/* ── Author row ── */}

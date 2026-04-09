@@ -32,6 +32,7 @@ import {
   apiDeleteJournal,
 } from "../services/api";
 import { colors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import type { Journal } from "../../../packages/types";
 import { showAlert } from "../utils/alertPlatform";
 
@@ -107,6 +108,7 @@ function getCalendarDays(year: number, month: number) {
 
 export default function JournalScreen({ navigation }: any) {
   const { userId } = useUserStore();
+  const { colors: themeColors, isDark } = useThemeStore();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
   const showSidePanel = Platform.OS === "web" && width >= 1100;
@@ -564,12 +566,12 @@ export default function JournalScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={st.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[st.safeArea, { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
       {loading ? (
         <View style={st.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
         </View>
       ) : (
         <View style={st.mainRow}>

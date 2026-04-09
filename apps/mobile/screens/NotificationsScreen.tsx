@@ -29,6 +29,7 @@ import {
 } from '../services/api';
 import type { Notification, Post } from '../../../packages/types';
 import { colors, fonts } from '../constants/theme';
+import { useThemeStore } from '../context/ThemeContext';
 
 type NavigationType = DrawerNavigationProp<any>;
 
@@ -112,6 +113,7 @@ const getDateSection = (dateStr: string): string => {
 export default function NotificationsScreen() {
   const { userId } = useUser();
   const navigation = useNavigation<NavigationType>();
+  const { colors: themeColors, isDark } = useThemeStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -263,14 +265,14 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.header, { backgroundColor: themeColors.surfaceContainerLowest }]}>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>Notifications</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.onSurface }]}>Notifications</Text>
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -279,11 +281,11 @@ export default function NotificationsScreen() {
   // ── Main render ──────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top', 'bottom']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: themeColors.surfaceContainerLowest }]}>
         <View style={styles.headerTitleRow}>
-          <Text style={styles.headerTitle}>Notifications</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.onSurface }]}>Notifications</Text>
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount} New</Text>

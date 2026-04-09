@@ -19,6 +19,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
@@ -45,6 +46,7 @@ function getGreeting(): string {
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
+  const { colors: themeColors, isDark } = useThemeStore();
   const { username, role, userId } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
   const { posts, loading, error, fetchPosts, submitPost } = usePosts();
@@ -348,14 +350,14 @@ export default function HomeScreen() {
   const showRightPanel = isWide && width >= 1200;
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
       <StatusBar
-        barStyle="light-content"
-        backgroundColor={colors.gradientStart}
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={themeColors.gradientStart}
       />
 
       {/* ── Top bar ── */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { backgroundColor: themeColors.surfaceContainerLowest }]}>
         <View style={styles.topBarLeft}>
           {!isWide && (
             <TouchableOpacity

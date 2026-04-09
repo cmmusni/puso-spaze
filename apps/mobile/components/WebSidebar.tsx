@@ -5,6 +5,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, radii } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import { useUserStore } from "../context/UserContext";
 
 const NAV_ITEMS = [
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
   { key: "journal", label: "Journal", icon: "book-outline" as any, iconActive: "book" as any, route: "Journal" },
   // { key: "resources", label: "Resources", icon: "library-outline" as any, iconActive: "library" as any, route: "Home" },
   { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as any, iconActive: "chatbubbles" as any, route: "SpazeCoach" },
+  { key: "conversations", label: "Conversations", icon: "people-outline" as any, iconActive: "people" as any, route: "SpazeConversations" },
   { key: "review", label: "Coach Dashboard", icon: "clipboard-outline" as any, iconActive: "clipboard" as any, route: "ReviewQueue", coachOnly: true },
   { key: "profile", label: "Profile", icon: "person-outline" as any, iconActive: "person" as any, route: "Profile" },
   { key: "notifications", label: "Notifications", icon: "notifications-outline" as any, iconActive: "notifications" as any, route: "Notifications" },
@@ -24,12 +26,13 @@ interface Props {
 
 export default function WebSidebar({ currentRoute, onNavigate }: Props) {
   const { role, logoutUser } = useUserStore();
+  const { colors: themeColors } = useThemeStore();
   const isCoach = role === "COACH" || role === "ADMIN";
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.primaryContainer, colors.secondary]}
+        colors={[themeColors.primaryContainer, themeColors.secondary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}

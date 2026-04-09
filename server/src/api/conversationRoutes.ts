@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import {
   getCoaches,
+  getAllConversations,
   getConversations,
   getOrCreateConversation,
   getMessages,
@@ -22,6 +23,9 @@ const router = Router();
 
 // ── GET /api/conversations/coaches ─────────
 router.get('/coaches', getCoaches);
+
+// ── GET /api/conversations/all ─────────────
+router.get('/all', getAllConversations);
 
 // ── GET /api/conversations ─────────────────
 router.get(

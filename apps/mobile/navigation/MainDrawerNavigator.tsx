@@ -32,11 +32,13 @@ import PostDetailScreen from "../screens/PostDetailScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import JournalScreen from "../screens/JournalScreen";
 import SpazeCoachScreen from "../screens/SpazeCoachScreen";
+import SpazeConversationsScreen from "../screens/SpazeConversationsScreen";
 import ChatScreen from "../screens/ChatScreen";
 import BottomTabBar from "../components/BottomTabBar";
 import WebSidebar from "../components/WebSidebar";
 import { useUserStore } from "../context/UserContext";
 import { colors, fonts, radii } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import type { Post } from "../../../packages/types";
 
 // ── Param list ────────────────────────────────
@@ -50,6 +52,7 @@ export type MainDrawerParamList = {
   Notifications: undefined;
   Journal: undefined;
   SpazeCoach: undefined;
+  SpazeConversations: undefined;
   Chat: { conversationId: string };
 };
 
@@ -60,6 +63,7 @@ const DRAWER_NAV_ITEMS = [
   { key: "community", label: "Community", icon: "people-outline" as const, iconActive: "people" as const, route: "Home" as keyof MainDrawerParamList, isDefault: true },
   { key: "journal", label: "Journal", icon: "book-outline" as const, iconActive: "book" as const, route: "Journal" as keyof MainDrawerParamList },
   { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as const, iconActive: "chatbubbles" as const, route: "SpazeCoach" as keyof MainDrawerParamList },
+  { key: "conversations", label: "Spaze Conversations", icon: "people-outline" as const, iconActive: "people" as const, route: "SpazeConversations" as keyof MainDrawerParamList },
   { key: "review", label: "Coach Dashboard", icon: "clipboard-outline" as const, iconActive: "clipboard" as const, route: "ReviewQueue" as keyof MainDrawerParamList, coachOnly: true },
   { key: "profile", label: "Profile", icon: "person-outline" as const, iconActive: "person" as const, route: "Profile" as keyof MainDrawerParamList },
 ];
@@ -70,6 +74,7 @@ function CustomDrawerContent({
   state,
 }: DrawerContentComponentProps) {
   const { role, logoutUser } = useUserStore();
+  const { colors: themeColors } = useThemeStore();
   const isCoach = role === "COACH" || role === "ADMIN";
   const currentRoute = state.routes[state.index].name;
 
@@ -80,7 +85,7 @@ function CustomDrawerContent({
     >
       {/* Gradient fill */}
       <LinearGradient
-        colors={[colors.primaryContainer, colors.secondary]}
+        colors={[themeColors.primaryContainer, themeColors.secondary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -274,6 +279,14 @@ export default function MainDrawerNavigator() {
         component={withTabs(SpazeCoachScreen, "SpazeCoach")}
         options={{
           title: "PUSO Spaze \u2014 Spaze Coach",
+          headerShown: false,
+        }}
+      />
+      <Drawer.Screen
+        name="SpazeConversations"
+        component={withTabs(SpazeConversationsScreen, "SpazeConversations")}
+        options={{
+          title: "PUSO Spaze \u2014 Spaze Conversations",
           headerShown: false,
         }}
       />

@@ -176,7 +176,7 @@ export async function pinPost(req: Request, res: Response): Promise<void> {
       where: { id: postId },
       data: { pinned: true },
       include: {
-        user: { select: { displayName: true, role: true } },
+        user: { select: { displayName: true, role: true, avatarUrl: true } },
       },
     });
 
@@ -230,7 +230,7 @@ export async function unpinPost(req: Request, res: Response): Promise<void> {
       where: { id: postId },
       data: { pinned: false },
       include: {
-        user: { select: { displayName: true, role: true } },
+        user: { select: { displayName: true, role: true, avatarUrl: true } },
       },
     });
 

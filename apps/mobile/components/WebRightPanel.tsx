@@ -6,6 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 import { useUser } from "../hooks/useUser";
 import { apiGetDashboardStats, type DashboardStats } from "../services/api";
 
@@ -22,6 +23,7 @@ const COACHES = [
 
 export default function WebRightPanel() {
   const { username } = useUser();
+  const { colors: themeColors } = useThemeStore();
   const [stats, setStats] = useState<DashboardStats>({
     totalMembers: 0, dailyStories: 0, onlineCount: 0,
     trendingTags: [], dailyReflection: null,

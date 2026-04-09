@@ -29,6 +29,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useUserStore } from "../context/UserContext";
+import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import { apiUpdateUsername, apiFetchJournals } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
@@ -59,6 +60,7 @@ const BIO_DEFAULT = "Embracing the journey of self-discovery one reflection at a
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const { username, userId, role, isAnonymous, updateUsername, logoutUser, toggleAnonymous } = useUserStore();
+  const { isDark, colors: themeColors, toggleDarkMode } = useThemeStore();
   const { posts, fetchPosts } = usePosts();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
@@ -75,7 +77,6 @@ export default function ProfileScreen() {
 
   // ── Preferences state ─────────────────────
   const [notificationsOn, setNotificationsOn] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
 
   const displayName = username ?? "User";
   const initial = displayName.charAt(0).toUpperCase();
@@ -200,17 +201,17 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={s.safeArea}>
+      <SafeAreaView style={[s.safeArea, { backgroundColor: themeColors.background }]}>
         <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={themeColors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={s.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[s.safeArea, { backgroundColor: themeColors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
       <ScrollView
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -218,36 +219,36 @@ export default function ProfileScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
           />
         }
       >
         {/* ── Profile Header Card ── */}
-        <View style={s.profileCard}>
+        <View style={[s.profileCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
           <View style={s.profileRow}>
             {/* Avatar */}
             <View style={s.avatarWrap}>
               <LinearGradient
-                colors={[colors.surfaceContainerHigh, colors.surfaceVariant]}
+                colors={[themeColors.surfaceContainerHigh, themeColors.surfaceVariant]}
                 style={s.avatarGrad}
               >
-                <Text style={s.avatarText}>{initial}</Text>
+                <Text style={[s.avatarText, { color: themeColors.onSurface }]}>{initial}</Text>
               </LinearGradient>
-              <View style={s.avatarEditBadge}>
-                <Ionicons name="pencil" size={10} color={colors.onPrimary} />
+              <View style={[s.avatarEditBadge, { backgroundColor: themeColors.primary }]}>
+                <Ionicons name="pencil" size={10} color={themeColors.onPrimary} />
               </View>
             </View>
 
             {/* Info */}
             <View style={s.profileInfo}>
               <View style={s.nameRow}>
-                <Text style={s.displayName}>{displayName}</Text>
-                <View style={s.roleBadge}>
-                  <Text style={s.roleBadgeText}>{roleLabel}</Text>
+                <Text style={[s.displayName, { color: themeColors.onSurface }]}>{displayName}</Text>
+                <View style={[s.roleBadge, { backgroundColor: themeColors.secondaryFixed }]}>
+                  <Text style={[s.roleBadgeText, { color: themeColors.onSecondaryFixed }]}>{roleLabel}</Text>
                 </View>
               </View>
-              <Text style={s.bio}>{BIO_DEFAULT}</Text>
+              <Text style={[s.bio, { color: themeColors.onSurfaceVariant }]}>{BIO_DEFAULT}</Text>
 
               {/* Action buttons */}
               <View style={s.profileActions}>
@@ -294,34 +295,34 @@ export default function ProfileScreen() {
 
         {/* ── Your Journey ── */}
         <View style={s.sectionHeader}>
-          <Ionicons name="sparkles" size={18} color={colors.primary} />
-          <Text style={s.sectionTitle}>Your Journey</Text>
+          <Ionicons name="sparkles" size={18} color={themeColors.primary} />
+          <Text style={[s.sectionTitle, { color: themeColors.onSurface }]}>Your Journey</Text>
         </View>
 
         <View style={s.statsRow}>
-          <View style={s.statCard}>
-            <Ionicons name="flame" size={20} color={colors.primary} />
-            <Text style={s.statNumber}>{streak} Day{streak !== 1 ? "s" : ""}</Text>
-            <Text style={s.statLabel}>Streak</Text>
+          <View style={[s.statCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+            <Ionicons name="flame" size={20} color={themeColors.primary} />
+            <Text style={[s.statNumber, { color: themeColors.onSurface }]}>{streak} Day{streak !== 1 ? "s" : ""}</Text>
+            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }]}>Streak</Text>
           </View>
-          <View style={s.statCard}>
-            <Ionicons name="book" size={20} color={colors.secondary} />
-            <Text style={s.statNumber}>{totalReflections}</Text>
-            <Text style={s.statLabel}>Total Reflections</Text>
+          <View style={[s.statCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+            <Ionicons name="book" size={20} color={themeColors.secondary} />
+            <Text style={[s.statNumber, { color: themeColors.onSurface }]}>{totalReflections}</Text>
+            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }]}>Total Reflections</Text>
           </View>
-          <View style={s.statCard}>
-            <Ionicons name="heart" size={20} color={colors.tertiary} />
-            <Text style={s.statNumber}>{encouragementsGiven}</Text>
-            <Text style={s.statLabel}>Encouragements Given</Text>
+          <View style={[s.statCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+            <Ionicons name="heart" size={20} color={themeColors.tertiary} />
+            <Text style={[s.statNumber, { color: themeColors.onSurface }]}>{encouragementsGiven}</Text>
+            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }]}>Encouragements Given</Text>
           </View>
         </View>
 
         {/* ── Bottom two-column area ── */}
         <View style={[s.bottomRow, twoCol && s.bottomRowWide]}>
           {/* Recent Reflections */}
-          <View style={[s.bottomCard, twoCol && s.bottomCardFlex]}>
+          <View style={[s.bottomCard, twoCol && s.bottomCardFlex, { backgroundColor: themeColors.surfaceContainerLowest }]}>
             <View style={s.bottomCardHeader}>
-              <Text style={s.bottomCardTitle}>Recent Reflections</Text>
+              <Text style={[s.bottomCardTitle, { color: themeColors.onSurface }]}>Recent Reflections</Text>
               <TouchableOpacity>
                 <Text style={s.viewAllLink}>View All</Text>
               </TouchableOpacity>
@@ -335,59 +336,59 @@ export default function ProfileScreen() {
                     <Ionicons
                       name={item.type === "journal" ? "sparkles" : "chatbubble"}
                       size={14}
-                      color={colors.primary}
+                      color={themeColors.primary}
                     />
                   </View>
                   <View style={s.reflectionInfo}>
                     <Text style={s.reflectionTitle} numberOfLines={1}>{item.title}</Text>
                     <Text style={s.reflectionDate}>{formatDate(item.date)}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.muted3} />
+                  <Ionicons name="chevron-forward" size={16} color={themeColors.muted3} />
                 </TouchableOpacity>
               ))
             )}
           </View>
 
           {/* Preferences */}
-          <View style={[s.bottomCard, twoCol && s.bottomCardFlex]}>
-            <Text style={s.bottomCardTitle}>Preferences</Text>
+          <View style={[s.bottomCard, twoCol && s.bottomCardFlex, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+            <Text style={[s.bottomCardTitle, { color: themeColors.onSurface }]}>Preferences</Text>
 
-            <View style={s.prefRow}>
+            <View style={[s.prefRow, { borderBottomColor: themeColors.surfaceVariant }]}>
               <View style={s.prefInfo}>
-                <Text style={s.prefLabel}>Anonymous Mode</Text>
-                <Text style={s.prefDesc}>Hide identity from community</Text>
+                <Text style={[s.prefLabel, { color: themeColors.onSurface }]}>Anonymous Mode</Text>
+                <Text style={[s.prefDesc, { color: themeColors.onSurfaceVariant }]}>Hide identity from community</Text>
               </View>
               <Switch
                 value={isAnonymous}
                 onValueChange={(val) => toggleAnonymous(val).catch(() => showAlert('Error', 'Could not toggle anonymous mode.'))}
-                trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
-                thumbColor={colors.onPrimary}
+                trackColor={{ false: themeColors.surfaceVariant, true: themeColors.primary }}
+                thumbColor={themeColors.onPrimary}
               />
             </View>
 
-            <View style={s.prefRow}>
+            <View style={[s.prefRow, { borderBottomColor: themeColors.surfaceVariant }]}>
               <View style={s.prefInfo}>
-                <Text style={s.prefLabel}>Notifications</Text>
-                <Text style={s.prefDesc}>Daily reflection reminders</Text>
+                <Text style={[s.prefLabel, { color: themeColors.onSurface }]}>Notifications</Text>
+                <Text style={[s.prefDesc, { color: themeColors.onSurfaceVariant }]}>Daily reflection reminders</Text>
               </View>
               <Switch
                 value={notificationsOn}
                 onValueChange={setNotificationsOn}
-                trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
-                thumbColor={colors.onPrimary}
+                trackColor={{ false: themeColors.surfaceVariant, true: themeColors.primary }}
+                thumbColor={themeColors.onPrimary}
               />
             </View>
 
-            <View style={s.prefRow}>
+            <View style={[s.prefRow, { borderBottomColor: themeColors.surfaceVariant }]}>
               <View style={s.prefInfo}>
-                <Text style={s.prefLabel}>Dark Mode</Text>
-                <Text style={s.prefDesc}>Gentle on your eyes</Text>
+                <Text style={[s.prefLabel, { color: themeColors.onSurface }]}>Dark Mode</Text>
+                <Text style={[s.prefDesc, { color: themeColors.onSurfaceVariant }]}>Gentle on your eyes</Text>
               </View>
               <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
-                thumbColor={colors.onPrimary}
+                value={isDark}
+                onValueChange={(val) => toggleDarkMode(val)}
+                trackColor={{ false: themeColors.surfaceVariant, true: themeColors.primary }}
+                thumbColor={themeColors.onPrimary}
               />
             </View>
           </View>

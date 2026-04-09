@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/theme';
+import { useThemeStore } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { usePosts } from '../hooks/usePosts';
 import { useUser } from '../hooks/useUser';
@@ -32,6 +33,7 @@ import type { MentionUser } from '../../../packages/types';
 
 export default function PostScreen() {
   const navigation = useNavigation();
+  const { colors: themeColors, isDark } = useThemeStore();
   const { userId, username } = useUser();
   const { submitPost } = usePosts();
 
@@ -166,10 +168,10 @@ export default function PostScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
       {/* ── Gradient Header ── */}
       <LinearGradient
-        colors={[colors.darkest, colors.deep, colors.ink]}
+        colors={[themeColors.darkest, themeColors.deep, themeColors.ink]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}

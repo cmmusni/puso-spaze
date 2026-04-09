@@ -669,6 +669,15 @@ export async function apiFetchConversations(userId: string): Promise<GetConversa
 }
 
 /**
+ * GET /api/conversations/all
+ * Returns all conversations with at least one message (community view).
+ */
+export async function apiFetchAllConversations(): Promise<GetConversationsResponse> {
+  const { data } = await client.get<GetConversationsResponse>('/api/conversations/all');
+  return data;
+}
+
+/**
  * POST /api/conversations
  * Get or create a conversation between user and coach.
  */

@@ -26,10 +26,14 @@ import {
 import AppNavigator from './navigation/AppNavigator';
 import { useUserStore } from './context/UserContext';
 import { colors } from './constants/theme';
+import { useThemeStore } from './context/ThemeContext';
 import WebShell from './components/WebShell';
 
 export default function App() {
   const loadUser = useUserStore((s) => s.loadUser);
+  const loadTheme = useThemeStore((s) => s.loadTheme);
+  const isDark = useThemeStore((s) => s.isDark);
+  const themeColors = useThemeStore((s) => s.colors);
 
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
@@ -47,20 +51,21 @@ export default function App() {
   // ── On mount: restore session from SecureStore ──
   useEffect(() => {
     loadUser();
-  }, [loadUser]);
+    loadTheme();
+  }, [loadUser, loadTheme]);
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: themeColors.surface }}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
 
   // ── Main app ──────────────────────────────────
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="light" backgroundColor={colors.gradientStart} />
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: themeColors.background }}>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={themeColors.gradientStart} />
       <WebShell>
         <AppNavigator />
       </WebShell>

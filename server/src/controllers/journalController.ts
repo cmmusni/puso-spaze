@@ -17,7 +17,7 @@ export async function getJournals(req: Request, res: Response): Promise<void> {
   const journals = await prisma.journal.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
-    include: { user: { select: { displayName: true, role: true } } },
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   res.json({ journals });
@@ -30,7 +30,7 @@ export async function getJournalById(req: Request, res: Response): Promise<void>
 
   const journal = await prisma.journal.findUnique({
     where: { id: journalId },
-    include: { user: { select: { displayName: true, role: true } } },
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   if (!journal) {
@@ -70,7 +70,7 @@ export async function createJournal(req: Request, res: Response): Promise<void> 
       mood: mood ?? null,
       tags: tags ?? [],
     },
-    include: { user: { select: { displayName: true, role: true } } },
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   res.status(201).json({ journal });
@@ -100,7 +100,7 @@ export async function updateJournal(req: Request, res: Response): Promise<void> 
   const journal = await prisma.journal.update({
     where: { id: journalId },
     data: { title, content, mood: mood ?? null, tags: tags ?? [] },
-    include: { user: { select: { displayName: true, role: true } } },
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
   res.json({ journal });

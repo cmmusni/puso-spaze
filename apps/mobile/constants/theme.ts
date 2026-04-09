@@ -118,8 +118,9 @@ export const colors = {
   errorBorder: '#FECACA',
   warningBg: '#FFFBEB',
   warningBorder: '#FDE68A',
-} as const;
+};
 
+export type Colors = typeof colors;
 export type ColorKey = keyof typeof colors;
 
 /**
