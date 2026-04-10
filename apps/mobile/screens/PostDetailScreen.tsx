@@ -3,7 +3,7 @@
 // Full post view with reactions + comments
 // ─────────────────────────────────────────────
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   Animated,
   StyleSheet,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,7 +31,7 @@ import {
   RouteProp,
   useFocusEffect,
 } from "@react-navigation/native";
-import { PrayIcon, SupportIcon } from "../components/ReactionIcons";
+import { PrayIcon, SupportIcon, LikeIcon } from "../components/ReactionIcons";
 import {
   apiGetPostById,
   apiGetReactions,
@@ -39,12 +40,15 @@ import {
   apiCreateComment,
   apiDeleteComment,
   apiUpdateComment,
+  apiUpsertCommentReaction,
+  apiDeletePost,
+  apiUpdatePost,
   apiSearchUsers,
   getBaseUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
-import { colors } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import MentionText from "../components/MentionText";
 import {
@@ -76,11 +80,11 @@ function isValidPost(value: unknown): value is Post {
 // Gradient avatar (same logic as PostCard)
 function avatarColors(initial: string): [string, string] {
   const palette: [string, string][] = [
-    [colors.hot, colors.primary],
-    [colors.primary, colors.deep],
-    [colors.fuchsia, colors.ink],
-    [colors.ink, colors.deep],
-    [colors.hot, colors.fuchsia],
+    [defaultColors.hot, defaultColors.primary],
+    [defaultColors.primary, defaultColors.deep],
+    [defaultColors.fuchsia, defaultColors.ink],
+    [defaultColors.ink, defaultColors.deep],
+    [defaultColors.hot, defaultColors.fuchsia],
   ];
   return palette[initial.charCodeAt(0) % palette.length];
 }
@@ -93,7 +97,20 @@ function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
+const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
+const SYSTEM_USER_ID = "system-encouragement-bot";
+
+const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
+  grateful: { emoji: "\u{1F60A}", label: "Grateful" },
+  prayerful: { emoji: "\u{1F64F}", label: "Prayerful" },
+  strong: { emoji: "\u{1F4AA}", label: "Strong" },
+  struggling: { emoji: "\u{1F622}", label: "Struggling" },
+  hopeful: { emoji: "\u{1F917}", label: "Hopeful" },
+  "heavy-hearted": { emoji: "\u{1F614}", label: "Heavy-hearted" },
+  blessed: { emoji: "\u2728", label: "Blessed" },
+  loved: { emoji: "\u2764\uFE0F", label: "Loved" },
+};
+
 const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
   "heart",
   "heart-outline",
@@ -108,11 +125,14 @@ function getCareIcon(): keyof typeof Ionicons.glyphMap {
 function renderReactionIcon(type: ReactionType, size: number, color: string) {
   if (type === "PRAY") return <PrayIcon size={size} color={color} />;
   if (type === "SUPPORT") return <SupportIcon size={size} color={color} />;
+  if (type === "LIKE") return <LikeIcon size={size} color={color} />;
   return <Ionicons name={getCareIcon()} size={size} color={color} />;
 }
 
 export default function PostDetailScreen() {
-  const { colors: themeColors, isDark } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation();
   const route = useRoute<PostDetailRouteProp>();
   const routePost = route.params?.post;
@@ -154,7 +174,10 @@ export default function PostDetailScreen() {
   };
 
   const { userId, username, role } = useUser();
+  const userAvatarUrl: string | null = null; // TODO: add avatarUrl to user store
   const isCoach = role === "COACH" || role === "ADMIN";
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = Platform.OS === "web" && screenWidth >= 900;
 
   const [counts, setCounts] = useState<ReactionCounts>({});
   const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
@@ -176,6 +199,21 @@ export default function PostDetailScreen() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
+
+  // ── Reply state ───────────────────────────────
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+
+  // ── Comment reaction picker state ─────────────
+  const [commentPickerTarget, setCommentPickerTarget] = useState<Comment | null>(null);
+
+  // ── Post menu state ───────────────────────────
+  const [postMenuVisible, setPostMenuVisible] = useState(false);
+  const [editPostVisible, setEditPostVisible] = useState(false);
+  const [editPostText, setEditPostText] = useState("");
+  const [savingPostEdit, setSavingPostEdit] = useState(false);
+
+  // ── Image viewer state ────────────────────────
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
 
   // ── Floating reaction picker ──────────────────
   const [showPicker, setShowPicker] = useState(false);
@@ -205,7 +243,7 @@ export default function PostDetailScreen() {
       const [postData, reactData, commentData] = await Promise.all([
         apiGetPostById(targetPostId),
         apiGetReactions(targetPostId, userId ?? undefined),
-        apiGetComments(targetPostId),
+        apiGetComments(targetPostId, userId ?? undefined),
       ]);
 
       setPost(postData.post);
@@ -269,7 +307,7 @@ export default function PostDetailScreen() {
     try {
       const [reactData, commentData] = await Promise.all([
         apiGetReactions(post.id, userId ?? undefined),
-        apiGetComments(post.id),
+        apiGetComments(post.id, userId ?? undefined),
       ]);
       setCounts(reactData.counts);
       setUserReaction(reactData.userReaction);
@@ -380,6 +418,7 @@ export default function PostDetailScreen() {
         {
           userId,
           content: commentText.trim(),
+          parentId: replyingTo?.id,
         },
       );
       if (flagged) {
@@ -387,8 +426,20 @@ export default function PostDetailScreen() {
           "Your comment was flagged by our safety system and was not posted. Please revise it.",
         );
       } else {
-        setComments((prev) => [...prev, comment]);
+        if (replyingTo) {
+          // Add reply into parent's replies array
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === replyingTo.id
+                ? { ...c, replies: [...(c.replies ?? []), comment] }
+                : c
+            )
+          );
+        } else {
+          setComments((prev) => [...prev, comment]);
+        }
         setCommentText("");
+        setReplyingTo(null);
         setMentionQuery(null);
         setMentionUsers([]);
         setCommentError(null);
@@ -525,6 +576,68 @@ export default function PostDetailScreen() {
     }
   }, [editCommentText, post?.id, selectedComment, userId]);
 
+  // ── Delete post handler ───────────────────
+  const handleDeletePost = useCallback(async () => {
+    if (!post?.id || !userId) return;
+    setPostMenuVisible(false);
+    const confirmed = await showConfirm(
+      "Delete Post",
+      "Are you sure you want to delete this post?"
+    );
+    if (!confirmed) return;
+    try {
+      await apiDeletePost(post.id, userId);
+      handleBackPress();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ??
+        err?.message ??
+        "Could not delete post. Please try again.";
+      showAlert("Error", msg);
+    }
+  }, [post?.id, userId]);
+
+  // ── Edit post handler ─────────────────────
+  const handleOpenEditPost = useCallback(() => {
+    if (!post) return;
+    setPostMenuVisible(false);
+    setEditPostText(post.content);
+    setEditPostVisible(true);
+  }, [post]);
+
+  const handleSavePostEdit = useCallback(async () => {
+    if (!post?.id || !userId) return;
+    const trimmed = editPostText.trim();
+    if (trimmed.length < 3) {
+      showAlert("Error", "Post content must be at least 3 characters.");
+      return;
+    }
+    setSavingPostEdit(true);
+    try {
+      const { underReview } = await apiUpdatePost(post.id, {
+        userId,
+        content: trimmed,
+        tags: post.tags,
+      });
+      setEditPostVisible(false);
+      await showAlert(
+        "Success",
+        underReview
+          ? "Post updated and is under review."
+          : "Post updated successfully."
+      );
+      refreshPostDetail();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ??
+        err?.message ??
+        "Failed to update post. Please try again.";
+      showAlert("Error", msg);
+    } finally {
+      setSavingPostEdit(false);
+    }
+  }, [post?.id, post?.tags, userId, editPostText]);
+
   const handleCommentInputChange = useCallback((text: string) => {
     setCommentText(text);
     setMentionQuery(extractTrailingMentionQuery(text));
@@ -536,8 +649,36 @@ export default function PostDetailScreen() {
     setMentionUsers([]);
   }, []);
 
-  // ── Render a single comment ───────────────────
-  const renderComment: ListRenderItem<Comment> = ({ item }) => {
+  // ── Comment reaction toggle ───────────────────
+  const handleCommentReaction = useCallback(
+    async (comment: Comment, type: ReactionType) => {
+      if (!post?.id || !userId) return;
+      // Optimistic update
+      const prev = comment.userReaction;
+      const newCounts = { ...(comment.reactionCounts ?? {}) };
+      if (prev) newCounts[prev] = Math.max(0, (newCounts[prev] ?? 1) - 1);
+      const newUserReaction = type !== prev ? type : null;
+      if (newUserReaction) {
+        newCounts[newUserReaction] = (newCounts[newUserReaction] ?? 0) + 1;
+      }
+
+      const updateComment = (c: Comment): Comment =>
+        c.id === comment.id
+          ? { ...c, reactionCounts: newCounts, userReaction: newUserReaction }
+          : { ...c, replies: c.replies?.map(updateComment) };
+      setComments((prev) => prev.map(updateComment));
+
+      try {
+        await apiUpsertCommentReaction(post.id, comment.id, { userId, type });
+      } catch {
+        loadData();
+      }
+    },
+    [post?.id, userId, loadData]
+  );
+
+  // ── Render a single comment (reusable for replies) ───
+  const renderCommentItem = (item: Comment, isReply = false) => {
     const name =
       item.user?.role === "COACH" || item.user?.role === "ADMIN"
         ? `Coach ${item.user?.displayName ?? "Anonymous"}`
@@ -548,19 +689,32 @@ export default function PostDetailScreen() {
     const isOwnComment = item.userId === userId;
     const canDeleteComment = isOwnComment || role === "ADMIN";
     const isDeletingThisComment = deletingCommentId === item.id;
+
+    const commentReactionCounts = item.reactionCounts ?? {};
+    const commentUserReaction = item.userReaction ?? null;
+    const commentTotalReactions = Object.values(commentReactionCounts).reduce(
+      (sum, n) => sum + (n ?? 0),
+      0,
+    );
+
     return (
-      <View style={styles.commentRow}>
+      <View key={item.id} style={[styles.commentRow, isReply && styles.commentRowReply]}>
         {item.userId === "system-encouragement-bot" ? (
           <Image
             source={require("../assets/logo.png")}
-            style={styles.commentAvatar}
+            style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
+          />
+        ) : item.user?.avatarUrl ? (
+          <Image
+            source={{ uri: `${getBaseUrl()}${item.user.avatarUrl}` }}
+            style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
           />
         ) : (
           <LinearGradient
             colors={avatarGrad}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.commentAvatar}
+            style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
           >
             <Text style={styles.commentAvatarInitial}>{initial}</Text>
           </LinearGradient>
@@ -628,9 +782,60 @@ export default function PostDetailScreen() {
               />
             </View>
           )}
+          <View style={styles.commentActions}>
+            {!isReply && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  setReplyingTo(item);
+                  setCommentText(`@${item.user?.displayName ?? "Anonymous"} `);
+                }}
+              >
+                <Text style={styles.commentActionText}>Reply</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => handleCommentReaction(item, commentUserReaction ?? "LIKE")}
+              onLongPress={() => setCommentPickerTarget(item)}
+              style={styles.commentLikeBtn}
+            >
+              {commentUserReaction ? (
+                <>
+                  {renderReactionIcon(commentUserReaction, 14, colors.primary)}
+                  <Text style={[styles.commentActionText, styles.commentActionTextActive]}>
+                    {commentUserReaction === "CARE" ? "Care" : commentUserReaction === "PRAY" ? "Pray" : commentUserReaction === "LIKE" ? "Like" : "Support"}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.commentActionText}>Like</Text>
+              )}
+            </TouchableOpacity>
+            {commentTotalReactions > 0 && (
+              <View style={styles.commentReactionBadge}>
+                {renderReactionIcon(
+                  (Object.entries(commentReactionCounts).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as ReactionType) ?? "LIKE",
+                  10,
+                  colors.primary,
+                )}
+                <Text style={styles.commentReactionCount}>{commentTotalReactions}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Render replies */}
+          {!isReply && item.replies && item.replies.length > 0 && (
+            <View style={styles.repliesContainer}>
+              {item.replies.map((reply) => renderCommentItem(reply, true))}
+            </View>
+          )}
         </View>
       </View>
     );
+  };
+
+  const renderComment: ListRenderItem<Comment> = ({ item }) => {
+    return <>{renderCommentItem(item)}</>;
   };
 
   const totalReactions = Object.values(counts).reduce(
@@ -643,9 +848,9 @@ export default function PostDetailScreen() {
 
   if (postLoading) {
     return (
-      <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
+      <SafeAreaView style={styles.screen}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -653,13 +858,13 @@ export default function PostDetailScreen() {
 
   if (!post) {
     return (
-      <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
+      <SafeAreaView style={styles.screen}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
-          <Text style={{ color: themeColors.text, fontSize: 16, textAlign: "center", marginBottom: 14 }}>
+          <Text style={{ color: colors.text, fontSize: 16, textAlign: "center", marginBottom: 14 }}>
             Post not available. Please open it again from the feed or notifications.
           </Text>
           <TouchableOpacity onPress={handleBackPress} activeOpacity={0.8}>
-            <Text style={{ color: themeColors.primary, fontWeight: "700" }}>
+            <Text style={{ color: colors.primary, fontWeight: "700" }}>
               {openedFromNotifications ? "Back to notifications" : "Back to feed"}
             </Text>
           </TouchableOpacity>
@@ -670,51 +875,64 @@ export default function PostDetailScreen() {
 
   const displayName = post.user?.displayName ?? "Anonymous";
   const initial = post.isAnonymous ? "?" : displayName.charAt(0).toUpperCase();
+  const userInitial = (username ?? "A").charAt(0).toUpperCase();
+
+  // Feeling detection
+  const feelingTag = post.tags?.find((t) => FEELING_MAP[t.toLowerCase()]);
+  const feeling = feelingTag ? FEELING_MAP[feelingTag.toLowerCase()] : null;
+  const nonFeelingTags = post.tags?.filter((t) => !FEELING_MAP[t.toLowerCase()]) ?? [];
+
+  const roleBadgeText =
+    post.userId === SYSTEM_USER_ID
+      ? "PUSO AI"
+      : post.user?.role === "COACH"
+        ? "Spaze Coach"
+        : post.user?.role === "ADMIN"
+          ? "Admin"
+          : "Spaze Member";
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={[themeColors.darkest, themeColors.deep, themeColors.ink]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
+    <SafeAreaView style={styles.screen}>
+      {/* ── Header ── */}
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={handleBackPress}
-          activeOpacity={0.75}
+          activeOpacity={0.7}
           style={styles.backBtn}
         >
-          <Ionicons
-            name="arrow-back-outline"
-            size={16}
-            color="rgba(255,255,255,0.7)"
-          />
-          <Text style={styles.backText}>
-            {openedFromNotifications ? "Back to notifications" : "Back to feed"}
-          </Text>
+          <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
         </TouchableOpacity>
-        <View style={styles.headerTitleRow}>
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={18}
-            color={colors.card}
+        <View style={styles.headerCenter}>
+          <Image
+            source={require("../assets/logo.png")}
+            style={styles.headerLogo}
+            resizeMode="contain"
           />
-          <Text style={styles.headerTitle}>Encourage one another</Text>
+          <Text style={styles.headerTitle}>PUSO Spaze</Text>
         </View>
-        <Text style={styles.headerSubtitle}>
-          Commenting as{" "}
-          <Text
-            style={styles.headerName}
-          >{`${isCoach ? "Coach" : ""} ${username ?? "Anonymous"}`}</Text>
-        </Text>
-      </LinearGradient>
+        {userAvatarUrl ? (
+          <Image
+            source={{ uri: `${getBaseUrl()}${userAvatarUrl}` }}
+            style={styles.headerAvatar}
+          />
+        ) : (
+          <LinearGradient
+            colors={[colors.primaryContainer, colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerAvatar}
+          >
+            <Text style={styles.headerAvatarText}>{userInitial}</Text>
+          </LinearGradient>
+        )}
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.kav}
         keyboardVerticalOffset={0}
       >
+        <View style={[styles.contentColumn, isWide && styles.contentColumnWide]}>
         <FlatList
           ref={flatListRef}
           data={comments}
@@ -726,84 +944,151 @@ export default function PostDetailScreen() {
             <View>
               {/* ── Post card ── */}
               <View style={styles.postCard}>
-                {/* Author */}
+                {/* Author row */}
                 <View style={styles.postAuthorRow}>
-                  <LinearGradient
-                    colors={avatarColors(initial)}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.postAvatar}
-                  >
-                    <Text style={styles.postAvatarInitial}>{initial}</Text>
-                  </LinearGradient>
-                  <View>
-                    <Text style={styles.postAuthorName}>{displayName}</Text>
-                    <Text style={styles.postAuthorTime}>
-                      {formatRelativeTime(post.createdAt)}
+                  {post.userId === SYSTEM_USER_ID ? (
+                    <Image
+                      source={require("../assets/logo.png")}
+                      style={styles.postAvatar}
+                    />
+                  ) : post.user?.avatarUrl ? (
+                    <Image
+                      source={{ uri: `${getBaseUrl()}${post.user.avatarUrl}` }}
+                      style={styles.postAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={avatarColors(initial)}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.postAvatar}
+                    >
+                      <Text style={styles.postAvatarInitial}>{initial}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.postNameRow}>
+                      <Text style={styles.postAuthorName}>{displayName}</Text>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={styles.postMenuBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        onPress={() => {
+                          if (post.userId === userId || role === "ADMIN") {
+                            setPostMenuVisible(true);
+                          }
+                        }}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.muted5} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.postSubtitle}>
+                      {roleBadgeText} {"\u2022"} {formatRelativeTime(post.createdAt)}
+                      {feeling && (
+                        <Text style={styles.postFeeling}>
+                          {" \u2014 is feeling "}{feeling.emoji}{" "}{feeling.label}
+                        </Text>
+                      )}
                     </Text>
                   </View>
                 </View>
 
-                <View style={styles.postDivider} />
+                {/* Content */}
                 <MentionText
                   text={post.content}
                   baseStyle={styles.postContent}
                   mentionStyle={styles.mentionText}
                 />
 
+                {/* Image */}
                 {post.imageUrl && (
-                  <Image
-                    source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
-                    style={styles.postImage}
-                    resizeMode="cover"
-                  />
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setImageViewerVisible(true)}
+                  >
+                    <Image
+                      source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+                      style={styles.postImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.imageExpandHint}>
+                      <Ionicons name="expand-outline" size={16} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
                 )}
 
-                {post.tags && post.tags.length > 0 && (
+                {/* Tags */}
+                {nonFeelingTags.length > 0 && (
                   <View style={styles.tagsRow}>
-                    {post.tags.map((tag: string) => (
+                    {nonFeelingTags.map((tag: string) => (
                       <View key={tag} style={styles.tagChip}>
                         <Text style={styles.tagText}>#{tag}</Text>
                       </View>
                     ))}
                   </View>
                 )}
-              </View>
 
-              {/* ── Reaction summary pill ── */}
-              {totalReactions > 0 && (
-                <View style={styles.reactionSummary}>
-                  <View style={styles.reactionEmojiStack}>
-                    {topReactions.map((type, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.reactionEmojiBubble,
-                          i > 0 ? styles.reactionEmojiOffset : undefined,
-                        ]}
-                      >
-                        {renderReactionIcon(type, 12, colors.card)}
-                      </View>
-                    ))}
+                {/* Reaction buttons */}
+                <View style={styles.reactionBar}>
+                  <View style={styles.reactionButtons}>
+                    <TouchableOpacity
+                      onPress={() => handleReaction(userReaction ?? "PRAY")}
+                      onLongPress={() => {
+                        setShowPicker(true);
+                        Animated.timing(pickerAnim, {
+                          toValue: 1,
+                          duration: 200,
+                          useNativeDriver: true,
+                        }).start();
+                      }}
+                      delayLongPress={300}
+                      activeOpacity={0.75}
+                      style={[
+                        styles.reactionBtn,
+                        userReaction && styles.reactionBtnActive,
+                      ]}
+                    >
+                      {userReaction
+                        ? renderReactionIcon(userReaction, 18, colors.primary)
+                        : <PrayIcon size={18} color={colors.lightPrimary} />}
+                    </TouchableOpacity>
+
+                    <View style={styles.countButton}>
+                      <Ionicons
+                        name="chatbubble"
+                        size={14}
+                        color={colors.muted5}
+                      />
+                      {comments.length > 0 && (
+                        <Text style={styles.footerCountMuted}>{comments.length}</Text>
+                      )}
+                    </View>
                   </View>
-                  <Text style={styles.reactionSummaryCount}>
-                    {totalReactions}{" "}
-                    {totalReactions === 1 ? "reaction" : "reactions"}
-                  </Text>
+
+                  {/* Reaction summary — overlapping icons + total */}
+                  {topReactions.length > 0 && (
+                    <View style={styles.reactionSummary}>
+                      <View style={styles.reactionEmojiStack}>
+                        {topReactions.map((type, i) => (
+                          <View
+                            key={type}
+                            style={[
+                              styles.reactionEmojiBubble,
+                              { zIndex: topReactions.length - i, marginLeft: i === 0 ? 0 : -6 },
+                            ]}
+                          >
+                            {renderReactionIcon(type, 10, colors.card)}
+                          </View>
+                        ))}
+                      </View>
+                      <Text style={styles.reactionSummaryText}>{totalReactions}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
 
               {/* ── Comments header ── */}
-              <View style={styles.commentsHeaderRow}>
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={14}
-                  color={colors.deep}
-                />
-                <Text style={styles.commentsHeader}>
-                  Comments {comments.length > 0 ? `(${comments.length})` : ""}
-                </Text>
-              </View>
+              <Text style={styles.commentsHeader}>Comments</Text>
 
               {commentsLoading && (
                 <ActivityIndicator
@@ -814,14 +1099,12 @@ export default function PostDetailScreen() {
 
               {!commentsLoading && comments.length === 0 && (
                 <View style={styles.commentsEmptyRow}>
+                  <Ionicons name="chatbubble-outline" size={20} color={colors.muted4} />
                   <Text style={styles.commentsEmpty}>
-                    No comments yet — be the first to encourage.
+                    {post?.userId === userId
+                      ? `No comments yet — your story is waiting to be heard.`
+                      : `No comments yet — be the first to respond.`}
                   </Text>
-                  <Ionicons
-                    name="sparkles-outline"
-                    size={24}
-                    color={colors.muted5}
-                  />
                 </View>
               )}
             </View>
@@ -839,27 +1122,20 @@ export default function PostDetailScreen() {
         {/* ── Comment moderation feedback ── */}
         {commentError && (
           <View style={styles.commentFeedbackError}>
-            <Text
-              style={[styles.commentFeedbackText, { color: colors.errorText }]}
-            >
+            <Text style={[styles.commentFeedbackText, { color: colors.errorText }]}>
               {commentError}
             </Text>
           </View>
         )}
         {commentReview && (
           <View style={styles.commentFeedbackReview}>
-            <Text
-              style={[
-                styles.commentFeedbackText,
-                { color: colors.warningText },
-              ]}
-            >
+            <Text style={[styles.commentFeedbackText, { color: colors.warningText }]}>
               {commentReview}
             </Text>
           </View>
         )}
 
-        {/* ── Comment input ── */}
+        {/* ── Mention suggestions ── */}
         {mentionQuery && (mentionLoading || mentionUsers.length > 0) && (
           <View style={styles.mentionBox}>
             {mentionLoading ? (
@@ -880,10 +1156,48 @@ export default function PostDetailScreen() {
           </View>
         )}
 
+        </View>
+        {/* ── Reply indicator ── */}
+        {replyingTo && (
+          <View style={styles.replyIndicator}>
+            <Text style={styles.replyIndicatorText}>
+              Replying to{" "}
+              <Text style={styles.replyIndicatorName}>
+                {replyingTo.user?.displayName ?? "Anonymous"}
+              </Text>
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setReplyingTo(null);
+                setCommentText("");
+              }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={16} color={colors.muted5} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {/* ── Comment input bar ── */}
         <View style={styles.inputBar}>
+          {userAvatarUrl ? (
+            <Image
+              source={{ uri: `${getBaseUrl()}${userAvatarUrl}` }}
+              style={styles.inputAvatar}
+            />
+          ) : (
+            <LinearGradient
+              colors={[colors.primaryContainer, colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.inputAvatar}
+            >
+              <Text style={styles.inputAvatarText}>{userInitial}</Text>
+            </LinearGradient>
+          )}
           <TextInput
             style={styles.commentInput}
-            placeholder="Write an encouragement…"
+            placeholder="Write a supportive message..."
             placeholderTextColor={colors.muted4}
             value={commentText}
             onChangeText={handleCommentInputChange}
@@ -900,7 +1214,7 @@ export default function PostDetailScreen() {
             <LinearGradient
               colors={
                 commentText.trim()
-                  ? [colors.hot, colors.ink]
+                  ? [colors.secondary, colors.primary]
                   : [colors.muted2, colors.muted4]
               }
               start={{ x: 0, y: 0 }}
@@ -910,14 +1224,14 @@ export default function PostDetailScreen() {
               {submitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Ionicons name="arrow-up" size={16} color="#fff" />
+                <Ionicons name="send" size={16} color="#fff" />
               )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
 
-      {/* ── Floating Reaction Picker Modal ── */}
+      {/* ── Comment menu modal ── */}
       <Modal
         visible={commentMenuVisible}
         transparent
@@ -938,32 +1252,22 @@ export default function PostDetailScreen() {
             <Text style={styles.menuTitle}>Comment options</Text>
             {selectedComment?.userId === userId && (
               <TouchableOpacity
-                style={styles.menuDeleteBtn}
+                style={styles.menuOptionBtn}
                 activeOpacity={0.8}
                 onPress={handleEditFromMenu}
               >
-                <Ionicons
-                  name="create-outline"
-                  size={16}
-                  color={colors.primary}
-                />
+                <Ionicons name="create-outline" size={16} color={colors.primary} />
                 <Text style={styles.menuEditText}>Edit comment</Text>
               </TouchableOpacity>
             )}
-
             <TouchableOpacity
-              style={styles.menuDeleteBtn}
+              style={[styles.menuOptionBtn, styles.menuDeleteBtn]}
               activeOpacity={0.8}
               onPress={handleDeleteFromMenu}
             >
-              <Ionicons
-                name="trash-outline"
-                size={16}
-                color={colors.errorText}
-              />
+              <Ionicons name="trash-outline" size={16} color={colors.errorText} />
               <Text style={styles.menuDeleteText}>Delete comment</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.menuCancelBtn}
               activeOpacity={0.8}
@@ -975,6 +1279,7 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* ── Edit comment modal ── */}
       <Modal
         visible={editCommentVisible}
         transparent
@@ -1011,7 +1316,6 @@ export default function PostDetailScreen() {
               placeholder="Update your comment..."
               placeholderTextColor={colors.muted4}
             />
-
             <View style={styles.editCommentActions}>
               <TouchableOpacity
                 style={styles.menuCancelBtn}
@@ -1041,6 +1345,7 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* ── Floating Reaction Picker Modal ── */}
       <Modal
         visible={showPicker}
         transparent
@@ -1067,12 +1372,6 @@ export default function PostDetailScreen() {
                           outputRange: [0.6, 1],
                         }),
                       },
-                      {
-                        translateY: pickerAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [24, 0],
-                        }),
-                      },
                     ],
                   },
                 ]}
@@ -1087,27 +1386,17 @@ export default function PostDetailScreen() {
                       activeOpacity={0.75}
                       style={[
                         styles.pickerOption,
-                        active
-                          ? styles.pickerOptionActive
-                          : styles.pickerOptionDefault,
+                        active && styles.pickerOptionActive,
                       ]}
                     >
                       <View style={styles.pickerIconWrap}>
                         {renderReactionIcon(type, 24, colors.card)}
                       </View>
-                      <Text
-                        style={[
-                          styles.pickerLabel,
-                          active
-                            ? styles.pickerLabelActive
-                            : styles.pickerLabelDefault,
-                        ]}
-                      >
-                        {type === "PRAY"
-                          ? "Pray"
-                          : type === "CARE"
-                            ? "Care"
-                            : "Support"}
+                      <Text style={[
+                        styles.pickerLabel,
+                        active ? styles.pickerLabelActive : styles.pickerLabelDefault,
+                      ]}>
+                        {type === "PRAY" ? "Pray" : type === "CARE" ? "Care" : type === "LIKE" ? "Like" : "Support"}
                       </Text>
                       {count > 0 && (
                         <Text style={styles.pickerCount}>{count}</Text>
@@ -1117,279 +1406,550 @@ export default function PostDetailScreen() {
                 })}
               </Animated.View>
             </TouchableOpacity>
-            <Text style={styles.dismissHint}>Tap outside to dismiss</Text>
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* ── Comment reaction picker modal ── */}
+      <Modal
+        visible={!!commentPickerTarget}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setCommentPickerTarget(null)}
+      >
+        <TouchableOpacity
+          style={styles.commentPickerBackdrop}
+          activeOpacity={1}
+          onPress={() => setCommentPickerTarget(null)}
+        >
+          <View style={styles.commentPickerSheet}>
+            <Text style={styles.menuTitle}>React to comment</Text>
+            <View style={styles.commentPickerRow}>
+              {REACTION_TYPES.map((type) => {
+                const active = commentPickerTarget?.userReaction === type;
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    onPress={() => {
+                      if (commentPickerTarget) {
+                        handleCommentReaction(commentPickerTarget, type);
+                      }
+                      setCommentPickerTarget(null);
+                    }}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.commentPickerOption,
+                      active && styles.pickerOptionActive,
+                    ]}
+                  >
+                    <View style={styles.pickerIconWrap}>
+                      {renderReactionIcon(type, 22, colors.card)}
+                    </View>
+                    <Text style={[
+                      styles.pickerLabel,
+                      active ? styles.pickerLabelActive : styles.pickerLabelDefault,
+                    ]}>
+                      {type === "PRAY" ? "Pray" : type === "CARE" ? "Care" : type === "LIKE" ? "Like" : "Support"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Post menu modal ── */}
+      <Modal
+        visible={postMenuVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setPostMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => setPostMenuVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.menuSheet}
+          >
+            <View style={styles.menuHandle} />
+            <Text style={styles.menuTitle}>Post options</Text>
+
+            {post?.userId === userId && (
+              <TouchableOpacity
+                style={styles.menuOptionBtn}
+                activeOpacity={0.8}
+                onPress={handleOpenEditPost}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.primaryContainer + "40" }]}>
+                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.menuOptionInfo}>
+                  <Text style={styles.menuOptionText}>Edit post</Text>
+                  <Text style={styles.menuOptionSub}>Change your post content</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.menuOptionBtn}
+              activeOpacity={0.8}
+              onPress={handleDeletePost}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: colors.errorBg }]}>
+                <Ionicons name="trash-outline" size={18} color={colors.errorText} />
+              </View>
+              <View style={styles.menuOptionInfo}>
+                <Text style={[styles.menuOptionText, { color: colors.errorText }]}>Delete post</Text>
+                <Text style={styles.menuOptionSub}>Permanently remove this post</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuCancelBtn}
+              activeOpacity={0.8}
+              onPress={() => setPostMenuVisible(false)}
+            >
+              <Text style={styles.menuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Edit post modal ── */}
+      <Modal
+        visible={editPostVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setEditPostVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => setEditPostVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.menuSheet}
+          >
+            <View style={styles.menuHandle} />
+            <Text style={styles.menuTitle}>Edit post</Text>
+            <TextInput
+              style={styles.editPostInput}
+              value={editPostText}
+              onChangeText={setEditPostText}
+              multiline
+              maxLength={500}
+              placeholder="Update your post..."
+              placeholderTextColor={colors.muted4}
+              editable={!savingPostEdit}
+            />
+            <View style={styles.editPostActions}>
+              <TouchableOpacity
+                style={styles.menuCancelBtn}
+                activeOpacity={0.8}
+                onPress={() => setEditPostVisible(false)}
+              >
+                <Text style={styles.menuCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.editPostSaveBtn,
+                  (savingPostEdit || editPostText.trim().length < 3) && { opacity: 0.5 },
+                ]}
+                activeOpacity={0.85}
+                disabled={savingPostEdit || editPostText.trim().length < 3}
+                onPress={handleSavePostEdit}
+              >
+                {savingPostEdit ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.editPostSaveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Image viewer modal ── */}
+      {post?.imageUrl && (
+        <Modal
+          visible={imageViewerVisible}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={() => setImageViewerVisible(false)}
+        >
+          <View style={styles.imageViewerBackdrop}>
+            <TouchableOpacity
+              style={styles.imageViewerClose}
+              activeOpacity={0.8}
+              onPress={() => setImageViewerVisible(false)}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+              style={styles.imageViewerImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
-
 // ─────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.canvas },
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
 
   // ── Header ───────────────────────────────
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
-  backBtn: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.surfaceContainerLowest,
+    gap: 12,
+    width: "100%" as any,
   },
-  backText: { color: "rgba(255,255,255,0.7)", fontSize: 14 },
-  headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle: { fontSize: 20, fontWeight: "800", color: colors.card },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerLogo: { width: 28, height: 28 },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    color: colors.primary,
+  },
+  headerAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerAvatarText: {
+    color: colors.onPrimary,
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+  },
 
   // ── Scroll / list ─────────────────────────
-  kav: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 20 },
+  kav: { flex: 1, width: "100%" as any },
+  contentColumn: { flex: 1 },
+  contentColumnWide: {
+    maxWidth: 680,
+    width: "100%" as any,
+    alignSelf: "center" as const,
+  },
+  listContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
 
   // ── Post card ────────────────────────────
   postCard: {
     backgroundColor: colors.card,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: colors.muted3,
+    borderRadius: radii.xl,
+    padding: 24,
+    marginBottom: 24,
+    ...ambientShadow,
   },
   postAuthorRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+    alignItems: "flex-start",
+    marginBottom: 16,
+    gap: 12,
   },
   postAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
-  postAvatarInitial: { color: colors.card, fontSize: 16, fontWeight: "700" },
-  postAuthorName: { color: colors.heading, fontWeight: "700", fontSize: 15 },
-  postAuthorTime: { color: colors.muted5, fontSize: 12 },
-  postDivider: { height: 1, backgroundColor: colors.muted3, marginBottom: 14 },
-  postContent: { color: colors.text, fontSize: 16, lineHeight: 26 },
-  postImage: { width: "100%", height: 220, borderRadius: 16, marginTop: 12 },
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, gap: 6 },
+  postAvatarInitial: {
+    color: colors.onPrimary,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+  },
+  postNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  postAuthorName: {
+    color: colors.onSurface,
+    fontFamily: fonts.displayBold,
+    fontSize: 16,
+  },
+  postMenuBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postSubtitle: {
+    color: colors.onSurfaceVariant,
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    marginTop: 2,
+  },
+  postFeeling: {
+    color: colors.secondary,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+  },
+  postContent: {
+    color: colors.onSurface,
+    fontSize: 16,
+    lineHeight: 26,
+    fontFamily: fonts.bodyRegular,
+  },
+  postImage: {
+    width: "100%" as any,
+    height: 240,
+    borderRadius: radii.lg,
+    marginTop: 16,
+  },
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 12,
+    gap: 8,
+  },
   tagChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: colors.muted2,
+    backgroundColor: colors.secondaryFixed,
+    borderRadius: radii.full,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
-  tagText: { color: colors.ink, fontSize: 11, fontWeight: "600" },
+  tagText: {
+    color: colors.onSecondaryFixed,
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+  },
 
-  // ── Reaction summary ──────────────────────
+  // ── Reaction bar ──────────────────────────
+  reactionBar: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant + "30",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reactionButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  reactionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  reactionBtnActive: {
+    backgroundColor: colors.primaryContainer + "30",
+  },
+  reactionBtnLabel: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  reactionBtnLabelActive: {
+    color: colors.primary,
+  },
   reactionSummary: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    gap: 6,
-    paddingHorizontal: 4,
+    gap: 4,
   },
   reactionEmojiStack: { flexDirection: "row" },
   reactionEmojiBubble: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: colors.primary,
     borderWidth: 1.5,
-    borderColor: colors.canvas,
+    borderColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 10,
   },
-  reactionEmojiOffset: { marginLeft: -6, zIndex: 9 },
-  reactionSummaryCount: {
+  reactionSummaryText: {
     fontSize: 12,
-    color: colors.primary,
-    fontWeight: "600",
+    color: colors.onSurfaceVariant,
+    fontFamily: fonts.bodySemiBold,
   },
-
-  // ── Action bar (React / Comment) ──────────────
-  actionBar: {
-    flexDirection: "row",
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    marginBottom: 24,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: colors.muted3,
-    overflow: "hidden",
+  reactionSummaryDot: {
+    fontSize: 12,
+    color: colors.onSurfaceVariant,
   },
-  actionBarReact: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRightWidth: 1,
-    borderRightColor: colors.muted3,
-  },
-  actionBarComment: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-  },
-  actionBarEmoji: { fontSize: 20 },
-  actionBarLabel: { fontSize: 14, fontWeight: "700" },
-  actionBarLabelDefault: { color: colors.subtle },
-  actionBarLabelActive: { color: colors.fuchsia },
-  actionBarHint: { fontSize: 11, color: colors.muted5 },
 
   // ── Comments section ───────────────────────
-  commentsHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 16,
-  },
   commentsHeader: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.deep,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+    marginBottom: 16,
   },
   commentsSpinner: { marginBottom: 16 },
   commentsEmptyRow: {
-    display: "flex",
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    gap: 8,
     marginBottom: 24,
+    paddingVertical: 20,
   },
   commentsEmpty: {
-    color: colors.muted5,
+    color: colors.muted4,
     fontSize: 14,
-    textAlign: "center",
+    fontFamily: fonts.bodyRegular,
   },
 
   // ── Comment rows ──────────────────────────
-  commentRow: { flexDirection: "row", marginBottom: 16 },
+  commentRow: {
+    flexDirection: "row",
+    marginBottom: 20,
+  },
   commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 12,
     marginTop: 2,
   },
-  commentAvatarInitial: { color: colors.card, fontSize: 13, fontWeight: "700" },
-  commentBody: { flex: 1 },
-  commentMeta: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
-  commentAuthor: {
-    color: colors.deep,
-    fontWeight: "700",
+  commentAvatarInitial: {
+    color: colors.onPrimary,
     fontSize: 13,
-    marginRight: 8,
+    fontFamily: fonts.displayBold,
   },
-  commentTime: { color: colors.muted5, fontSize: 11 },
-  commentBubble: {
-    backgroundColor: colors.muted1,
-    borderRadius: 14,
-    padding: 12,
-  },
-  commentBubbleOwn: {
-    borderWidth: 1,
-    borderColor: colors.muted2,
-  },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
-    justifyContent: "flex-end",
-    padding: 16,
-  },
-  menuSheet: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.muted2,
-    padding: 14,
-    gap: 10,
-  },
-  menuTitle: {
-    color: colors.deep,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  menuDeleteBtn: {
+  commentBody: { flex: 1 },
+  commentMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.errorBg,
-    borderWidth: 1,
-    borderColor: colors.errorBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    marginBottom: 6,
   },
-  menuDeleteText: {
-    color: colors.errorText,
-    fontSize: 13,
-    fontWeight: "700",
+  commentAuthor: {
+    color: colors.onSurface,
+    fontFamily: fonts.displayBold,
+    fontSize: 14,
+    marginRight: 8,
   },
-  menuEditText: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: "700",
+  commentTime: {
+    color: colors.muted4,
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
   },
-  menuCancelBtn: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.muted2,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  commentBubble: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    padding: 14,
+  },
+  commentBubbleOwn: {
+    backgroundColor: '#FFFFFF',
+  },
+  commentActions: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 16,
+    marginTop: 6,
+    paddingLeft: 4,
   },
-  menuCancelText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  commentText: { color: colors.text, fontSize: 14, lineHeight: 20 },
-  mentionText: {
+  commentActionText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
     color: colors.primary,
-    fontWeight: "700",
   },
-  reviewBadge: {
-    backgroundColor: colors.warningBg,
-    borderWidth: 1,
-    borderColor: colors.warningBorder,
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    marginLeft: 6,
+  commentActionTextActive: {
+    color: colors.primary,
   },
-  reviewBadgeText: {
-    color: colors.warningText,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  reviewBadgeRow: {
+  commentLikeBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+  },
+  commentReactionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.full,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  commentReactionCount: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.primary,
+  },
+  commentRowReply: {
+    marginLeft: 0,
+    marginBottom: 12,
+  },
+  commentAvatarReply: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  repliesContainer: {
+    marginTop: 12,
+    paddingLeft: 0,
+  },
+  replyIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.surfaceContainerLow,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant + "30",
+    width: "100%" as any,
+  },
+  replyIndicatorText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+  },
+  replyIndicatorName: {
+    fontFamily: fonts.bodySemiBold,
+    color: colors.primary,
+  },
+  commentText: {
+    color: colors.onSurface,
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: fonts.bodyRegular,
+  },
+  mentionText: {
+    color: colors.primary,
+    fontFamily: fonts.bodySemiBold,
   },
   commentEditBtn: {
     marginLeft: 6,
@@ -1398,44 +1958,252 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.muted1,
+    backgroundColor: colors.surfaceContainerLow,
   },
+  reviewBadge: {
+    backgroundColor: colors.warningBg,
+    borderWidth: 1,
+    borderColor: colors.warningBorder,
+    borderRadius: radii.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  reviewBadgeText: {
+    color: colors.warningText,
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+  },
+  reviewBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  // ── Comment moderation feedback ───────────
   commentFeedbackError: {
     marginHorizontal: 16,
     marginBottom: 8,
     backgroundColor: colors.errorBg,
-    borderWidth: 1,
-    borderColor: colors.errorBorder,
-    borderRadius: 12,
+    borderRadius: radii.md,
     padding: 10,
   },
   commentFeedbackReview: {
     marginHorizontal: 16,
     marginBottom: 8,
     backgroundColor: colors.warningBg,
-    borderWidth: 1,
-    borderColor: colors.warningBorder,
-    borderRadius: 12,
+    borderRadius: radii.md,
     padding: 10,
   },
   commentFeedbackText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: fonts.bodySemiBold,
+  },
+
+  // ── Comment input bar ─────────────────────
+  inputBar: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outlineVariant + "30",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 28 : 14,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+    width: "100%" as any,
+  },
+  inputAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 5,
+  },
+  inputAvatarText: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontFamily: fonts.displayBold,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.full,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurface,
+    maxHeight: 100,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
+  },
+  sendBtn: { borderRadius: 20, overflow: "hidden", marginBottom: 3 },
+  sendGradient: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // ── Mention suggestions ───────────────────
+  mentionBox: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: colors.card,
+    borderRadius: radii.md,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
+    ...ambientShadow,
+  },
+  mentionItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  mentionHandle: {
+    color: colors.primary,
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+  },
+  mentionName: {
+    color: colors.muted4,
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    marginTop: 2,
+  },
+
+  // ── Menu modals ───────────────────────────
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-end",
+  },
+  menuSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    gap: 8,
+    ...ambientShadow,
+  },
+  menuHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outline + "40",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  menuTitle: {
+    color: colors.onSurface,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    marginBottom: 8,
+  },
+  menuIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuOptionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  menuOptionInfo: {
+    flex: 1,
+  },
+  menuOptionText: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
+  },
+  menuOptionSub: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    marginTop: 1,
+  },
+  menuDeleteBtn: {
+    backgroundColor: colors.errorBg,
+  },
+  menuDeleteText: {
+    color: colors.errorText,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+  },
+  menuEditText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+  },
+  menuCancelBtn: {
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  menuCancelText: {
+    color: colors.onSurface,
+    fontSize: 15,
+    fontFamily: fonts.displaySemiBold,
+  },
+  editPostInput: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.lg,
+    minHeight: 120,
+    maxHeight: 240,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: colors.onSurface,
+    fontFamily: fonts.bodyRegular,
+    textAlignVertical: "top",
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
+  },
+  editPostActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  editPostSaveBtn: {
+    flex: 1,
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editPostSaveText: {
+    color: colors.onPrimary,
+    fontSize: 15,
+    fontFamily: fonts.displaySemiBold,
   },
   editCommentInput: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.muted1,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.md,
     minHeight: 110,
     maxHeight: 220,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: colors.heading,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.onSurface,
+    fontFamily: fonts.bodyRegular,
     textAlignVertical: "top",
     marginBottom: 10,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   editCommentActions: {
     flexDirection: "row",
@@ -1443,114 +2211,42 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   editCommentSaveBtn: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: radii.md,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     backgroundColor: colors.primary,
     minWidth: 70,
     alignItems: "center",
   },
   editCommentSaveText: {
-    color: colors.card,
-    fontSize: 13,
-    fontWeight: "700",
+    color: colors.onPrimary,
+    fontSize: 14,
+    fontFamily: fonts.displayBold,
   },
 
-  // ── Input bar ─────────────────────────────
-  mentionBox: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.muted1,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    gap: 6,
-  },
-  mentionItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.muted1,
-  },
-  mentionHandle: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  mentionName: {
-    color: colors.muted5,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  inputBar: {
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.muted1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === "ios" ? 28 : 14,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-  },
-  commentInput: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.heading,
-    maxHeight: 100,
-    borderWidth: 1.5,
-    borderColor: colors.muted1,
-  },
-  sendBtn: { borderRadius: 20, overflow: "hidden" },
-  sendGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // ── Floating Picker Modal ────────────────────
+  // ── Floating Picker Modal ────────────────
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.25)" },
   modalCenter: { flex: 1, justifyContent: "center", alignItems: "center" },
   pickerPill: {
     flexDirection: "row",
     backgroundColor: colors.card,
-    borderRadius: 50,
+    borderRadius: radii.full,
     paddingVertical: 10,
     paddingHorizontal: 14,
     gap: 6,
-    shadowColor: colors.darkest,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 20,
-    borderWidth: 1,
-    borderColor: colors.muted1,
+    ...ambientShadow,
   },
   pickerOption: {
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 40,
+    borderRadius: radii.full,
     minWidth: 76,
   },
-  pickerOptionDefault: {
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    borderColor: "transparent",
-  },
   pickerOptionActive: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainerLow,
     borderWidth: 2,
-    borderColor: colors.fuchsia,
+    borderColor: colors.secondary,
   },
   pickerIconWrap: {
     width: 46,
@@ -1560,25 +2256,95 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pickerLabel: { fontSize: 12, fontWeight: "700", marginTop: 5 },
-  pickerLabelDefault: { color: colors.subtle },
-  pickerLabelActive: { color: colors.fuchsia },
+  pickerLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    marginTop: 5,
+  },
+  pickerLabelDefault: { color: colors.onSurfaceVariant },
+  pickerLabelActive: { color: colors.secondary },
   pickerCount: {
     fontSize: 11,
-    color: colors.muted5,
-    fontWeight: "600",
+    color: colors.muted4,
+    fontFamily: fonts.bodySemiBold,
     marginTop: 2,
   },
-  dismissHint: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-    marginTop: 24,
-    fontWeight: "500",
+
+  // ── Comment reaction picker ──────────────
+  commentPickerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 4,
+  commentPickerSheet: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: 18,
+    gap: 12,
+    maxWidth: 400,
+    width: "100%" as any,
+    ...ambientShadow,
   },
-  headerName: { color: colors.accent, fontWeight: "700" },
+  commentPickerRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  commentPickerOption: {
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    minWidth: 64,
+  },
+
+  // ── Reaction row (compact) ────────────────
+  countButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  footerCountMuted: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.muted5,
+  },
+
+  // ── Image expand hint ─────────────────────
+  imageExpandHint: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // ── Image viewer modal ────────────────────
+  imageViewerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageViewerClose: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 56 : 24,
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageViewerImage: {
+    width: "92%",
+    height: "80%",
+  },
 });

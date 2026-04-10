@@ -9,14 +9,14 @@ import { useThemeStore } from "../context/ThemeContext";
 import { useUserStore } from "../context/UserContext";
 
 const NAV_ITEMS = [
-  { key: "feed", label: "Feed", icon: "home-outline" as any, iconActive: "home" as any, route: "Home", isDefault: true },
+  { key: "feed", label: "Feed", icon: "newspaper-outline" as any, iconActive: "newspaper" as any, route: "Home", isDefault: true },
   { key: "journal", label: "Journal", icon: "book-outline" as any, iconActive: "book" as any, route: "Journal" },
   // { key: "resources", label: "Resources", icon: "library-outline" as any, iconActive: "library" as any, route: "Home" },
-  { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as any, iconActive: "chatbubbles" as any, route: "SpazeCoach" },
-  { key: "conversations", label: "Conversations", icon: "people-outline" as any, iconActive: "people" as any, route: "SpazeConversations" },
+  { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as any, iconActive: "chatbubbles" as any, route: "SpazeCoach", memberOnly: true },
+  { key: "conversations", label: "Conversations", icon: "people-outline" as any, iconActive: "people" as any, route: "SpazeConversations", coachOnly: true },
   { key: "review", label: "Coach Dashboard", icon: "clipboard-outline" as any, iconActive: "clipboard" as any, route: "ReviewQueue", coachOnly: true },
-  { key: "profile", label: "Profile", icon: "person-outline" as any, iconActive: "person" as any, route: "Profile" },
   { key: "notifications", label: "Notifications", icon: "notifications-outline" as any, iconActive: "notifications" as any, route: "Notifications" },
+  { key: "profile", label: "Profile", icon: "person-outline" as any, iconActive: "person" as any, route: "Profile" },
 ];
 
 interface Props {
@@ -38,20 +38,16 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.brandSection}>
-        <Image
-          source={require("../assets/logo.png")}
-          style={styles.brandLogo}
-          resizeMode="contain"
-        />
         <View>
           <Text style={styles.brandName}>PUSO Spaze</Text>
-          <Text style={styles.brandSub}>YOUR SAFE SPACE</Text>
+          <Text style={styles.brandSub}>YOUR ANONYMOUS HEART SPACE</Text>
         </View>
       </View>
 
       <View style={styles.navSection}>
         {NAV_ITEMS.filter((item) => {
           if (item.coachOnly && !isCoach) return false;
+          if (item.memberOnly && isCoach) return false;
           return true;
         }).map((item) => {
           const active = item.isDefault

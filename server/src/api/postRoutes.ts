@@ -10,14 +10,14 @@
 // DELETE /api/posts/:id/comments/:commentId — delete own comment (or any comment if admin)
 // ─────────────────────────────────────────────
 
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { body, param } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
 import { createPost, getPosts, getPostById, deletePost, updatePost } from '../controllers/postController';
 import { upsertReaction, getReactions } from '../controllers/reactionController';
-import { createComment, getComments, deleteComment, updateComment } from '../controllers/commentController';
+import { createComment, getComments, deleteComment, updateComment, upsertCommentReaction } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
@@ -62,7 +62,13 @@ router.get(
 // ── POST /api/posts ────────────────────────
 router.post(
   '/',
-  upload.single('image'),
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.is('multipart/form-data')) {
+      upload.single('image')(req, res, next);
+    } else {
+      next();
+    }
+  },
   [
     body('userId')
       .trim()
@@ -158,6 +164,19 @@ router.patch(
     validate,
   ],
   updateComment
+);
+
+// ── Comment Reactions ──────────────────────
+router.post(
+  '/:postId/comments/:commentId/reactions',
+  [
+    param('postId').isUUID().withMessage('postId must be a valid UUID'),
+    param('commentId').isUUID().withMessage('commentId must be a valid UUID'),
+    body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
+    body('type').isIn(['PRAY', 'CARE', 'SUPPORT', 'LIKE']).withMessage('type must be PRAY, CARE, SUPPORT, or LIKE'),
+    validate,
+  ],
+  upsertCommentReaction
 );
 
 export default router;

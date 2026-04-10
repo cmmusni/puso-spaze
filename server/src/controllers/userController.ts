@@ -77,6 +77,30 @@ export async function searchUsers(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * GET /api/users/check?username=<name>
+ * Returns { available: boolean } — exact case-insensitive match.
+ * Lightweight endpoint used by the login screen to pre-validate
+ * a generated anonymous username before showing it to the user.
+ */
+export async function checkUsername(req: Request, res: Response): Promise<void> {
+  const username = String(req.query.username ?? '').trim();
+  if (!username) {
+    res.status(400).json({ error: 'username query param is required.' });
+    return;
+  }
+  try {
+    const existing = await prisma.user.findFirst({
+      where: { displayName: { equals: username, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    res.json({ available: !existing });
+  } catch (err) {
+    console.error('[UserController] checkUsername error:', err);
+    res.status(500).json({ error: 'Failed to check username.' });
+  }
+}
+
+/**
  * POST /api/users
  * Body: { displayName: string, deviceId?: string }
  * Returns: { userId, displayName, role }
@@ -163,6 +187,7 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
         displayName: true,
         role: true,
         isAnonymous: true,
+        notificationsEnabled: true,
         createdAt: true,
       },
     });
@@ -239,6 +264,70 @@ export async function toggleAnonymous(req: Request, res: Response): Promise<void
     } else {
       console.error('[UserController] toggleAnonymous error:', err);
       res.status(500).json({ error: 'Failed to update anonymous mode.' });
+    }
+  }
+}
+
+/**
+ * PATCH /api/users/:userId/notifications
+ * Body: { enabled: boolean }
+ * Toggles daily reflection reminder notifications for the user.
+ */
+export async function toggleNotifications(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const { enabled } = req.body as { enabled: boolean };
+
+  if (typeof enabled !== 'boolean') {
+    res.status(400).json({ error: 'enabled must be a boolean.' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { notificationsEnabled: enabled },
+      select: { id: true, notificationsEnabled: true },
+    });
+    res.json({ success: true, notificationsEnabled: user.notificationsEnabled });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] toggleNotifications error:', err);
+      res.status(500).json({ error: 'Failed to update notification preference.' });
+    }
+  }
+}
+
+/**
+ * POST /api/users/:userId/avatar
+ * Uploads a profile avatar image via multipart form data.
+ * Returns: { avatarUrl: string }
+ */
+export async function uploadAvatar(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const imageFile = (req as any).file as Express.Multer.File | undefined;
+
+  if (!imageFile) {
+    res.status(400).json({ error: 'No image file provided.' });
+    return;
+  }
+
+  try {
+    const avatarUrl = `/uploads/${imageFile.filename}`;
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      select: { id: true, avatarUrl: true },
+    });
+
+    res.json({ avatarUrl: user.avatarUrl });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] uploadAvatar error:', err);
+      res.status(500).json({ error: 'Failed to upload avatar.' });
     }
   }
 }

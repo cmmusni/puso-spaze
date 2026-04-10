@@ -90,6 +90,7 @@ export default function CoachDashboard() {
   const { colors: themeColors, isDark } = useThemeStore();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 1000;
+  const isNarrow = width < 500;
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -362,6 +363,21 @@ export default function CoachDashboard() {
     <SafeAreaView style={[s.root, { backgroundColor: themeColors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
 
+      {/* ── Top bar (mobile / narrow) ── */}
+      {!isWide && (
+        <View style={s.topBar}>
+          <TouchableOpacity
+            onPress={() => navigation.openDrawer()}
+            activeOpacity={0.7}
+            style={s.hamburger}
+          >
+            <Ionicons name="menu-outline" size={24} color={colors.heading} />
+          </TouchableOpacity>
+          <Text style={s.topBarTitle}>Coach Dashboard</Text>
+          <View style={{ width: 32 }} />
+        </View>
+      )}
+
       <View style={s.mainRow}>
         {/* Left / Main content */}
         <ScrollView
@@ -383,7 +399,12 @@ export default function CoachDashboard() {
           </View>
 
           {/* ── Stats row ── */}
-          <View style={s.statsRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.statsRow}
+            style={s.statsScroll}
+          >
             {renderStatCard(
               'clipboard-outline',
               colors.primary,
@@ -408,18 +429,18 @@ export default function CoachDashboard() {
               flaggedCount > 0 ? 'Priority' : undefined,
               colors.danger,
             )}
-          </View>
+          </ScrollView>
 
           {/* ── Coach Dashboard ── */}
           <View style={s.queueHeader}>
             <View style={s.queueTitleRow}>
-              <Text style={s.queueTitle}>Coach Dashboard</Text>
+              <Text style={[s.queueTitle, isNarrow && s.queueTitleNarrow]}>Coach Dashboard</Text>
               <View style={s.queueBadge}>
-                <Text style={s.queueBadgeText}>{allItems.length} Pending Tasks</Text>
+                <Text style={s.queueBadgeText}>{allItems.length} Pending</Text>
               </View>
             </View>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text style={s.viewAllLink}>View All Queue</Text>
+              <Text style={s.viewAllLink}>View All</Text>
             </TouchableOpacity>
           </View>
 
@@ -459,7 +480,7 @@ const s = StyleSheet.create({
   },
   scrollArea: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
     paddingTop: Platform.OS === 'web' ? 12 : 8,
     paddingBottom: 40,
   },
@@ -477,10 +498,26 @@ const s = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
   },
 
+  // ── Top bar (mobile) ─────────────────────
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceContainerLowest,
+  },
+  hamburger: { padding: 4 },
+  topBarTitle: {
+    fontSize: 16,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+  },
+
   // ── Greeting ─────────────────────────────
   greetingSection: { marginBottom: 20 },
   greetingTitle: {
-    fontSize: 26,
+    fontSize: Platform.OS === 'web' ? 26 : 22,
     fontFamily: fonts.displayBold,
     color: colors.onSurface,
     letterSpacing: -0.3,
@@ -494,13 +531,15 @@ const s = StyleSheet.create({
   },
 
   // ── Stats ────────────────────────────────
+  statsScroll: {
+    marginBottom: 24,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
   },
   statCard: {
-    flex: 1,
+    minWidth: 140,
     backgroundColor: colors.surface,
     borderRadius: radii.xl,
     padding: 16,
@@ -543,16 +582,21 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 14,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   queueTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   queueTitle: {
     fontSize: 20,
     fontFamily: fonts.displayBold,
     color: colors.onSurface,
+  },
+  queueTitleNarrow: {
+    fontSize: 17,
   },
   queueBadge: {
     backgroundColor: colors.primaryContainer,
@@ -647,11 +691,12 @@ const s = StyleSheet.create({
   reviewActions: {
     flexDirection: 'row',
     gap: 10,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   flagBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.outline,
@@ -664,8 +709,9 @@ const s = StyleSheet.create({
     color: colors.onSurface,
   },
   approveBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: colors.primary,
     alignItems: 'center',

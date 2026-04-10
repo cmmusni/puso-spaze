@@ -3,7 +3,7 @@
 // Submit a prayer or word of encouragement
 // ─────────────────────────────────────────────
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -17,42 +17,96 @@ import {
   SafeAreaView,
   StyleSheet,
   Image,
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/theme';
-import { useThemeStore } from '../context/ThemeContext';
-import { useNavigation } from '@react-navigation/native';
-import { usePosts } from '../hooks/usePosts';
-import { useUser } from '../hooks/useUser';
-import { validatePostContent } from '../utils/validators';
-import { apiSearchUsers } from '../services/api';
-import { extractTrailingMentionQuery, replaceTrailingMention } from '../utils/mentions';
-import type { MentionUser } from '../../../packages/types';
+  Modal,
+  useWindowDimensions,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
+import { usePosts } from "../hooks/usePosts";
+import { useUser } from "../hooks/useUser";
+import { useUserStore } from "../context/UserContext";
+import { validatePostContent } from "../utils/validators";
+import { apiSearchUsers } from "../services/api";
+import {
+  extractTrailingMentionQuery,
+  replaceTrailingMention,
+} from "../utils/mentions";
+import { PrayIcon } from "../components/ReactionIcons";
+import type { MentionUser } from "../../../packages/types";
+
+// Gradient avatar (same logic as PostDetailScreen)
+function avatarColors(initial: string): [string, string] {
+  const palette: [string, string][] = [
+    [defaultColors.hot, defaultColors.primary],
+    [defaultColors.primary, defaultColors.deep],
+    [defaultColors.fuchsia, defaultColors.ink],
+    [defaultColors.ink, defaultColors.deep],
+    [defaultColors.hot, defaultColors.fuchsia],
+  ];
+  return palette[initial.charCodeAt(0) % palette.length];
+}
+
+const FEELING_OPTIONS: { key: string; emoji: string; label: string }[] = [
+  { key: "grateful", emoji: "\u{1F60A}", label: "Grateful" },
+  { key: "prayerful", emoji: "\u{1F64F}", label: "Prayerful" },
+  { key: "strong", emoji: "\u{1F4AA}", label: "Strong" },
+  { key: "struggling", emoji: "\u{1F622}", label: "Struggling" },
+  { key: "hopeful", emoji: "\u{1F917}", label: "Hopeful" },
+  { key: "heavy-hearted", emoji: "\u{1F614}", label: "Heavy-hearted" },
+  { key: "blessed", emoji: "\u2728", label: "Blessed" },
+  { key: "loved", emoji: "\u2764\uFE0F", label: "Loved" },
+];
+
+const CATEGORY_OPTIONS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { key: "prayer", icon: "hand-left-outline", label: "Prayer Request" },
+  { key: "encouragement", icon: "sunny-outline", label: "Encouragement" },
+  { key: "testimony", icon: "megaphone-outline", label: "Testimony" },
+  { key: "question", icon: "help-circle-outline", label: "Question" },
+  { key: "reflection", icon: "book-outline", label: "Reflection" },
+];
 
 export default function PostScreen() {
   const navigation = useNavigation();
-  const { colors: themeColors, isDark } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { userId, username } = useUser();
+  const { isAnonymous } = useUserStore();
   const { submitPost } = usePosts();
+  const { width: screenWidth } = useWindowDimensions();
+  const isWide = Platform.OS === "web" && screenWidth >= 900;
 
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
-  const [focused, setFocused] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedFeeling, setSelectedFeeling] = useState<string | null>(null);
+  const [feelingPickerVisible, setFeelingPickerVisible] = useState(false);
+  const [visibility, setVisibility] = useState<"shared" | "anonymous">(isAnonymous ? "anonymous" : "shared");
+  const [visibilityMenuVisible, setVisibilityMenuVisible] = useState(false);
 
   const MAX_CHARS = 500;
-  const charsLeft = MAX_CHARS - content.length;
   const canSubmit = !loading && content.trim().length >= 3;
-  const MAX_TAGS = 5;
+
+  const userInitial = (username ?? "A").charAt(0).toUpperCase();
+
+  // Build final tags from toggles + feeling
+  const buildTags = useCallback(() => {
+    const result: string[] = [];
+    if (selectedCategory) result.push(selectedCategory);
+    if (selectedFeeling) result.push(selectedFeeling);
+    return result.length > 0 ? result : undefined;
+  }, [selectedCategory, selectedFeeling]);
 
   useEffect(() => {
     let active = true;
@@ -89,40 +143,20 @@ export default function PostScreen() {
     };
   }, [mentionQuery]);
 
-  const handleContentChange = (text: string) => {
+  const handleContentChange = useCallback((text: string) => {
     setContent(text);
-    const nextMentionQuery = extractTrailingMentionQuery(text);
-    setMentionQuery(nextMentionQuery);
-  };
+    setMentionQuery(extractTrailingMentionQuery(text));
+  }, []);
 
-  const handleSelectMention = (mentionHandle: string) => {
+  const handleSelectMention = useCallback((mentionHandle: string) => {
     setContent((prev) => replaceTrailingMention(prev, mentionHandle));
     setMentionQuery(null);
     setMentionUsers([]);
-  };
-
-  const addTag = () => {
-    const trimmed = tagInput.trim().toLowerCase();
-    if (!trimmed) return;
-    if (tags.length >= MAX_TAGS) {
-      Alert.alert('Limit reached', `You can add up to ${MAX_TAGS} tags.`);
-      return;
-    }
-    if (tags.includes(trimmed)) {
-      Alert.alert('Duplicate', 'This tag is already added.');
-      return;
-    }
-    setTags([...tags, trimmed]);
-    setTagInput('');
-  };
-
-  const removeTag = (index: number) => {
-    setTags(tags.filter((_, i) => i !== index));
-  };
+  }, []);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
@@ -135,220 +169,506 @@ export default function PostScreen() {
     setErrorMsg(null);
     setReviewMsg(null);
     const validationErr = validatePostContent(content);
-    if (validationErr) { setErrorMsg(validationErr); return; }
-    if (!userId) { Alert.alert('Session Error', 'User not found. Please log in again.'); return; }
+    if (validationErr) {
+      setErrorMsg(validationErr);
+      return;
+    }
+    if (!userId) {
+      Alert.alert("Session Error", "User not found. Please log in again.");
+      return;
+    }
 
     setLoading(true);
     try {
-      const { flagged, underReview } = await submitPost({ 
-        userId, 
+      const { flagged, underReview } = await submitPost({
+        userId,
         content: content.trim(),
-        tags: tags.length > 0 ? tags : undefined,
+        tags: buildTags(),
+        isAnonymous: visibility === "anonymous",
         imageUri: imageUri ?? undefined,
       });
       if (flagged) {
         setErrorMsg(
-          'Your message was flagged by our safety system. Please revise and resubmit.'
+          "Your message was flagged by our safety system. Please revise and resubmit.",
         );
       } else if (underReview) {
-          setReviewMsg('Your post is under review and will appear in the feed shortly.');
+        setReviewMsg(
+          "Your post is under review and will appear in the feed shortly.",
+        );
         setTimeout(() => navigation.goBack(), 2800);
       } else {
-        setContent('');
+        setContent("");
         setTags([]);
-        setTagInput('');
         setImageUri(null);
+        setSelectedCategory(null);
+        setSelectedFeeling(null);
         navigation.goBack();
       }
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to submit post.');
+      setErrorMsg(
+        err instanceof Error ? err.message : "Failed to submit post.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const feelingObj = selectedFeeling
+    ? FEELING_OPTIONS.find((f) => f.key === selectedFeeling)
+    : null;
+
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={[themeColors.darkest, themeColors.deep, themeColors.ink]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
+    <SafeAreaView style={styles.screen}>
+      {/* ── Header ── */}
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          activeOpacity={0.75}
+          activeOpacity={0.7}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back-outline" size={16} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.backText}>Back to feed</Text>
+          <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
         </TouchableOpacity>
-        <View style={styles.headerTitleRow}>
-          <Ionicons name="heart-outline" size={22} color={colors.card} />
-          <Text style={styles.headerTitle}>Share Your Heart</Text>
+        <View style={styles.headerCenter}>
+          <Image
+            source={require("../assets/logo.png")}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.headerTitle}>PUSO Spaze</Text>
         </View>
-        <Text style={styles.headerSubtitle}>
-          Posting as{' '}
-          <Text style={styles.headerName}>{username ?? 'Anonymous'}</Text>
-        </Text>
-      </LinearGradient>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          activeOpacity={0.85}
+          style={styles.postBtnWrap}
+        >
+          <LinearGradient
+            colors={
+              canSubmit
+                ? [colors.primaryContainer, colors.primary]
+                : [colors.muted2, colors.muted4]
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.postBtn}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.postBtnText}>Post</Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.kav}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Writing card ── */}
-          <View style={[styles.writingCard, focused ? styles.writingCardFocused : styles.writingCardDefault]}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Lord, I pray for peace in our community…"
-              placeholderTextColor={colors.muted4}
-              value={content}
-              onChangeText={handleContentChange}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              multiline
-              maxLength={MAX_CHARS}
-              editable={!loading}
-            />
-          </View>
+          <View style={[styles.contentColumn, isWide && styles.contentColumnWide]}>
+            {/* ── Writing card ── */}
+            <View style={styles.writingCard}>
+              <View style={styles.writerRow}>
+                <LinearGradient
+                  colors={avatarColors(userInitial)}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.writerAvatar}
+                >
+                  <Text style={styles.writerAvatarText}>{userInitial}</Text>
+                </LinearGradient>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="What's on your heart?"
+                  placeholderTextColor={colors.muted4}
+                  value={content}
+                  onChangeText={handleContentChange}
+                  multiline
+                  maxLength={MAX_CHARS}
+                  editable={!loading}
+                />
+              </View>
 
-          {mentionQuery && (mentionLoading || mentionUsers.length > 0) && (
-            <View style={styles.mentionBox}>
-              {mentionLoading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                mentionUsers.map((user) => (
+              {/* ── Image preview inside card ── */}
+              {imageUri && (
+                <View style={styles.imagePreviewWrap}>
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
                   <TouchableOpacity
-                    key={user.id}
-                    style={styles.mentionItem}
+                    style={styles.imageRemoveBtn}
+                    onPress={() => setImageUri(null)}
                     activeOpacity={0.8}
-                    onPress={() => handleSelectMention(user.mentionHandle)}
                   >
-                    <Text style={styles.mentionHandle}>@{user.mentionHandle}</Text>
-                    <Text style={styles.mentionName}>{user.displayName}</Text>
+                    <Ionicons
+                      name="close-circle"
+                      size={26}
+                      color={colors.danger}
+                    />
                   </TouchableOpacity>
-                ))
-              )}
-            </View>
-          )}
-
-          {/* ── Character counter ── */}
-          <Text style={[styles.charCounter, charsLeft < 50 ? styles.charCounterWarn : styles.charCounterDefault]}>
-            {charsLeft}/{MAX_CHARS}
-          </Text>
-
-          {/* ── Image picker ── */}
-          <View style={styles.imageSection}>
-            {imageUri ? (
-              <View style={styles.imagePreviewWrap}>
-                <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
-                <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => setImageUri(null)} activeOpacity={0.8}>
-                  <Ionicons name="close-circle" size={26} color={colors.danger} />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage} activeOpacity={0.8} disabled={loading}>
-                <Ionicons name="image-outline" size={22} color={colors.primary} />
-                <Text style={styles.imagePickerText}>Add Photo (optional)</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* ── Tags input ── */}
-          <View style={styles.tagsSection}>
-            <Text style={styles.tagsLabel}>📌 Tags (optional, up to {MAX_TAGS})</Text>
-            <View style={styles.tagInputRow}>
-              <TextInput
-                style={styles.tagInput}
-                placeholder="e.g. wellness, prayer, support"
-                placeholderTextColor={colors.muted4}
-                value={tagInput}
-                onChangeText={setTagInput}
-                editable={!loading && tags.length < MAX_TAGS}
-              />
-              <TouchableOpacity
-                onPress={addTag}
-                disabled={!tagInput.trim() || loading || tags.length >= MAX_TAGS}
-                style={[styles.addTagBtn, (!tagInput.trim() || tags.length >= MAX_TAGS) && styles.addTagBtnDisabled]}
-              >
-                <Text style={styles.addTagBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-            {tags.length > 0 && (
-              <View style={styles.tagsList}>
-                {tags.map((tag, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => removeTag(idx)}
-                    style={styles.tag}
-                  >
-                    <View style={styles.tagRow}>
-                      <Text style={styles.tagText}>{tag}</Text>
-                      <Ionicons name="close" size={12} color={colors.primary} />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* ── Error message ── */}
-          {errorMsg && (
-            <View style={styles.errorBox}>
-              <Ionicons name="warning-outline" size={16} color={colors.errorText} />
-              <Text style={styles.errorMsg}>{errorMsg}</Text>
-            </View>
-          )}
-
-          {/* ── Under-review notice ── */}
-          {reviewMsg && (
-            <View style={styles.reviewBox}>
-              <Ionicons name="search-outline" size={16} color={colors.warningText} />
-              <Text style={styles.reviewMsg}>{reviewMsg}</Text>
-            </View>
-          )}
-
-          {/* ── Submit ── */}
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            activeOpacity={0.87}
-            style={styles.submitBtn}
-          >
-            <LinearGradient
-              colors={canSubmit ? [colors.hot, colors.fuchsia, colors.ink, colors.deep] : [colors.muted2, colors.muted4]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.submitGradient}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <View style={styles.submitRow}>
-                  <Ionicons name="sparkles-outline" size={16} color={colors.card} />
-                  <Text style={styles.submitText}>Post</Text>
                 </View>
               )}
-            </LinearGradient>
-          </TouchableOpacity>
 
-          {/* ── Safety notice ── */}
-          <View style={styles.safetyBox}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={colors.ink} />
-            <Text style={styles.safetyText}>
-              All posts are reviewed by AI before publishing.{' '}
-              Content promoting harm will not be shared.
-            </Text>
+              {/* ── Mention suggestions (inside card) ── */}
+              {mentionQuery && (mentionLoading || mentionUsers.length > 0) && (
+                <View style={styles.mentionBox}>
+                  {mentionLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    mentionUsers.map((user) => {
+                      const initials = user.displayName
+                        .split(" ")
+                        .map((w) => w[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2);
+                      return (
+                        <TouchableOpacity
+                          key={user.id}
+                          style={styles.mentionItem}
+                          activeOpacity={0.8}
+                          onPress={() =>
+                            handleSelectMention(user.mentionHandle)
+                          }
+                        >
+                          <Ionicons
+                            name="at"
+                            size={16}
+                            color={colors.muted4}
+                            style={styles.mentionAtIcon}
+                          />
+                          <LinearGradient
+                            colors={avatarColors(initials.charAt(0) || "A")}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.mentionAvatar}
+                          >
+                            <Text style={styles.mentionAvatarText}>
+                              {initials}
+                            </Text>
+                          </LinearGradient>
+                          <Text style={styles.mentionHandle}>
+                            {user.mentionHandle}
+                          </Text>
+                          <Text style={styles.mentionSuggested}>Suggested</Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* ── Actions card ── */}
+            <View style={styles.actionsCard}>
+              {/* Add Image + Feeling row */}
+              <View style={styles.actionBtnRow}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { flex: 1 }]}
+                  onPress={pickImage}
+                  activeOpacity={0.8}
+                  disabled={loading}
+                >
+                  <Ionicons
+                    name="image"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.actionBtnText}>Add Image</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.actionBtn,
+                    { flex: 1 },
+                    !!selectedFeeling && styles.toggleBtnActive,
+                  ]}
+                  onPress={() => setFeelingPickerVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name="happy"
+                    size={20}
+                    color={
+                      selectedFeeling
+                        ? colors.onPrimary
+                        : colors.primary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.actionBtnText,
+                      !!selectedFeeling && styles.toggleBtnTextActive,
+                    ]}
+                  >
+                    {feelingObj
+                      ? `${feelingObj.emoji} ${feelingObj.label}`
+                      : "Feeling"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Category toggles */}
+              <View style={styles.actionToggleRow}>
+                {CATEGORY_OPTIONS.map((cat) => {
+                  const isActive = selectedCategory === cat.key;
+                  return (
+                    <TouchableOpacity
+                      key={cat.key}
+                      style={[
+                        styles.toggleBtn,
+                        isActive && styles.toggleBtnActive,
+                      ]}
+                      onPress={() => setSelectedCategory(isActive ? null : cat.key)}
+                      activeOpacity={0.8}
+                    >
+                      {cat.key === "prayer" ? (
+                        <PrayIcon
+                          size={18}
+                          color={isActive ? colors.onPrimary : colors.secondary}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={cat.icon}
+                          size={18}
+                          color={isActive ? colors.onPrimary : colors.secondary}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.toggleBtnText,
+                          isActive && styles.toggleBtnTextActive,
+                        ]}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* ── Visibility card ── */}
+            <TouchableOpacity
+              style={styles.visibilityCard}
+              onPress={() => setVisibilityMenuVisible(true)}
+              activeOpacity={0.8}
+            >
+              <View>
+                <Text style={styles.visibilityLabel}>VISIBILITY</Text>
+                <View style={styles.visibilityRow}>
+                  <Ionicons
+                    name={
+                      visibility === "shared"
+                        ? "globe-outline"
+                        : "eye-off-outline"
+                    }
+                    size={18}
+                    color={colors.onSurface}
+                  />
+                  <Text style={styles.visibilityText}>
+                    {visibility === "shared" ? "Shared Spaze" : "Anonymous"}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.muted4}
+              />
+            </TouchableOpacity>
+
+            {/* ── Error message ── */}
+            {errorMsg && (
+              <View style={styles.errorBox}>
+                <Ionicons
+                  name="warning-outline"
+                  size={16}
+                  color={colors.errorText}
+                />
+                <Text style={styles.errorMsg}>{errorMsg}</Text>
+              </View>
+            )}
+
+            {/* ── Under-review notice ── */}
+            {reviewMsg && (
+              <View style={styles.reviewBox}>
+                <Ionicons
+                  name="search-outline"
+                  size={16}
+                  color={colors.warningText}
+                />
+                <Text style={styles.reviewMsg}>{reviewMsg}</Text>
+              </View>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Feeling picker modal ── */}
+      <Modal
+        visible={feelingPickerVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFeelingPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setFeelingPickerVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalSheet}
+          >
+            <Text style={styles.modalTitle}>How are you feeling?</Text>
+            <View style={styles.feelingGrid}>
+              {FEELING_OPTIONS.map((f) => {
+                const isActive = selectedFeeling === f.key;
+                return (
+                  <TouchableOpacity
+                    key={f.key}
+                    style={[
+                      styles.feelingOption,
+                      isActive && styles.feelingOptionActive,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setSelectedFeeling(isActive ? null : f.key);
+                      setFeelingPickerVisible(false);
+                    }}
+                  >
+                    <Text style={styles.feelingEmoji}>{f.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.feelingLabel,
+                        isActive && styles.feelingLabelActive,
+                      ]}
+                    >
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {selectedFeeling && (
+              <TouchableOpacity
+                style={styles.feelingClearBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedFeeling(null);
+                  setFeelingPickerVisible(false);
+                }}
+              >
+                <Text style={styles.feelingClearText}>Clear feeling</Text>
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Visibility picker modal ── */}
+      <Modal
+        visible={visibilityMenuVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setVisibilityMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setVisibilityMenuVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalSheet}
+          >
+            <Text style={styles.modalTitle}>Post visibility</Text>
+            <TouchableOpacity
+              style={[
+                styles.visibilityOption,
+                visibility === "shared" && styles.visibilityOptionActive,
+              ]}
+              activeOpacity={0.8}
+              onPress={() => {
+                setVisibility("shared");
+                setVisibilityMenuVisible(false);
+              }}
+            >
+              <Ionicons
+                name="globe-outline"
+                size={20}
+                color={
+                  visibility === "shared"
+                    ? colors.primary
+                    : colors.onSurfaceVariant
+                }
+              />
+              <View style={styles.visibilityOptionTextWrap}>
+                <Text
+                  style={[
+                    styles.visibilityOptionTitle,
+                    visibility === "shared" &&
+                      styles.visibilityOptionTitleActive,
+                  ]}
+                >
+                  Shared Spaze
+                </Text>
+                <Text style={styles.visibilityOptionDesc}>
+                  Your display name will be shown
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.visibilityOption,
+                visibility === "anonymous" && styles.visibilityOptionActive,
+              ]}
+              activeOpacity={0.8}
+              onPress={() => {
+                setVisibility("anonymous");
+                setVisibilityMenuVisible(false);
+              }}
+            >
+              <Ionicons
+                name="eye-off-outline"
+                size={20}
+                color={
+                  visibility === "anonymous"
+                    ? colors.primary
+                    : colors.onSurfaceVariant
+                }
+              />
+              <View style={styles.visibilityOptionTextWrap}>
+                <Text
+                  style={[
+                    styles.visibilityOptionTitle,
+                    visibility === "anonymous" &&
+                      styles.visibilityOptionTitleActive,
+                  ]}
+                >
+                  Anonymous
+                </Text>
+                <Text style={styles.visibilityOptionDesc}>
+                  Post without revealing your identity
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -356,222 +676,365 @@ export default function PostScreen() {
 // ─────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.canvas },
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
 
   // ── Header ───────────────────────────────
-  header: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 },
-  backBtn: {
-    alignSelf: 'flex-start',
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.surfaceContainerLowest,
+    gap: 12,
+    width: "100%" as any,
   },
-  backText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
+  headerLogo: { width: 28, height: 28 },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.card,
-    letterSpacing: -0.3,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    color: colors.primary,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 4,
+  postBtnWrap: { borderRadius: radii.full, overflow: "hidden" },
+  postBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  headerName: { color: colors.accent, fontWeight: '700' },
+  postBtnText: {
+    color: colors.onPrimary,
+    fontSize: 15,
+    fontFamily: fonts.displayBold,
+  },
 
   // ── Body ─────────────────────────────────
-  kav: { flex: 1 },
-  scroll: { flexGrow: 1, padding: 20, paddingBottom: 40 },
+  kav: { flex: 1, width: "100%" as any },
+  scroll: { flexGrow: 1, paddingBottom: 40 },
+  contentColumn: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+  contentColumnWide: {
+    maxWidth: 680,
+    width: "100%" as any,
+    alignSelf: "center" as const,
+  },
+
+  // ── Writing card ─────────────────────────
   writingCard: {
     backgroundColor: colors.card,
-    borderRadius: 28,
+    borderRadius: radii.xl,
     padding: 20,
-    marginBottom: 12,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 6,
-    borderWidth: 2,
+    marginBottom: 16,
+    minHeight: 280,
+    ...ambientShadow,
   },
-  writingCardDefault: { borderColor: colors.muted3 },
-  writingCardFocused: { borderColor: colors.fuchsia },
+  writerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  writerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  writerAvatarText: {
+    color: colors.onPrimary,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+  },
   textInput: {
+    flex: 1,
     fontSize: 16,
-    color: colors.heading,
-    minHeight: 180,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurface,
+    minHeight: 200,
     lineHeight: 26,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
+
+  // ── Mention box ──────────────────────────
   mentionBox: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.muted3,
-    marginBottom: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    gap: 6,
+    marginTop: 12,
+    gap: 8,
   },
   mentionItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-    backgroundColor: colors.canvas,
-    borderWidth: 1,
-    borderColor: colors.muted3,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  mentionAtIcon: { marginRight: 2 },
+  mentionAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mentionAvatarText: {
+    color: colors.onPrimary,
+    fontSize: 11,
+    fontFamily: fonts.displayBold,
   },
   mentionHandle: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  mentionName: {
-    color: colors.muted5,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  charCounter: { textAlign: 'right', fontSize: 12, fontWeight: '600', marginBottom: 16 },
-  charCounterDefault: { color: colors.muted5 },
-  charCounterWarn: { color: colors.danger },
-
-  // ── Image picker ─────────────────────────
-  imageSection: { marginBottom: 16 },
-  imagePickerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.muted3,
-    borderStyle: 'dashed',
-  },
-  imagePickerText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  imagePreviewWrap: { borderRadius: 16, overflow: 'hidden', position: 'relative' },
-  imagePreview: { width: '100%', height: 200, borderRadius: 16 },
-  imageRemoveBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.card, borderRadius: 13 },
-
-  // ── Tags ─────────────────────────────────
-  tagsSection: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.muted3,
-  },
-  tagsLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.heading,
-    marginBottom: 10,
-  },
-  tagInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tagInput: {
     flex: 1,
-    backgroundColor: colors.canvas,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: colors.heading,
+    color: colors.onSurface,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
   },
-  addTagBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addTagBtnDisabled: {
-    backgroundColor: colors.muted4,
-  },
-  addTagBtnText: {
-    fontSize: 20,
-    color: colors.card,
-    fontWeight: '700',
-  },
-  tagsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  tag: {
-    backgroundColor: colors.lightPrimary,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  tagText: {
+  mentionSuggested: {
+    color: colors.muted4,
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
+    fontFamily: fonts.bodyRegular,
+    fontStyle: "italic",
   },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+
+  // ── Image preview ────────────────────────
+  imagePreviewWrap: {
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    position: "relative",
+    marginTop: 16,
+  },
+  imagePreview: {
+    width: "100%" as any,
+    height: 200,
+    borderRadius: radii.lg,
+  },
+  imageRemoveBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: colors.card,
+    borderRadius: 13,
+  },
+
+  // ── Actions card ─────────────────────────
+  actionsCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+    ...ambientShadow,
+  },
+  actionBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  actionBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
+  },
+  actionToggleRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  toggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.full,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  toggleBtnActive: {
+    backgroundColor: colors.secondary,
+  },
+  toggleBtnText: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  toggleBtnTextActive: {
+    color: colors.onPrimary,
+  },
+
+  // ── Visibility card ──────────────────────
+  visibilityCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: 18,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    ...ambientShadow,
+  },
+  visibilityLabel: {
+    fontSize: 11,
+    fontFamily: fonts.displayBold,
+    color: colors.muted4,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  visibilityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  visibilityText: {
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
   },
 
   // ── Banners ─────────────────────────────
   errorBox: {
     backgroundColor: colors.errorBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.errorBorder,
+    borderRadius: radii.lg,
     padding: 14,
     marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 8,
   },
   reviewBox: {
     backgroundColor: colors.warningBg,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.warningBorder,
+    borderRadius: radii.lg,
     padding: 14,
     marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 8,
   },
-  errorMsg: { color: colors.errorText, fontSize: 13, flex: 1, lineHeight: 20 },
-  reviewMsg: { color: colors.warningText, fontSize: 13, flex: 1, lineHeight: 20 },
-
-  // ── Submit button ─────────────────────────
-  submitBtn: { borderRadius: 20, overflow: 'hidden', marginBottom: 16 },
-  submitGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
-  submitRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  submitText: { color: colors.card, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-
-  // ── Safety notice ────────────────────────
-  safetyBox: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    alignItems: 'center',
+  errorMsg: {
+    color: colors.errorText,
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    flex: 1,
+    lineHeight: 20,
   },
-  safetyText: { fontSize: 12, color: colors.ink, flex: 1, lineHeight: 18 },
+  reviewMsg: {
+    color: colors.warningText,
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    flex: 1,
+    lineHeight: 20,
+  },
+
+  // ── Modals ───────────────────────────────
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalSheet: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: 20,
+    gap: 12,
+    width: "90%",
+    maxWidth: 360,
+    ...ambientShadow,
+  },
+  modalTitle: {
+    color: colors.onSurface,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    marginBottom: 4,
+  },
+
+  // ── Feeling picker ───────────────────────
+  feelingGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  feelingOption: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    width: "31%",
+  },
+  feelingOptionActive: {
+    backgroundColor: colors.primaryContainer + "30",
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  feelingEmoji: { fontSize: 24, marginBottom: 4 },
+  feelingLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  feelingLabelActive: {
+    color: colors.primary,
+  },
+  feelingClearBtn: {
+    alignSelf: "center",
+    paddingVertical: 10,
+  },
+  feelingClearText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+  },
+
+  // ── Visibility picker ────────────────────
+  visibilityOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  visibilityOptionActive: {
+    backgroundColor: colors.primaryContainer + "20",
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  visibilityOptionTextWrap: { flex: 1 },
+  visibilityOptionTitle: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
+  },
+  visibilityOptionTitleActive: {
+    color: colors.primary,
+  },
+  visibilityOptionDesc: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    color: colors.muted4,
+    marginTop: 2,
+  },
 });

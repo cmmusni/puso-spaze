@@ -137,14 +137,68 @@ export async function apiToggleAnonymous(
   return data;
 }
 
+/**
+ * PATCH /api/users/:userId/notifications
+ * Toggles daily reflection reminder notifications.
+ */
+export async function apiToggleNotifications(
+  userId: string,
+  enabled: boolean
+): Promise<{ success: boolean; notificationsEnabled: boolean }> {
+  const { data } = await client.patch(`/api/users/${userId}/notifications`, {
+    enabled,
+  });
+  return data;
+}
+
+/**
+ * POST /api/users/:userId/avatar
+ * Uploads a profile avatar image via multipart form data.
+ * Returns { avatarUrl: string }
+ */
+export async function apiUploadAvatar(
+  userId: string,
+  imageUri: string
+): Promise<{ avatarUrl: string }> {
+  const formData = new FormData();
+
+  if (Platform.OS === 'web') {
+    const blob = await fetch(imageUri).then((r) => r.blob());
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[blob.type] ?? 'jpg';
+    formData.append('image', blob, `avatar.${ext}`);
+  } else {
+    const uriParts = imageUri.split('.');
+    const ext = uriParts[uriParts.length - 1]?.toLowerCase() ?? 'jpg';
+    const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+    const mimeType = mimeMap[ext] ?? 'image/jpeg';
+    formData.append('image', {
+      uri: imageUri,
+      name: `avatar.${ext}`,
+      type: mimeType,
+    } as any);
+  }
+
+  const response = await fetch(`${BASE_URL}/api/users/${userId}/avatar`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to upload avatar');
+  }
+  return response.json();
+}
+
 // ── Post endpoints ───────────────────────────
 
 /**
  * GET /api/posts
- * Returns all SAFE-moderated posts.
+ * Returns all SAFE-moderated posts. Optional search query.
  */
-export async function apiFetchPosts(): Promise<GetPostsResponse> {
-  const { data } = await client.get<GetPostsResponse>('/api/posts');
+export async function apiFetchPosts(query?: string): Promise<GetPostsResponse> {
+  const { data } = await client.get<GetPostsResponse>('/api/posts', {
+    params: query ? { q: query } : undefined,
+  });
   return data;
 }
 
@@ -173,17 +227,21 @@ export async function apiCreatePost(
     if (body.tags) {
       formData.append('tags', JSON.stringify(body.tags));
     }
-    const uriParts = body.imageUri.split('.');
-    const ext = uriParts[uriParts.length - 1]?.toLowerCase() ?? 'jpg';
-    const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
-    const mimeType = mimeMap[ext] ?? 'image/jpeg';
-
+    if (body.isAnonymous !== undefined) {
+      formData.append('isAnonymous', String(body.isAnonymous));
+    }
     if (Platform.OS === 'web') {
-      // On web, fetch the blob from the data/blob URI and append as a File
+      // On web, blob: URIs have no extension — derive type from blob mime
       const blob = await fetch(body.imageUri).then((r) => r.blob());
-      formData.append('image', blob, `photo.${ext}`);
+      const extFromMime: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+      const webExt = extFromMime[blob.type] ?? 'jpg';
+      formData.append('image', blob, `photo.${webExt}`);
     } else {
-      // On native, use the RN-specific {uri, name, type} object
+      // On native, parse extension from file URI
+      const uriParts = body.imageUri.split('.');
+      const ext = uriParts[uriParts.length - 1]?.toLowerCase() ?? 'jpg';
+      const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+      const mimeType = mimeMap[ext] ?? 'image/jpeg';
       formData.append('image', {
         uri: body.imageUri,
         name: `photo.${ext}`,
@@ -296,12 +354,13 @@ export async function apiUpsertReaction(
 // ── Comment endpoints ────────────────────────
 
 /**
- * GET /api/posts/:postId/comments
+ * GET /api/posts/:postId/comments?userId=...
  * Returns all comments for a post, oldest first.
  */
-export async function apiGetComments(postId: string): Promise<GetCommentsResponse> {
+export async function apiGetComments(postId: string, userId?: string): Promise<GetCommentsResponse> {
   const { data } = await client.get<GetCommentsResponse>(
-    `/api/posts/${postId}/comments`
+    `/api/posts/${postId}/comments`,
+    { params: userId ? { userId } : undefined }
   );
   return data;
 }
@@ -347,6 +406,22 @@ export async function apiUpdateComment(
 ): Promise<UpdateCommentResponse> {
   const { data } = await client.patch<UpdateCommentResponse>(
     `/api/posts/${postId}/comments/${commentId}`,
+    body
+  );
+  return data;
+}
+
+/**
+ * POST /api/posts/:postId/comments/:commentId/reactions
+ * Toggle a reaction on a comment.
+ */
+export async function apiUpsertCommentReaction(
+  postId: string,
+  commentId: string,
+  body: UpsertReactionRequest
+): Promise<UpsertReactionResponse> {
+  const { data } = await client.post<UpsertReactionResponse>(
+    `/api/posts/${postId}/comments/${commentId}/reactions`,
     body
   );
   return data;
@@ -559,6 +634,22 @@ export async function apiGetOnlineCount(): Promise<number> {
   }
 }
 
+/**
+ * GET /api/users/check?username=<name>
+ * Returns true if the username is available (not yet registered).
+ */
+export async function apiCheckUsername(username: string): Promise<boolean> {
+  try {
+    const { data } = await client.get<{ available: boolean }>('/api/users/check', {
+      params: { username },
+    });
+    return data.available;
+  } catch {
+    // On network error, assume available so login isn't blocked
+    return true;
+  }
+}
+
 
 export interface DashboardStats {
   totalMembers: number;
@@ -717,6 +808,26 @@ export async function apiSendMessage(
   const { data } = await client.post<SendMessageResponse>(
     `/api/conversations/${conversationId}/messages`,
     body
+  );
+  return data;
+}
+
+/** POST /api/conversations/:id/typing — signal that userId is typing */
+export async function apiSetTyping(
+  conversationId: string,
+  userId: string
+): Promise<void> {
+  await client.post(`/api/conversations/${conversationId}/typing`, { userId });
+}
+
+/** GET /api/conversations/:id/typing?userId=me — check if other participant is typing */
+export async function apiGetTyping(
+  conversationId: string,
+  userId: string
+): Promise<{ typing: boolean; typingUserId: string | null }> {
+  const { data } = await client.get(
+    `/api/conversations/${conversationId}/typing`,
+    { params: { userId } }
   );
   return data;
 }

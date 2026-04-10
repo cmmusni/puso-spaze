@@ -27,6 +27,16 @@ export function SupportIcon({ size = 16, color = "#fff", style }: IconProps) {
   );
 }
 
+export function LikeIcon({ size = 16, color = "#fff", style }: IconProps) {
+  return (
+    <Image
+      source={require("../assets/like-icon.png")}
+      style={[{ width: size, height: size, tintColor: color }, style]}
+      resizeMode="contain"
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   segment: {
     position: "absolute",

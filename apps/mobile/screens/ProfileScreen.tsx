@@ -15,6 +15,7 @@ import {
   Platform,
   TextInput,
   Switch,
+  Image,
   useWindowDimensions,
   SafeAreaView,
   StatusBar,
@@ -23,31 +24,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
-import { Platform as RNPlatform } from "react-native";
-import * as SecureStore from "expo-secure-store";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 
-import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { colors, fonts, spacing, radii, ambientShadow } from "../constants/theme";
 import { useUserStore } from "../context/UserContext";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
-import { apiUpdateUsername, apiFetchJournals } from "../services/api";
+import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, getBaseUrl } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal } from "../../../packages/types";
 
 type Nav = DrawerNavigationProp<MainDrawerParamList>;
-
-const storage = {
-  async getItem(key: string): Promise<string | null> {
-    if (RNPlatform.OS === "web") return AsyncStorage.getItem(key);
-    return SecureStore.getItemAsync(key);
-  },
-  async removeItem(key: string): Promise<void> {
-    if (RNPlatform.OS === "web") return AsyncStorage.removeItem(key);
-    return SecureStore.deleteItemAsync(key);
-  },
-};
 
 const ROLE_LABELS: Record<string, string> = {
   USER: "Spaze Member",
@@ -59,11 +47,12 @@ const BIO_DEFAULT = "Embracing the journey of self-discovery one reflection at a
 
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
-  const { username, userId, role, isAnonymous, updateUsername, logoutUser, toggleAnonymous } = useUserStore();
+  const { username, userId, role, avatarUrl, isAnonymous, notificationsEnabled, updateUsername, updateAvatarUrl, logoutUser, toggleAnonymous, toggleNotifications } = useUserStore();
   const { isDark, colors: themeColors, toggleDarkMode } = useThemeStore();
   const { posts, fetchPosts } = usePosts();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
+  const isMedium = width >= 600;
   const twoCol = width >= 700;
 
   const [loading, setLoading] = useState(true);
@@ -75,12 +64,17 @@ export default function ProfileScreen() {
   const [editedUsername, setEditedUsername] = useState(username ?? "");
   const [savingUsername, setSavingUsername] = useState(false);
 
+  // ── Avatar upload state ───────────────────
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   // ── Preferences state ─────────────────────
-  const [notificationsOn, setNotificationsOn] = useState(true);
 
   const displayName = username ?? "User";
   const initial = displayName.charAt(0).toUpperCase();
   const roleLabel = ROLE_LABELS[role ?? "USER"] ?? "Spaze Member";
+
+  // ── Responsive avatar size ────────────────
+  const avatarSize = isMedium ? 100 : 80;
 
   // ── Load data ─────────────────────────────
   const loadData = useCallback(async () => {
@@ -118,7 +112,6 @@ export default function ProfileScreen() {
   const totalReflections = myPosts.length + journals.length;
 
   const encouragementsGiven = useMemo(() => {
-    // reactionCount is per-post; sum reactions on other people's posts as a proxy
     let count = 0;
     posts.forEach((p) => {
       if (p.userId !== userId && p.reactionCount) count += 1;
@@ -143,10 +136,10 @@ export default function ProfileScreen() {
   const recentReflections = useMemo(() => {
     const items = [
       ...myPosts.map((p) => ({ id: p.id, title: p.content?.slice(0, 50) ?? "Post", date: p.createdAt, type: "post" })),
-      ...journals.map((j) => ({ id: j.id, title: j.title, date: j.createdAt, type: "journal" })),
+      ...journals.map((j) => ({ id: j.id, title: j.content?.slice(0, 50) ?? j.title, date: j.createdAt, type: "journal" })),
     ];
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return items.slice(0, 4);
+    return items.slice(0, 5);
   }, [myPosts, journals]);
 
   const formatDate = (dateStr: string) => {
@@ -158,6 +151,29 @@ export default function ProfileScreen() {
     y.setDate(y.getDate() - 1);
     if (d.toDateString() === y.toDateString()) return "Yesterday";
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  };
+
+  // ── Avatar upload ─────────────────────────
+  const handlePickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri || !userId) return;
+
+    setUploadingAvatar(true);
+    try {
+      const { avatarUrl: newUrl } = await apiUploadAvatar(userId, result.assets[0].uri);
+      await updateAvatarUrl(newUrl);
+    } catch (err: any) {
+      const msg = err?.message ?? "Failed to upload avatar.";
+      showAlert("Error", msg);
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   // ── Username editing ──────────────────────
@@ -209,11 +225,16 @@ export default function ProfileScreen() {
     );
   }
 
+  const resolvedAvatarUri = avatarUrl ? `${getBaseUrl()}${avatarUrl}` : null;
+
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: themeColors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
       <ScrollView
-        contentContainerStyle={s.scrollContent}
+        contentContainerStyle={[
+          s.scrollContent,
+          isWide && s.scrollContentWide,
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -226,24 +247,56 @@ export default function ProfileScreen() {
       >
         {/* ── Profile Header Card ── */}
         <View style={[s.profileCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
-          <View style={s.profileRow}>
+          <View style={[s.profileRow, isMedium && s.profileRowMedium]}>
             {/* Avatar */}
-            <View style={s.avatarWrap}>
-              <LinearGradient
-                colors={[themeColors.surfaceContainerHigh, themeColors.surfaceVariant]}
-                style={s.avatarGrad}
-              >
-                <Text style={[s.avatarText, { color: themeColors.onSurface }]}>{initial}</Text>
-              </LinearGradient>
+            <TouchableOpacity
+              style={s.avatarWrap}
+              onPress={handlePickAvatar}
+              disabled={uploadingAvatar}
+              activeOpacity={0.7}
+            >
+              {resolvedAvatarUri ? (
+                <Image
+                  source={{ uri: resolvedAvatarUri }}
+                  style={[
+                    s.avatarImage,
+                    { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
+                  ]}
+                />
+              ) : (
+                <LinearGradient
+                  colors={[themeColors.surfaceContainerHigh, themeColors.surfaceVariant]}
+                  style={[
+                    s.avatarGrad,
+                    { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
+                  ]}
+                >
+                  <Text style={[s.avatarText, { color: themeColors.onSurface, fontSize: avatarSize * 0.4 }]}>
+                    {initial}
+                  </Text>
+                </LinearGradient>
+              )}
               <View style={[s.avatarEditBadge, { backgroundColor: themeColors.primary }]}>
-                <Ionicons name="pencil" size={10} color={themeColors.onPrimary} />
+                {uploadingAvatar ? (
+                  <ActivityIndicator size={10} color={themeColors.onPrimary} />
+                ) : (
+                  <Ionicons name="camera" size={12} color={themeColors.onPrimary} />
+                )}
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Info */}
-            <View style={s.profileInfo}>
+            <View style={[s.profileInfo, isMedium && s.profileInfoMedium]}>
               <View style={s.nameRow}>
-                <Text style={[s.displayName, { color: themeColors.onSurface }]}>{displayName}</Text>
+                <Text
+                  style={[
+                    s.displayName,
+                    { color: themeColors.onSurface },
+                    isMedium && s.displayNameMedium,
+                  ]}
+                >
+                  {displayName}
+                </Text>
                 <View style={[s.roleBadge, { backgroundColor: themeColors.secondaryFixed }]}>
                   <Text style={[s.roleBadgeText, { color: themeColors.onSecondaryFixed }]}>{roleLabel}</Text>
                 </View>
@@ -253,38 +306,40 @@ export default function ProfileScreen() {
               {/* Action buttons */}
               <View style={s.profileActions}>
                 {isEditing ? (
-                  <View style={s.editRow}>
+                  <View style={[s.editRow, !isMedium && s.editRowMobile]}>
                     <TextInput
-                      style={s.editInput}
+                      style={[s.editInput, { backgroundColor: themeColors.surfaceContainerHigh, color: themeColors.onSurface }]}
                       value={editedUsername}
                       onChangeText={setEditedUsername}
                       placeholder="New username"
-                      placeholderTextColor={colors.muted3}
+                      placeholderTextColor={themeColors.muted3}
                       editable={!savingUsername}
                       autoFocus
                     />
-                    <TouchableOpacity onPress={handleCancelEdit} style={s.cancelBtn}>
-                      <Text style={s.cancelBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleSaveUsername}
-                      disabled={savingUsername}
-                      style={s.saveBtnSmall}
-                    >
-                      {savingUsername ? (
-                        <ActivityIndicator size="small" color={colors.onPrimary} />
-                      ) : (
-                        <Text style={s.saveBtnSmallText}>Save</Text>
-                      )}
-                    </TouchableOpacity>
+                    <View style={[s.editActions, !isMedium && s.editActionsMobile]}>
+                      <TouchableOpacity onPress={handleCancelEdit} style={[s.cancelBtn, { borderColor: themeColors.outline }]}>
+                        <Text style={[s.cancelBtnText, { color: themeColors.onSurfaceVariant }]}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleSaveUsername}
+                        disabled={savingUsername}
+                        style={[s.saveBtnSmall, { backgroundColor: themeColors.primary }]}
+                      >
+                        {savingUsername ? (
+                          <ActivityIndicator size="small" color={themeColors.onPrimary} />
+                        ) : (
+                          <Text style={[s.saveBtnSmallText, { color: themeColors.onPrimary }]}>Save</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
                   <>
-                    <TouchableOpacity onPress={handleEditProfile} style={s.editProfileBtn}>
-                      <Text style={s.editProfileBtnText}>Edit Profile</Text>
+                    <TouchableOpacity onPress={handleEditProfile} style={[s.editProfileBtn, { backgroundColor: themeColors.primary }]}>
+                      <Text style={[s.editProfileBtnText, { color: themeColors.onPrimary }]}>Edit Username  </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={logoutUser} style={s.signOutBtn}>
-                      <Text style={s.signOutBtnText}>Sign Out</Text>
+                    <TouchableOpacity onPress={logoutUser} style={[s.signOutBtn, { borderColor: themeColors.outline }]}>
+                      <Text style={[s.signOutBtnText, { color: themeColors.onSurface }]}>Sign Out</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -296,24 +351,24 @@ export default function ProfileScreen() {
         {/* ── Your Journey ── */}
         <View style={s.sectionHeader}>
           <Ionicons name="sparkles" size={18} color={themeColors.primary} />
-          <Text style={[s.sectionTitle, { color: themeColors.onSurface }]}>Your Journey</Text>
+          <Text style={[s.sectionTitle, { color: themeColors.onSurface }, isMedium && { fontSize: 20 }]}>Your Journey</Text>
         </View>
 
-        <View style={s.statsRow}>
-          <View style={[s.statCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+        <View style={[s.statsRow, isMedium && s.statsRowMedium]}>
+          <View style={[s.statCard, isMedium && s.statCardMedium, { backgroundColor: themeColors.surfaceContainerLowest }]}>
             <Ionicons name="flame" size={20} color={themeColors.primary} />
-            <Text style={[s.statNumber, { color: themeColors.onSurface }]}>{streak} Day{streak !== 1 ? "s" : ""}</Text>
-            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }]}>Streak</Text>
+            <Text style={[s.statNumber, { color: themeColors.onSurface }, isMedium && { fontSize: 28 }]}>{streak} Day{streak !== 1 ? "s" : ""}</Text>
+            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }, isMedium && { fontSize: 12 }]}>Streak</Text>
           </View>
-          <View style={[s.statCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+          <View style={[s.statCard, isMedium && s.statCardMedium, { backgroundColor: themeColors.surfaceContainerLowest }]}>
             <Ionicons name="book" size={20} color={themeColors.secondary} />
-            <Text style={[s.statNumber, { color: themeColors.onSurface }]}>{totalReflections}</Text>
-            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }]}>Total Reflections</Text>
+            <Text style={[s.statNumber, { color: themeColors.onSurface }, isMedium && { fontSize: 28 }]}>{totalReflections}</Text>
+            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }, isMedium && { fontSize: 12 }]}>Total Reflections</Text>
           </View>
-          <View style={[s.statCard, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+          <View style={[s.statCard, isMedium && s.statCardMedium, { backgroundColor: themeColors.surfaceContainerLowest }]}>
             <Ionicons name="heart" size={20} color={themeColors.tertiary} />
-            <Text style={[s.statNumber, { color: themeColors.onSurface }]}>{encouragementsGiven}</Text>
-            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }]}>Encouragements Given</Text>
+            <Text style={[s.statNumber, { color: themeColors.onSurface }, isMedium && { fontSize: 28 }]}>{encouragementsGiven}</Text>
+            <Text style={[s.statLabel, { color: themeColors.onSurfaceVariant }, isMedium && { fontSize: 12 }]}>Encouragements Given</Text>
           </View>
         </View>
 
@@ -323,16 +378,27 @@ export default function ProfileScreen() {
           <View style={[s.bottomCard, twoCol && s.bottomCardFlex, { backgroundColor: themeColors.surfaceContainerLowest }]}>
             <View style={s.bottomCardHeader}>
               <Text style={[s.bottomCardTitle, { color: themeColors.onSurface }]}>Recent Reflections</Text>
-              <TouchableOpacity>
-                <Text style={s.viewAllLink}>View All</Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Journal", { scrollToPastEntries: true })}>
+                <Text style={[s.viewAllLink, { color: themeColors.primary }]}>View All</Text>
               </TouchableOpacity>
             </View>
             {recentReflections.length === 0 ? (
-              <Text style={s.emptyText}>No reflections yet. Start journaling!</Text>
+              <Text style={[s.emptyText, { color: themeColors.muted4 }]}>No reflections yet. Start journaling!</Text>
             ) : (
               recentReflections.map((item) => (
-                <TouchableOpacity key={item.id} style={s.reflectionRow} activeOpacity={0.7}>
-                  <View style={s.reflectionIcon}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={[s.reflectionRow, { borderBottomColor: themeColors.surfaceVariant }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (item.type === "journal") {
+                      navigation.navigate("Journal", { highlightJournalId: item.id });
+                    } else {
+                      navigation.navigate("PostDetail", { postId: item.id });
+                    }
+                  }}
+                >
+                  <View style={[s.reflectionIcon, { backgroundColor: themeColors.surfaceContainerLow }]}>
                     <Ionicons
                       name={item.type === "journal" ? "sparkles" : "chatbubble"}
                       size={14}
@@ -340,8 +406,8 @@ export default function ProfileScreen() {
                     />
                   </View>
                   <View style={s.reflectionInfo}>
-                    <Text style={s.reflectionTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={s.reflectionDate}>{formatDate(item.date)}</Text>
+                    <Text style={[s.reflectionTitle, { color: themeColors.onSurface }]} numberOfLines={1}>{item.title}</Text>
+                    <Text style={[s.reflectionDate, { color: themeColors.onSurfaceVariant }]}>{formatDate(item.date)}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={themeColors.muted3} />
                 </TouchableOpacity>
@@ -372,8 +438,8 @@ export default function ProfileScreen() {
                 <Text style={[s.prefDesc, { color: themeColors.onSurfaceVariant }]}>Daily reflection reminders</Text>
               </View>
               <Switch
-                value={notificationsOn}
-                onValueChange={setNotificationsOn}
+                value={notificationsEnabled}
+                onValueChange={(val) => toggleNotifications(val).catch(() => showAlert('Error', 'Could not toggle notifications.'))}
                 trackColor={{ false: themeColors.surfaceVariant, true: themeColors.primary }}
                 thumbColor={themeColors.onPrimary}
               />
@@ -403,30 +469,42 @@ const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   scrollContent: {
-    padding: 24,
+    padding: spacing.md,
     paddingBottom: 80,
     ...(Platform.OS === "web" ? { maxWidth: 900, alignSelf: "center" as any, width: "100%" as any } : {}),
+  },
+  scrollContentWide: {
+    padding: spacing.xl,
+    paddingBottom: 60,
   },
 
   // ── Profile card ──────────────────────────
   profileCard: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.xl,
-    padding: 24,
-    marginBottom: 32,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
     ...ambientShadow,
   },
   profileRow: {
     flexDirection: "row",
-    gap: 20,
+    gap: spacing.sm,
   },
-  avatarWrap: { position: "relative" },
+  profileRowMedium: {
+    gap: spacing.lg,
+  },
+  avatarWrap: { position: "relative", alignSelf: "flex-start" },
   avatarGrad: {
     width: 80,
     height: 80,
     borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 32,
@@ -435,11 +513,11 @@ const s = StyleSheet.create({
   },
   avatarEditBadge: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 2,
+    right: 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -447,6 +525,9 @@ const s = StyleSheet.create({
     borderColor: colors.surfaceContainerLowest,
   },
   profileInfo: { flex: 1 },
+  profileInfoMedium: {
+    paddingTop: spacing.xs,
+  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -455,9 +536,12 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   displayName: {
-    fontSize: 22,
+    fontSize: 19,
     fontFamily: fonts.displayBold,
     color: colors.onSurface,
+  },
+  displayNameMedium: {
+    fontSize: 24,
   },
   roleBadge: {
     backgroundColor: colors.secondaryFixed,
@@ -471,21 +555,21 @@ const s = StyleSheet.create({
     color: colors.onSecondaryFixed,
   },
   bio: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurfaceVariant,
-    lineHeight: 19,
-    marginBottom: 16,
+    lineHeight: 17,
+    marginBottom: spacing.sm,
   },
   profileActions: {
     flexDirection: "row",
-    gap: 10,
+    gap: spacing.sm,
     flexWrap: "wrap",
   },
   editProfileBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: radii.full,
   },
   editProfileBtnText: {
@@ -496,8 +580,8 @@ const s = StyleSheet.create({
   signOutBtn: {
     borderWidth: 1,
     borderColor: colors.outline,
-    paddingHorizontal: 22,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: radii.full,
   },
   signOutBtnText: {
@@ -510,8 +594,20 @@ const s = StyleSheet.create({
   editRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
     flex: 1,
+  },
+  editRowMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: spacing.xs,
+  },
+  editActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  editActionsMobile: {
+    justifyContent: "flex-end",
   },
   editInput: {
     flex: 1,
@@ -551,11 +647,11 @@ const s = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontFamily: fonts.displayBold,
     color: colors.onSurface,
   },
@@ -563,31 +659,42 @@ const s = StyleSheet.create({
   // ── Stats row ─────────────────────────────
   statsRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 32,
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+    flexWrap: "wrap",
+  },
+  statsRowMedium: {
+    flexWrap: "nowrap",
+    gap: spacing.md,
   },
   statCard: {
     flex: 1,
+    minWidth: 80,
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.xl,
-    padding: 18,
+    padding: 14,
     alignItems: "flex-start",
-    gap: 8,
+    gap: spacing.xs,
     ...ambientShadow,
   },
+  statCardMedium: {
+    padding: 18,
+    gap: spacing.sm,
+    minWidth: 90,
+  },
   statNumber: {
-    fontSize: 28,
+    fontSize: 20,
     fontFamily: fonts.displayExtraBold,
     color: colors.onSurface,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurfaceVariant,
   },
 
   // ── Bottom row ────────────────────────────
-  bottomRow: { gap: 16 },
+  bottomRow: { gap: spacing.md },
   bottomRowWide: { flexDirection: "row" },
   bottomCard: {
     backgroundColor: colors.surfaceContainerLowest,
@@ -600,13 +707,13 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   bottomCardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: fonts.displaySemiBold,
     color: colors.onSurface,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   viewAllLink: {
     fontSize: 13,
@@ -648,7 +755,7 @@ const s = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     color: colors.muted4,
     fontStyle: "italic",
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
   },
 
   // ── Preferences ───────────────────────────

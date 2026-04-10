@@ -22,16 +22,18 @@ interface Tab {
   icon: keyof typeof Ionicons.glyphMap;
   iconActive: keyof typeof Ionicons.glyphMap;
   route: string;
+  memberOnly?: boolean;
+  coachOnly?: boolean;
 }
 
 const TABS: Tab[] = [
   { key: "feed", label: "Feed", icon: "newspaper-outline", iconActive: "newspaper", route: "Home" },
   { key: "journal", label: "Journal", icon: "book-outline", iconActive: "book", route: "Journal" },
-  { key: "coach", label: "Coach", icon: "chatbubbles-outline", iconActive: "chatbubbles", route: "SpazeCoach" },
-  { key: "conversations", label: "Convos", icon: "people-outline", iconActive: "people", route: "SpazeConversations" },
-  { key: "alerts", label: "Alerts", icon: "notifications-outline", iconActive: "notifications", route: "Notifications" },
-  { key: "review", label: "Review", icon: "clipboard-outline", iconActive: "clipboard", route: "ReviewQueue" },
-  { key: "profile", label: "Profile", icon: "person-outline", iconActive: "person", route: "Profile" },
+  { key: "coach", label: "Coach", icon: "chatbubbles-outline", iconActive: "chatbubbles", route: "SpazeCoach", memberOnly: true },
+  { key: "conversations", label: "Convos", icon: "people-outline", iconActive: "people", route: "SpazeConversations", coachOnly: true },
+  { key: "review", label: "Review", icon: "clipboard-outline", iconActive: "clipboard", route: "ReviewQueue", coachOnly: true },
+  { key: "notifications", label: "Alerts", icon: "notifications-outline" as any, iconActive: "notifications" as any, route: "Notifications" },
+  { key: "profile", label: "Profile", icon: "person-outline", iconActive: "person" as any, route: "Profile" },
 ];
 
 interface Props {
@@ -45,7 +47,8 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Prop
   if (Platform.OS !== "web") return null;
 
   const visibleTabs = TABS.filter((tab) => {
-    if (tab.key === "review" && !isCoach) return false;
+    if (tab.coachOnly && !isCoach) return false;
+    if (tab.memberOnly && isCoach) return false;
     return true;
   });
 

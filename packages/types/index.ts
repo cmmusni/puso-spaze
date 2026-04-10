@@ -5,11 +5,11 @@
 
 export type ModerationStatus = 'SAFE' | 'FLAGGED' | 'REVIEW';
 
-export type ReactionType = 'PRAY' | 'CARE' | 'SUPPORT';
+export type ReactionType = 'PRAY' | 'CARE' | 'SUPPORT' | 'LIKE';
 
 export type UserRole = 'USER' | 'COACH' | 'ADMIN';
 
-export type NotificationType = 'REACTION' | 'COMMENT' | 'ENCOURAGEMENT' | 'SYSTEM';
+export type NotificationType = 'REACTION' | 'COMMENT' | 'ENCOURAGEMENT' | 'SYSTEM' | 'MESSAGE';
 
 export const REACTION_EMOJI: Record<ReactionType, string> = {
   PRAY:  '🙇',
@@ -23,6 +23,7 @@ export interface User {
   role: UserRole;
   createdAt: string;
   isAnonymous?: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface MentionUser {
@@ -66,6 +67,10 @@ export interface Comment {
   anonDisplayName?: string | null;
   user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
   post?: Pick<Post, 'id' | 'content'>;
+  parentId?: string | null;
+  replies?: Comment[];
+  reactionCounts?: ReactionCounts;
+  userReaction?: ReactionType | null;
 }
 
 export interface Notification {
@@ -104,13 +109,14 @@ export interface ReactionCounts {
   PRAY?: number;
   CARE?: number;
   SUPPORT?: number;
+  LIKE?: number;
 }
 
 // ── API shapes ────────────────────────────────
 export interface CreateUserRequest { displayName: string; deviceId?: string; }
 export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; }
 
-export interface CreatePostRequest { userId: string; content: string; tags?: string[]; }
+export interface CreatePostRequest { userId: string; content: string; tags?: string[]; isAnonymous?: boolean; }
 export interface CreatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
 export interface UpdatePostRequest { userId: string; content: string; tags?: string[]; }
 export interface UpdatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
@@ -127,7 +133,7 @@ export interface GetReactionsResponse {
   userReaction: ReactionType | null;
 }
 
-export interface CreateCommentRequest { userId: string; content: string; }
+export interface CreateCommentRequest { userId: string; content: string; parentId?: string; }
 export interface CreateCommentResponse { comment: Comment; flagged: boolean; underReview: boolean; }
 export interface UpdateCommentRequest { userId: string; content: string; }
 export interface UpdateCommentResponse { comment: Comment; flagged: boolean; underReview: boolean; }

@@ -50,7 +50,7 @@ export type MainDrawerParamList = {
   Post: undefined;
   PostDetail: { postId?: string; post?: Post; openedFrom?: "notifications" };
   Notifications: undefined;
-  Journal: undefined;
+  Journal: { highlightJournalId?: string; scrollToPastEntries?: boolean } | undefined;
   SpazeCoach: undefined;
   SpazeConversations: undefined;
   Chat: { conversationId: string };
@@ -60,11 +60,12 @@ const Drawer = createDrawerNavigator<MainDrawerParamList>();
 
 // ── Drawer nav items (mirrors WebSidebar) ─────
 const DRAWER_NAV_ITEMS = [
-  { key: "community", label: "Community", icon: "people-outline" as const, iconActive: "people" as const, route: "Home" as keyof MainDrawerParamList, isDefault: true },
+  { key: "feed", label: "Feed", icon: "newspaper-outline" as const, iconActive: "newspaper" as const, route: "Home" as keyof MainDrawerParamList, isDefault: true },
   { key: "journal", label: "Journal", icon: "book-outline" as const, iconActive: "book" as const, route: "Journal" as keyof MainDrawerParamList },
-  { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as const, iconActive: "chatbubbles" as const, route: "SpazeCoach" as keyof MainDrawerParamList },
-  { key: "conversations", label: "Spaze Conversations", icon: "people-outline" as const, iconActive: "people" as const, route: "SpazeConversations" as keyof MainDrawerParamList },
+  { key: "coach", label: "Spaze Coach", icon: "chatbubbles-outline" as const, iconActive: "chatbubbles" as const, route: "SpazeCoach" as keyof MainDrawerParamList, memberOnly: true },
+  { key: "conversations", label: "Spaze Conversations", icon: "people-outline" as const, iconActive: "people" as const, route: "SpazeConversations" as keyof MainDrawerParamList, coachOnly: true },
   { key: "review", label: "Coach Dashboard", icon: "clipboard-outline" as const, iconActive: "clipboard" as const, route: "ReviewQueue" as keyof MainDrawerParamList, coachOnly: true },
+  { key: "notifications", label: "Notifications", icon: "notifications-outline" as const, iconActive: "notifications" as const, route: "Notifications" as keyof MainDrawerParamList },
   { key: "profile", label: "Profile", icon: "person-outline" as const, iconActive: "person" as const, route: "Profile" as keyof MainDrawerParamList },
 ];
 
@@ -93,14 +94,9 @@ function CustomDrawerContent({
 
       {/* ── Brand header ── */}
       <View style={styles.brandSection}>
-        <Image
-          source={require("../assets/logo.png")}
-          style={styles.brandLogo}
-          resizeMode="contain"
-        />
         <View>
           <Text style={styles.brandName}>PUSO Spaze</Text>
-          <Text style={styles.brandSub}>YOUR SAFE SPACE</Text>
+          <Text style={styles.brandSub}>YOUR ANONYMOUS HEART SPACE</Text>
         </View>
       </View>
 
@@ -108,6 +104,7 @@ function CustomDrawerContent({
       <View style={styles.navSection}>
         {DRAWER_NAV_ITEMS.filter((item) => {
           if (item.coachOnly && !isCoach) return false;
+          if (item.memberOnly && isCoach) return false;
           return true;
         }).map((item) => {
           const active = item.isDefault
@@ -246,16 +243,7 @@ export default function MainDrawerNavigator() {
         name="Post"
         component={PostScreen}
         options={{
-          title: "PUSO Spaze \u2014 Create Post",
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: colors.deep,
-          },
-          headerTintColor: colors.card,
-          headerTitleStyle: {
-            fontWeight: "bold",
-            color: colors.card,
-          },
+          headerShown: false,
         }}
       />
       <Drawer.Screen
@@ -282,14 +270,16 @@ export default function MainDrawerNavigator() {
           headerShown: false,
         }}
       />
-      <Drawer.Screen
-        name="SpazeConversations"
-        component={withTabs(SpazeConversationsScreen, "SpazeConversations")}
-        options={{
-          title: "PUSO Spaze \u2014 Spaze Conversations",
-          headerShown: false,
-        }}
-      />
+      {isCoach && (
+        <Drawer.Screen
+          name="SpazeConversations"
+          component={withTabs(SpazeConversationsScreen, "SpazeConversations")}
+          options={{
+            title: "PUSO Spaze \u2014 Spaze Conversations",
+            headerShown: false,
+          }}
+        />
+      )}
       <Drawer.Screen
         name="Chat"
         component={ChatScreen}
@@ -323,10 +313,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     marginBottom: 40,
   },
-  brandLogo: { width: 34, height: 34 },
   brandName: {
     fontSize: 17,
     fontFamily: fonts.displayExtraBold,
@@ -344,6 +333,7 @@ const styles = StyleSheet.create({
   // ── Navigation items ─────────────────────
   navSection: {
     gap: 6,
+    paddingHorizontal: 12,
   },
   navItem: {
     flexDirection: "row",

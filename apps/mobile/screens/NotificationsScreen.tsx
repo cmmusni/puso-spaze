@@ -45,6 +45,8 @@ const getNotificationIcon = (type: string): keyof typeof Ionicons.glyphMap => {
       return 'sparkles';
     case 'SYSTEM':
       return 'megaphone';
+    case 'MESSAGE':
+      return 'chatbubbles';
     default:
       return 'notifications';
   }
@@ -60,6 +62,8 @@ const getNotificationIconColor = (type: string): string => {
       return colors.tertiary;
     case 'SYSTEM':
       return colors.onSurfaceVariant;
+    case 'MESSAGE':
+      return colors.secondary;
     default:
       return colors.primary;
   }
@@ -73,6 +77,8 @@ const getAvatarColor = (type: string): string => {
       return colors.secondaryFixed;
     case 'ENCOURAGEMENT':
       return colors.surfaceContainerHigh;
+    case 'MESSAGE':
+      return colors.secondaryFixed;
     default:
       return colors.surfaceVariant;
   }
@@ -168,6 +174,15 @@ export default function NotificationsScreen() {
   const handleNotificationPress = async (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+    }
+
+    // MESSAGE notifications navigate directly to the conversation
+    if (notification.type === 'MESSAGE') {
+      const conversationId = notification.data?.conversationId;
+      if (conversationId) {
+        navigation.navigate('Chat', { conversationId });
+      }
+      return;
     }
 
     const postId = notification.data?.postId;

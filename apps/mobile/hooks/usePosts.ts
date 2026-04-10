@@ -11,7 +11,7 @@ export interface UsePostsResult {
   posts: Post[];
   loading: boolean;
   error: string | null;
-  fetchPosts: () => Promise<void>;
+  fetchPosts: (query?: string) => Promise<void>;
   submitPost: (req: CreatePostRequest & { imageUri?: string }) => Promise<{ flagged: boolean; underReview: boolean }>;
 }
 
@@ -20,12 +20,12 @@ export function usePosts(): UsePostsResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Fetch all SAFE posts from the server */
-  const fetchPosts = useCallback(async () => {
+  /** Fetch posts from the server. Optional search query. */
+  const fetchPosts = useCallback(async (query?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const { posts: fetched } = await apiFetchPosts();
+      const { posts: fetched } = await apiFetchPosts(query);
       setPosts(fetched);
     } catch (err: unknown) {
       const msg =

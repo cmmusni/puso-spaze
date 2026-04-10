@@ -44,17 +44,21 @@ const linking = {
       MainDrawer: {
         screens: {
           Home: '',
-          Profile: 'Profile',
-          ReviewQueue: 'ReviewQueue',
-          SendInvite: 'SendInvite',
-          Post: 'Post',
+          Profile: 'profile',
+          ReviewQueue: 'review-queue',
+          SendInvite: 'send-invite',
+          Post: 'post',
           PostDetail: {
-            path: 'PostDetail/:postId?',
+            path: 'post/:postId?',
             parse: {
               postId: (postId: string) => postId,
             },
           },
-          Notifications: 'Notifications',
+          Notifications: 'notifications',
+          Journal: 'journal',
+          SpazeCoach: 'spaze-coach',
+          SpazeConversations: 'conversations',
+          Chat: 'chat',
         },
       },
     },

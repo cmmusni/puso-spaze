@@ -30,7 +30,7 @@ import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
-import { apiGetOnlineCount } from '../services/api';
+import { apiGetOnlineCount, apiCheckUsername } from '../services/api';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
@@ -52,6 +52,30 @@ export default function LoginScreen() {
   // ── Anonymous username preview ─────
   const [anonUsername, setAnonUsername] = useState(() => generateAnonUsername());
   const refreshAnon = () => setAnonUsername(generateAnonUsername());
+
+  // ── On load: silently validate the previewed username against the server.
+  // If it’s already taken, cycle until we find a free one so the user
+  // always sees a name that is guaranteed to be available.
+  useEffect(() => {
+    let cancelled = false;
+    const validate = async () => {
+      const MAX = 10;
+      let name = anonUsername;
+      for (let i = 0; i < MAX; i++) {
+        const available = await apiCheckUsername(name);
+        if (cancelled) return;
+        if (available) {
+          if (i > 0) setAnonUsername(name); // only update state if we had to cycle
+          return;
+        }
+        name = generateAnonUsername();
+      }
+      if (!cancelled) setAnonUsername(name);
+    };
+    validate();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
 
   // ── Guidelines modal ─────
   const [showGuidelines, setShowGuidelines] = useState(false);
@@ -162,7 +186,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await loginAnonymously();
+      await loginAnonymously(anonUsername);
       navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg = err?.message ?? 'Something went wrong. Please try again.';

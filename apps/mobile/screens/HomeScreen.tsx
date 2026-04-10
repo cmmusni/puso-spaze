@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,10 @@ import {
   Platform,
   Image,
   TextInput,
+  Modal,
+  Animated,
   useWindowDimensions,
+  NativeScrollEvent,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
@@ -35,13 +38,45 @@ import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 
 type HomeNav = DrawerNavigationProp<MainDrawerParamList, "Home">;
 
-
+const FEELING_OPTIONS: { key: string; emoji: string; label: string }[] = [
+  { key: "grateful", emoji: "\u{1F60A}", label: "Grateful" },
+  { key: "prayerful", emoji: "\u{1F64F}", label: "Prayerful" },
+  { key: "strong", emoji: "\u{1F4AA}", label: "Strong" },
+  { key: "struggling", emoji: "\u{1F622}", label: "Struggling" },
+  { key: "hopeful", emoji: "\u{1F917}", label: "Hopeful" },
+  { key: "heavy-hearted", emoji: "\u{1F614}", label: "Heavy-hearted" },
+  { key: "blessed", emoji: "\u2728", label: "Blessed" },
+  { key: "loved", emoji: "\u2764\uFE0F", label: "Loved" },
+];
 
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+/** Brief highlight pulse for a newly created post */
+function HighlightWrap({ children }: { children: React.ReactNode }) {
+  const anim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 0, useNativeDriver: false }),
+      Animated.timing(anim, { toValue: 0, duration: 1500, useNativeDriver: false }),
+    ]).start();
+  }, []);
+
+  const bgColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["transparent", colors.primaryContainer + "50"],
+  });
+
+  return (
+    <Animated.View style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -4, paddingHorizontal: 4 }}>
+      {children}
+    </Animated.View>
+  );
 }
 
 export default function HomeScreen() {
@@ -54,10 +89,53 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
 
+  // ── FlatList ref for scrolling ──
+  const flatListRef = useRef<FlatList<Post>>(null);
+
+  // ── Highlight newly posted item ──
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const pendingHighlight = useRef(false);
+  const pendingHighlightId = useRef<string | null>(null);
+
+  // ── FAB visibility — hide while composer is on screen ──
+  const [showFab, setShowFab] = useState(false);
+  const composerBottomY = useRef(0);
+
+  const handleScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    setShowFab(offsetY > composerBottomY.current);
+  }, []);
+
+  // ── Search state ──
+  const [searchText, setSearchText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input → 400ms
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setSearchQuery(searchText.trim());
+    }, 400);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [searchText]);
+
+  // Re-fetch whenever the debounced query changes
+  useEffect(() => {
+    fetchPosts(searchQuery || undefined);
+  }, [searchQuery, fetchPosts]);
+
   // ── Inline composer state ──
   const [composeText, setComposeText] = useState("");
   const [composeImage, setComposeImage] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
+  const [selectedFeeling, setSelectedFeeling] = useState<string | null>(null);
+  const [feelingPickerVisible, setFeelingPickerVisible] = useState(false);
+  const feelingObj = selectedFeeling
+    ? FEELING_OPTIONS.find((f) => f.key === selectedFeeling)
+    : null;
 
   const [stats, setStats] = useState<DashboardStats>({
     totalMembers: 0,
@@ -74,15 +152,19 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchPosts();
+      fetchPosts(searchQuery || undefined);
       refreshUnreadCount();
       loadStats();
-    }, [fetchPosts, refreshUnreadCount, loadStats]),
+    }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats]),
   );
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([fetchPosts(), refreshUnreadCount(), loadStats()]);
-  }, [fetchPosts, refreshUnreadCount, loadStats]);
+    await Promise.all([
+      fetchPosts(searchQuery || undefined),
+      refreshUnreadCount(),
+      loadStats(),
+    ]);
+  }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats]);
 
   const handleDeletePost = useCallback(() => {
     fetchPosts();
@@ -113,10 +195,12 @@ export default function HomeScreen() {
     }
     setComposing(true);
     try {
+      const tags = selectedFeeling ? [selectedFeeling] : undefined;
       const { flagged, underReview } = await submitPost({
         userId,
         content: trimmed,
         imageUri: composeImage ?? undefined,
+        tags,
       });
       if (flagged) {
         showAlert(
@@ -130,10 +214,12 @@ export default function HomeScreen() {
         );
         setComposeText("");
         setComposeImage(null);
+        setSelectedFeeling(null);
       } else {
         setComposeText("");
         setComposeImage(null);
-        fetchPosts();
+        setSelectedFeeling(null);
+        pendingHighlight.current = true;
       }
     } catch (err: unknown) {
       showAlert(
@@ -145,9 +231,50 @@ export default function HomeScreen() {
     }
   };
 
+  // Scroll to & highlight new post once the list updates
+  useEffect(() => {
+    if (pendingHighlight.current && posts.length > 0) {
+      pendingHighlight.current = false;
+      const newId = posts[0].id;
+      setHighlightPostId(newId);
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index: 0, animated: true, viewOffset: 10 });
+      }, 100);
+      setTimeout(() => setHighlightPostId(null), 2000);
+    } else if (pendingHighlightId.current && posts.length > 0) {
+      const targetId = pendingHighlightId.current;
+      pendingHighlightId.current = null;
+      const idx = posts.findIndex((p) => p.id === targetId);
+      if (idx >= 0) {
+        setHighlightPostId(targetId);
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewOffset: 10 });
+        }, 100);
+        setTimeout(() => setHighlightPostId(null), 2000);
+      }
+    }
+  }, [posts]);
+
+  const handlePinPost = useCallback(
+    (postId: string) => {
+      pendingHighlightId.current = postId;
+      fetchPosts();
+    },
+    [fetchPosts],
+  );
+
   const renderItem: ListRenderItem<Post> = useCallback(
-    ({ item }) => <PostCard post={item} onDelete={handleDeletePost} />,
-    [handleDeletePost],
+    ({ item }) => {
+      if (item.id === highlightPostId) {
+        return (
+          <HighlightWrap>
+            <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} />
+          </HighlightWrap>
+        );
+      }
+      return <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} />;
+    },
+    [handleDeletePost, handlePinPost, highlightPostId],
   );
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
@@ -163,8 +290,7 @@ export default function HomeScreen() {
       {/* ── Greeting section ── */}
       <View style={styles.greetingSection}>
         <Text style={styles.greetingText}>
-          {getGreeting()},{"\n"}
-          {isCoach ? "Coach " : ""}
+          {getGreeting()},{isCoach ? " Coach " : " "}
           {displayName}.
         </Text>
         <Text style={styles.greetingSub}>
@@ -186,7 +312,13 @@ export default function HomeScreen() {
       )}
 
       {/* ── Inline Composer ── */}
-      <View style={styles.composerSection}>
+      <View
+        style={styles.composerSection}
+        onLayout={(e) => {
+          composerBottomY.current =
+            e.nativeEvent.layout.y + e.nativeEvent.layout.height;
+        }}
+      >
         <View style={styles.composerCard}>
           <View style={styles.composerTop}>
             <View style={styles.composerIcon}>
@@ -225,6 +357,29 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* ── Selected feeling chip ── */}
+          {feelingObj && (
+            <View style={styles.feelingChipRow}>
+              <View style={styles.feelingChip}>
+                <Text style={styles.feelingChipEmoji}>{feelingObj.emoji}</Text>
+                <Text style={styles.feelingChipText}>
+                  Feeling {feelingObj.label}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setSelectedFeeling(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <View style={styles.composerBottom}>
             <View style={styles.composerActions}>
               <TouchableOpacity
@@ -244,14 +399,21 @@ export default function HomeScreen() {
                 style={styles.composerActionBtn}
                 activeOpacity={0.7}
                 disabled={composing}
-                onPress={() => navigation.getParent()?.navigate("Post")}
+                onPress={() => setFeelingPickerVisible(true)}
               >
                 <Ionicons
                   name="happy-outline"
                   size={18}
-                  color={colors.onSurface}
+                  color={selectedFeeling ? colors.primary : colors.onSurface}
                 />
-                <Text style={styles.composerActionText}>Feeling</Text>
+                <Text
+                  style={[
+                    styles.composerActionText,
+                    !!selectedFeeling && { color: colors.primary },
+                  ]}
+                >
+                  Feeling
+                </Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -273,7 +435,7 @@ export default function HomeScreen() {
                 {composing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.composerSubmitText}>Post Reflection</Text>
+                  <Text style={styles.composerSubmitText}>Post</Text>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -338,11 +500,19 @@ export default function HomeScreen() {
   const listEmpty = (
     <View style={styles.emptyWrap}>
       <View style={styles.emptyIcon}>
-        <Ionicons name="sparkles-outline" size={36} color={colors.card} />
+        <Ionicons
+          name={searchQuery ? "search-outline" : "sparkles-outline"}
+          size={36}
+          color={colors.card}
+        />
       </View>
-      <Text style={styles.emptyTitle}>The space is quiet...</Text>
+      <Text style={styles.emptyTitle}>
+        {searchQuery ? "No results found" : "The space is quiet..."}
+      </Text>
       <Text style={styles.emptySub}>
-        Be the first to share a prayer or word of encouragement!
+        {searchQuery
+          ? `We couldn't find anything matching "${searchQuery}". Try a different search.`
+          : "Be the first to share a prayer or word of encouragement!"}
       </Text>
     </View>
   );
@@ -350,14 +520,21 @@ export default function HomeScreen() {
   const showRightPanel = isWide && width >= 1200;
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView
+      style={[styles.screen, { backgroundColor: themeColors.background }]}
+    >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={themeColors.gradientStart}
       />
 
       {/* ── Top bar ── */}
-      <View style={[styles.topBar, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+      <View
+        style={[
+          styles.topBar,
+          { backgroundColor: themeColors.surfaceContainerLowest },
+        ]}
+      >
         <View style={styles.topBarLeft}>
           {!isWide && (
             <TouchableOpacity
@@ -368,55 +545,78 @@ export default function HomeScreen() {
               <Ionicons name="menu-outline" size={24} color={colors.heading} />
             </TouchableOpacity>
           )}
-          {!isWide && (
-            <Image
-              source={require("../assets/logo.png")}
-              style={styles.topBarLogo}
-              resizeMode="contain"
-            />
-          )}
+          <Image
+            source={require("../assets/logo.png")}
+            style={styles.topBarLogo}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Search bar */}
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color={colors.muted4} />
-          <Text style={styles.searchPlaceholder} numberOfLines={1}>
-            Search for encouragement, stories...
-          </Text>
+          <Ionicons
+            name="search"
+            size={16}
+            color={searchText ? colors.primary : colors.muted4}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={
+              width < 400 ? "Search..." : "Search for encouragement, stories..."
+            }
+            placeholderTextColor={colors.muted4}
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchText("")}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close-circle" size={18} color={colors.muted4} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.topBarRight}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Notifications")}
-            activeOpacity={0.7}
-            style={styles.topBarIconBtn}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={20}
-              color={colors.heading}
-            />
-            {unreadCount > 0 && (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          {isWide && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Notifications")}
+              activeOpacity={0.7}
+              style={styles.topBarIconBtn}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={20}
+                color={colors.heading}
+              />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => navigation.navigate("Profile")}
             activeOpacity={0.7}
             style={styles.avatarBtn}
           >
-            <View style={styles.avatarInfo}>
-              <Text style={styles.avatarName} numberOfLines={1}>
-                {displayName}
-              </Text>
-              <Text style={styles.avatarRole}>
-                {isCoach ? "COACH" : "SPAZE MEMBER"}
-              </Text>
-            </View>
+            {isWide && (
+              <View style={styles.avatarInfo}>
+                <Text style={styles.avatarName} numberOfLines={1}>
+                  {displayName}
+                </Text>
+                <Text style={styles.avatarRole}>
+                  {isCoach ? "COACH" : "SPAZE MEMBER"}
+                </Text>
+              </View>
+            )}
             <LinearGradient
               colors={[colors.primaryContainer, colors.secondary]}
               start={{ x: 0, y: 0 }}
@@ -439,13 +639,20 @@ export default function HomeScreen() {
       <View style={styles.contentRow}>
         <View style={styles.feedColumn}>
           <FlatList
+            ref={flatListRef}
             data={posts}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingHorizontal: isWide ? 36 : 20 },
+            ]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={!loading ? listEmpty : null}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            onScrollToIndexFailed={() => {}}
             refreshControl={
               <RefreshControl
                 refreshing={loading}
@@ -462,37 +669,103 @@ export default function HomeScreen() {
             </View>
           )}
 
-          <View style={styles.fabWrap}>
-            <View style={{ flex: 1 }} />
+          {showFab && (
+            <View style={styles.fabWrap}>
+              <View style={{ flex: 1 }} />
 
-            {/* FAB */}
-            <TouchableOpacity
-              onPress={() => navigation.getParent()?.navigate("Post")}
-              activeOpacity={0.85}
-              style={styles.fab}
-            >
-              <LinearGradient
-                colors={[
-                  colors.secondary,
-                  colors.primaryContainer,
-                  colors.primary,
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.fabGrad}
+              {/* FAB */}
+              <TouchableOpacity
+                onPress={() => navigation.getParent()?.navigate("Post")}
+                activeOpacity={0.85}
+                style={styles.fab}
               >
-                <Ionicons
-                  name="chatbubble-ellipses"
-                  size={24}
-                  color={colors.onPrimary}
-                />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+                <LinearGradient
+                  colors={[
+                    colors.secondary,
+                    colors.primaryContainer,
+                    colors.primary,
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.fabGrad}
+                >
+                  <Ionicons
+                    name="chatbubble-ellipses"
+                    size={24}
+                    color={colors.onPrimary}
+                  />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {showRightPanel && <WebRightPanel />}
       </View>
+
+      {/* ── Feeling picker modal ── */}
+      <Modal
+        visible={feelingPickerVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFeelingPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setFeelingPickerVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalSheet}
+          >
+            <Text style={styles.modalTitle}>How are you feeling?</Text>
+            <View style={styles.feelingGrid}>
+              {FEELING_OPTIONS.map((f) => {
+                const isActive = selectedFeeling === f.key;
+                return (
+                  <TouchableOpacity
+                    key={f.key}
+                    style={[
+                      styles.feelingOption,
+                      isActive && styles.feelingOptionActive,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setSelectedFeeling(isActive ? null : f.key);
+                      setFeelingPickerVisible(false);
+                    }}
+                  >
+                    <Text style={styles.feelingEmoji}>{f.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.feelingLabel,
+                        isActive && styles.feelingLabelActive,
+                      ]}
+                    >
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {selectedFeeling && (
+              <TouchableOpacity
+                style={styles.feelingClearBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedFeeling(null);
+                  setFeelingPickerVisible(false);
+                }}
+              >
+                <Text style={styles.feelingClearText}>Clear feeling</Text>
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -527,11 +800,14 @@ const styles = StyleSheet.create({
     gap: 8,
     minWidth: 0,
   },
-  searchPlaceholder: {
+  searchInput: {
     flex: 1,
     fontSize: 13,
     fontFamily: fonts.bodyRegular,
-    color: colors.muted4,
+    color: colors.heading,
+    padding: 0,
+    margin: 0,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   topBarRight: {
     flexDirection: "row",
@@ -567,11 +843,6 @@ const styles = StyleSheet.create({
   avatarBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radii.full,
-    paddingLeft: 14,
-    paddingRight: 4,
-    paddingVertical: 4,
     gap: 10,
   },
   avatarInfo: {
@@ -603,7 +874,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Greeting — display-lg, generous leading ──
-  greetingSection: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 4 },
+  greetingSection: { paddingTop: 28, paddingBottom: 4 },
   greetingText: {
     fontSize: 32,
     fontFamily: fonts.displayBold,
@@ -620,7 +891,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Inline Composer ──
-  composerSection: { paddingHorizontal: 20, marginTop: 16 },
+  composerSection: { marginTop: 16 },
   composerCard: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.xl,
@@ -668,6 +939,29 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
   },
+  feelingChipRow: {
+    flexDirection: "row",
+    marginTop: 10,
+  },
+  feelingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primaryContainer + "25",
+    borderWidth: 1,
+    borderColor: colors.primary + "30",
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  feelingChipEmoji: {
+    fontSize: 14,
+  },
+  feelingChipText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.primary,
+  },
   composerBottom: {
     flexDirection: "row",
     alignItems: "center",
@@ -708,7 +1002,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Sections ──
-  section: { paddingHorizontal: 20, marginTop: 20 },
+  section: { marginTop: 20 },
   sectionLabel: {
     fontSize: 11,
     fontFamily: fonts.displaySemiBold,
@@ -814,7 +1108,7 @@ const styles = StyleSheet.create({
   },
 
   // ── List ──
-  listContent: { paddingBottom: 120, paddingHorizontal: 20 },
+  listContent: { paddingBottom: 120 },
 
   // ── Loader ──
   loaderOverlay: {
@@ -889,4 +1183,64 @@ const styles = StyleSheet.create({
     marginRight: 24,
   },
   fabGrad: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  // ── Feeling picker modal ──
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalSheet: {
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    padding: 16,
+    gap: 10,
+    width: "85%",
+    maxWidth: 320,
+    ...ambientShadow,
+  },
+  modalTitle: {
+    color: colors.onSurface,
+    fontSize: 16,
+    fontFamily: fonts.displayBold,
+    marginBottom: 2,
+  },
+  feelingGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  feelingOption: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    width: "30%",
+  },
+  feelingOptionActive: {
+    backgroundColor: colors.primaryContainer + "30",
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  feelingEmoji: { fontSize: 20, marginBottom: 2 },
+  feelingLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  feelingLabelActive: {
+    color: colors.primary,
+  },
+  feelingClearBtn: {
+    alignSelf: "center",
+    paddingVertical: 10,
+  },
+  feelingClearText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+  },
 });

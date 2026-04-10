@@ -16,6 +16,8 @@ import {
   getOrCreateConversation,
   getMessages,
   sendMessage,
+  setTyping,
+  getTyping,
 } from '../controllers/conversationController';
 import { validate } from '../middlewares/validate';
 
@@ -72,6 +74,28 @@ router.post(
     validate,
   ],
   sendMessage
+);
+
+// ── POST /api/conversations/:conversationId/typing ──
+router.post(
+  '/:conversationId/typing',
+  [
+    param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
+    body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  setTyping
+);
+
+// ── GET /api/conversations/:conversationId/typing ──
+router.get(
+  '/:conversationId/typing',
+  [
+    param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
+    query('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  getTyping
 );
 
 export default router;

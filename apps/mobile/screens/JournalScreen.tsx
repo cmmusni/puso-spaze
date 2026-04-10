@@ -4,7 +4,7 @@
 // calendar, mood bloom, and streak side panel
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   Modal,
   ScrollView,
   useWindowDimensions,
+  NativeScrollEvent,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,7 +32,17 @@ import {
   apiUpdateJournal,
   apiDeleteJournal,
 } from "../services/api";
-import { colors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
+import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
+import type { DrawerNavigationProp } from "@react-navigation/drawer";
+import type { RouteProp } from "@react-navigation/native";
+import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
+import {
+  colors,
+  fonts,
+  radii,
+  spacing,
+  ambientShadow,
+} from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import type { Journal } from "../../../packages/types";
 import { showAlert } from "../utils/alertPlatform";
@@ -68,15 +79,46 @@ const PROMPT_SUBTEXTS = [
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 // ── Helpers ──────────────────────────────────
 function getDateParts() {
   const now = new Date();
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return {
     dayOfWeek: dayNames[now.getDay()],
     month: monthNames[now.getMonth()],
@@ -107,11 +149,18 @@ function getCalendarDays(year: number, month: number) {
 }
 
 export default function JournalScreen({ navigation }: any) {
+  const route = useRoute<RouteProp<MainDrawerParamList, "Journal">>();
+  const highlightJournalId = route.params?.highlightJournalId ?? null;
+  const scrollToPastEntries = route.params?.scrollToPastEntries ?? false;
   const { userId } = useUserStore();
   const { colors: themeColors, isDark } = useThemeStore();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
   const showSidePanel = Platform.OS === "web" && width >= 1100;
+
+  // ── Highlight state ───────────────────────
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const entryRefs = useRef<Record<string, View | null>>({});
 
   // ── List state ────────────────────────────
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -123,6 +172,19 @@ export default function JournalScreen({ navigation }: any) {
   const [mood, setMood] = useState<string | null>(null);
   const [sessionType, setSessionType] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // ── FAB visibility — hide while write card is on screen ──
+  const [showFab, setShowFab] = useState(false);
+  const writeCardBottomY = useRef(0);
+  const composeScrollRef = useRef<ScrollView>(null);
+
+  const handleComposeScroll = useCallback(
+    (e: { nativeEvent: NativeScrollEvent }) => {
+      const offsetY = e.nativeEvent.contentOffset.y;
+      setShowFab(offsetY > writeCardBottomY.current);
+    },
+    [],
+  );
 
   // ── Editor modal state (edit existing) ────
   const [modalVisible, setModalVisible] = useState(false);
@@ -142,9 +204,13 @@ export default function JournalScreen({ navigation }: any) {
   const todaySubtext = PROMPT_SUBTEXTS[promptIndex % PROMPT_SUBTEXTS.length];
 
   // ── Calendar data ─────────────────────────
-  const calendarDays = useMemo(() => getCalendarDays(calYear, calMonth), [calYear, calMonth]);
+  const calendarDays = useMemo(
+    () => getCalendarDays(calYear, calMonth),
+    [calYear, calMonth],
+  );
   const today = new Date();
-  const isCurrentMonth = calYear === today.getFullYear() && calMonth === today.getMonth();
+  const isCurrentMonth =
+    calYear === today.getFullYear() && calMonth === today.getMonth();
 
   // ── Journal dates set for calendar dots ───
   const journalDates = useMemo(() => {
@@ -177,7 +243,9 @@ export default function JournalScreen({ navigation }: any) {
   const moodStats = useMemo(() => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const recent = journals.filter((j) => new Date(j.createdAt) >= oneWeekAgo && j.mood);
+    const recent = journals.filter(
+      (j) => new Date(j.createdAt) >= oneWeekAgo && j.mood,
+    );
     const counts: Record<string, number> = {};
     recent.forEach((j) => {
       if (j.mood) counts[j.mood] = (counts[j.mood] ?? 0) + 1;
@@ -192,7 +260,8 @@ export default function JournalScreen({ navigation }: any) {
       }));
   }, [journals]);
 
-  const dominantMoodLabel = moodStats.length > 0 ? "Harmonious" : "Begin journaling";
+  const dominantMoodLabel =
+    moodStats.length > 0 ? "Harmonious" : "Begin journaling";
 
   // ── Fetch journals ────────────────────────
   const fetchJournals = useCallback(async () => {
@@ -211,6 +280,49 @@ export default function JournalScreen({ navigation }: any) {
   useEffect(() => {
     fetchJournals();
   }, [fetchJournals]);
+
+  // ── Highlight + scroll to journal entry ───
+  useEffect(() => {
+    if (highlightJournalId && journals.length > 0) {
+      setHighlightedId(highlightJournalId);
+      const timer = setTimeout(() => {
+        const ref = entryRefs.current[highlightJournalId];
+        if (ref && composeScrollRef.current) {
+          ref.measureLayout(
+            composeScrollRef.current.getInnerViewNode?.() as any,
+            (_x: number, y: number) => {
+              composeScrollRef.current?.scrollTo({ y: y - 20, animated: true });
+            },
+            () => {},
+          );
+        }
+      }, 400);
+      const clearTimer = setTimeout(() => setHighlightedId(null), 2500);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [highlightJournalId, journals]);
+
+  // ── Scroll to Past Entries section ─────────
+  useEffect(() => {
+    if (scrollToPastEntries && journals.length > 0) {
+      const timer = setTimeout(() => {
+        const ref = entryRefs.current['__past_section__'];
+        if (ref && composeScrollRef.current) {
+          ref.measureLayout(
+            composeScrollRef.current.getInnerViewNode?.() as any,
+            (_x: number, y: number) => {
+              composeScrollRef.current?.scrollTo({ y: y - 20, animated: true });
+            },
+            () => {},
+          );
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollToPastEntries, journals]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -251,7 +363,8 @@ export default function JournalScreen({ navigation }: any) {
   };
 
   const handleSaveEdit = async () => {
-    if (!userId || !editingId || !editTitle.trim() || !editContent.trim()) return;
+    if (!userId || !editingId || !editTitle.trim() || !editContent.trim())
+      return;
     setSaving(true);
     try {
       await apiUpdateJournal(editingId, {
@@ -296,7 +409,8 @@ export default function JournalScreen({ navigation }: any) {
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     const now = new Date();
-    if (d.toDateString() === now.toDateString()) return `Today, ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    if (d.toDateString() === now.toDateString())
+      return `Today, ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
@@ -304,16 +418,20 @@ export default function JournalScreen({ navigation }: any) {
   };
 
   const getMoodEmoji = (moodKey: string | null | undefined) =>
-    moodKey ? MOODS.find((m) => m.key === moodKey)?.emoji ?? null : null;
+    moodKey ? (MOODS.find((m) => m.key === moodKey)?.emoji ?? null) : null;
 
   // ── Calendar navigation ───────────────────
   const prevMonth = () => {
-    if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
-    else setCalMonth(calMonth - 1);
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(calYear - 1);
+    } else setCalMonth(calMonth - 1);
   };
   const nextMonth = () => {
-    if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
-    else setCalMonth(calMonth + 1);
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(calYear + 1);
+    } else setCalMonth(calMonth + 1);
   };
 
   // ═══════════════════════════════════════════
@@ -333,30 +451,45 @@ export default function JournalScreen({ navigation }: any) {
           </Text>
           <View style={st.calNav}>
             <TouchableOpacity onPress={prevMonth} style={st.calNavBtn}>
-              <Ionicons name="chevron-back" size={16} color={colors.onSurface} />
+              <Ionicons
+                name="chevron-back"
+                size={16}
+                color={colors.onSurface}
+              />
             </TouchableOpacity>
             <TouchableOpacity onPress={nextMonth} style={st.calNavBtn}>
-              <Ionicons name="chevron-forward" size={16} color={colors.onSurface} />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.onSurface}
+              />
             </TouchableOpacity>
           </View>
         </View>
         <View style={st.calDayNames}>
           {DAYS.map((d, i) => (
-            <Text key={i} style={st.calDayName}>{d}</Text>
+            <Text key={i} style={st.calDayName}>
+              {d}
+            </Text>
           ))}
         </View>
         <View style={st.calGrid}>
           {calendarDays.map((cell, i) => {
-            const isTodayCell = isCurrentMonth && cell.current && cell.day === today.getDate();
-            const hasEntry = cell.current && journalDates.has(`${calYear}-${calMonth}-${cell.day}`);
+            const isTodayCell =
+              isCurrentMonth && cell.current && cell.day === today.getDate();
+            const hasEntry =
+              cell.current &&
+              journalDates.has(`${calYear}-${calMonth}-${cell.day}`);
             return (
               <View key={i} style={st.calCell}>
                 <View style={[st.calDayCircle, isTodayCell && st.calDayToday]}>
-                  <Text style={[
-                    st.calDayText,
-                    !cell.current && st.calDayInactive,
-                    isTodayCell && st.calDayTodayText,
-                  ]}>
+                  <Text
+                    style={[
+                      st.calDayText,
+                      !cell.current && st.calDayInactive,
+                      isTodayCell && st.calDayTodayText,
+                    ]}
+                  >
                     {cell.day}
                   </Text>
                 </View>
@@ -377,12 +510,21 @@ export default function JournalScreen({ navigation }: any) {
         </View>
         <View style={st.moodBloomSummary}>
           <View style={st.moodDotsRow}>
-            {moodStats.length > 0 ? moodStats.map((ms, i) => (
-              <View key={i} style={[st.moodDot, { backgroundColor: ms.mood.color }]} />
-            )) : (
+            {moodStats.length > 0 ? (
+              moodStats.map((ms, i) => (
+                <View
+                  key={i}
+                  style={[st.moodDot, { backgroundColor: ms.mood.color }]}
+                />
+              ))
+            ) : (
               <>
-                <View style={[st.moodDot, { backgroundColor: colors.muted3 }]} />
-                <View style={[st.moodDot, { backgroundColor: colors.muted3 }]} />
+                <View
+                  style={[st.moodDot, { backgroundColor: colors.muted3 }]}
+                />
+                <View
+                  style={[st.moodDot, { backgroundColor: colors.muted3 }]}
+                />
               </>
             )}
           </View>
@@ -395,18 +537,23 @@ export default function JournalScreen({ navigation }: any) {
           <View key={ms.mood.key} style={st.moodBarRow}>
             <Text style={st.moodBarLabel}>{ms.mood.label}</Text>
             <View style={st.moodBarTrack}>
-              <View style={[
-                st.moodBarFill,
-                {
-                  backgroundColor: ms.mood.color,
-                  width: `${Math.max(10, (ms.count / ms.total) * 100)}%` as any,
-                },
-              ]} />
+              <View
+                style={[
+                  st.moodBarFill,
+                  {
+                    backgroundColor: ms.mood.color,
+                    width:
+                      `${Math.max(10, (ms.count / ms.total) * 100)}%` as any,
+                  },
+                ]}
+              />
             </View>
           </View>
         ))}
         {moodStats.length === 0 && (
-          <Text style={st.moodEmptyText}>Journal with a mood to see trends</Text>
+          <Text style={st.moodEmptyText}>
+            Journal with a mood to see trends
+          </Text>
         )}
       </View>
 
@@ -418,7 +565,9 @@ export default function JournalScreen({ navigation }: any) {
         style={st.streakCard}
       >
         <Ionicons name="trophy" size={24} color="rgba(255,255,255,0.7)" />
-        <Text style={st.streakNumber}>{streak} Day{streak !== 1 ? "s" : ""}</Text>
+        <Text style={st.streakNumber}>
+          {streak} Day{streak !== 1 ? "s" : ""}
+        </Text>
         <Text style={st.streakLabel}>Streak</Text>
         <Text style={st.streakMsg}>
           {streak > 0
@@ -432,21 +581,44 @@ export default function JournalScreen({ navigation }: any) {
   // ── Past entries card ─────────────────────
   const renderJournalCard = (item: Journal) => {
     const moodEmoji = getMoodEmoji(item.mood);
+    const isHighlighted = highlightedId === item.id;
     return (
-      <TouchableOpacity key={item.id} onPress={() => openEditEntry(item)} activeOpacity={0.8} style={st.entryCard}>
+      <View
+        key={item.id}
+        ref={(ref) => { entryRefs.current[item.id] = ref; }}
+      >
+        <TouchableOpacity
+          onPress={() => openEditEntry(item)}
+          activeOpacity={0.8}
+          style={[
+            st.entryCard,
+            isHighlighted && {
+              borderWidth: 2,
+              borderColor: colors.primary,
+              backgroundColor: colors.surfaceContainerLow,
+            },
+          ]}
+        >
         <View style={st.entryHeader}>
           <View style={{ flex: 1 }}>
             <View style={st.entryTitleRow}>
               {moodEmoji && <Text style={st.entryMoodEmoji}>{moodEmoji}</Text>}
-              <Text style={st.entryTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={st.entryTitle} numberOfLines={1}>
+                {item.title}
+              </Text>
             </View>
             <Text style={st.entryDate}>{formatDate(item.createdAt)}</Text>
           </View>
-          <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={() => handleDelete(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="trash-outline" size={16} color={colors.muted4} />
           </TouchableOpacity>
         </View>
-        <Text style={st.entryContent} numberOfLines={2}>{item.content}</Text>
+        <Text style={st.entryContent} numberOfLines={2}>
+          {item.content}
+        </Text>
         {item.mood && (
           <View style={st.entryMoodChip}>
             <Text style={st.entryMoodChipText}>
@@ -455,12 +627,20 @@ export default function JournalScreen({ navigation }: any) {
           </View>
         )}
       </TouchableOpacity>
+      </View>
     );
   };
 
   // ── composeContent (inline JSX, not a component) ──
   const composeContent = (
-    <ScrollView style={st.composeScroll} contentContainerStyle={st.composeContent} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={composeScrollRef}
+      style={st.composeScroll}
+      contentContainerStyle={st.composeContent}
+      showsVerticalScrollIndicator={false}
+      onScroll={handleComposeScroll}
+      scrollEventThrottle={16}
+    >
       {/* Date header */}
       <Text style={st.todayLabel}>TODAY&apos;S REFLECTION</Text>
       <Text style={st.dateHeading}>
@@ -475,7 +655,13 @@ export default function JournalScreen({ navigation }: any) {
       </View>
 
       {/* Writing area */}
-      <View style={st.writeCard}>
+      <View
+        style={st.writeCard}
+        onLayout={(e) => {
+          writeCardBottomY.current =
+            e.nativeEvent.layout.y + e.nativeEvent.layout.height;
+        }}
+      >
         <TextInput
           style={st.writeInput}
           placeholder="Dear Journal..."
@@ -509,10 +695,21 @@ export default function JournalScreen({ navigation }: any) {
           {mood ? (
             <Text style={st.actionChipEmoji}>{getMoodEmoji(mood)}</Text>
           ) : (
-            <Ionicons name="happy-outline" size={14} color={colors.onSurfaceVariant} />
+            <Ionicons
+              name="happy-outline"
+              size={14}
+              color={colors.onSurfaceVariant}
+            />
           )}
-          <Text style={[st.actionChipText, mood ? st.actionChipTextActive : undefined]}>
-            {mood ? MOODS.find((m) => m.key === mood)?.label?.toUpperCase() : "MOOD"}
+          <Text
+            style={[
+              st.actionChipText,
+              mood ? st.actionChipTextActive : undefined,
+            ]}
+          >
+            {mood
+              ? MOODS.find((m) => m.key === mood)?.label?.toUpperCase()
+              : "MOOD"}
           </Text>
         </TouchableOpacity>
 
@@ -525,14 +722,27 @@ export default function JournalScreen({ navigation }: any) {
           }}
           style={[st.actionChip, sessionType ? st.actionChipActive : undefined]}
         >
-          <Text style={[st.actionChipText, sessionType ? st.actionChipTextActive : undefined]}>
-            {sessionType === "morning" ? "MORNING\nSESSION" : sessionType === "evening" ? "EVENING\nSESSION" : "SESSION"}
+          <Text
+            style={[
+              st.actionChipText,
+              sessionType ? st.actionChipTextActive : undefined,
+            ]}
+          >
+            {sessionType === "morning"
+              ? "MORNING\nSESSION"
+              : sessionType === "evening"
+                ? "EVENING\nSESSION"
+                : "SESSION"}
           </Text>
         </TouchableOpacity>
 
         {/* Archive */}
         <TouchableOpacity style={st.actionChip}>
-          <Ionicons name="albums-outline" size={14} color={colors.onSurfaceVariant} />
+          <Ionicons
+            name="albums-outline"
+            size={14}
+            color={colors.onSurfaceVariant}
+          />
           <Text style={st.actionChipText}>Archive</Text>
         </TouchableOpacity>
 
@@ -549,7 +759,7 @@ export default function JournalScreen({ navigation }: any) {
           ) : (
             <>
               <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
-              <Text style={st.saveBtnText}>Save{"\n"}Entry</Text>
+              <Text style={st.saveBtnText}>Save Entry</Text>
             </>
           )}
         </TouchableOpacity>
@@ -557,7 +767,10 @@ export default function JournalScreen({ navigation }: any) {
 
       {/* Past entries */}
       {journals.length > 0 && (
-        <View style={st.pastSection}>
+        <View
+          style={st.pastSection}
+          ref={(ref) => { entryRefs.current['__past_section__'] = ref; }}
+        >
           <Text style={st.pastTitle}>Past Entries</Text>
           {journals.map((j) => renderJournalCard(j))}
         </View>
@@ -566,8 +779,13 @@ export default function JournalScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={[st.safeArea, { backgroundColor: themeColors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
+    <SafeAreaView
+      style={[st.safeArea, { backgroundColor: themeColors.background }]}
+    >
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={themeColors.background}
+      />
 
       {loading ? (
         <View style={st.loadingWrap}>
@@ -577,24 +795,26 @@ export default function JournalScreen({ navigation }: any) {
         <View style={st.mainRow}>
           <View style={st.mainColumn}>
             {composeContent}
+            {showFab && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={st.fab}
+                onPress={() => composeScrollRef.current?.scrollTo({ y: 0, animated: true })}
+              >
+                <LinearGradient
+                  colors={[colors.primaryContainer, colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={st.fabGradient}
+                >
+                  <Ionicons name="add" size={24} color={colors.onPrimary} />
+                  <Text style={st.fabText}>New Entry</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
           {showSidePanel && sidePanelContent}
         </View>
-      )}
-
-      {/* ── New Entry FAB (mobile only) ── */}
-      {!isWide && (
-        <TouchableOpacity activeOpacity={0.85} style={st.fab}>
-          <LinearGradient
-            colors={[colors.primaryContainer, colors.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={st.fabGradient}
-          >
-            <Ionicons name="add" size={24} color={colors.onPrimary} />
-            <Text style={st.fabText}>New Entry</Text>
-          </LinearGradient>
-        </TouchableOpacity>
       )}
 
       {/* ── Edit Modal (existing entries) ── */}
@@ -611,14 +831,20 @@ export default function JournalScreen({ navigation }: any) {
             end={{ x: 1, y: 1 }}
             style={st.modalHeader}
           >
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={st.modalHeaderBtn}>
+            <TouchableOpacity
+              onPress={() => setModalVisible(false)}
+              style={st.modalHeaderBtn}
+            >
               <Ionicons name="close" size={24} color={colors.onPrimary} />
             </TouchableOpacity>
             <Text style={st.modalHeaderTitle}>Edit Entry</Text>
             <TouchableOpacity
               onPress={handleSaveEdit}
               disabled={saving || !editTitle.trim() || !editContent.trim()}
-              style={[st.modalHeaderBtn, (!editTitle.trim() || !editContent.trim()) && { opacity: 0.4 }]}
+              style={[
+                st.modalHeaderBtn,
+                (!editTitle.trim() || !editContent.trim()) && { opacity: 0.4 },
+              ]}
             >
               {saving ? (
                 <ActivityIndicator size="small" color={colors.onPrimary} />
@@ -628,8 +854,15 @@ export default function JournalScreen({ navigation }: any) {
             </TouchableOpacity>
           </LinearGradient>
 
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <ScrollView style={st.modalBody} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            <ScrollView
+              style={st.modalBody}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              keyboardShouldPersistTaps="handled"
+            >
               <TextInput
                 style={st.modalTitleInput}
                 placeholder="Title"
@@ -641,15 +874,30 @@ export default function JournalScreen({ navigation }: any) {
               />
 
               <Text style={st.modalSectionLabel}>How are you feeling?</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.modalMoodRow} contentContainerStyle={{ gap: 8 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={st.modalMoodRow}
+                contentContainerStyle={{ gap: 8 }}
+              >
                 {MOODS.map((m) => (
                   <TouchableOpacity
                     key={m.key}
-                    onPress={() => setEditMood(editMood === m.key ? null : m.key)}
-                    style={[st.modalMoodOption, editMood === m.key && st.modalMoodOptionActive]}
+                    onPress={() =>
+                      setEditMood(editMood === m.key ? null : m.key)
+                    }
+                    style={[
+                      st.modalMoodOption,
+                      editMood === m.key && st.modalMoodOptionActive,
+                    ]}
                   >
                     <Text style={st.modalMoodEmoji}>{m.emoji}</Text>
-                    <Text style={[st.modalMoodLabel, editMood === m.key && st.modalMoodLabelActive]}>
+                    <Text
+                      style={[
+                        st.modalMoodLabel,
+                        editMood === m.key && st.modalMoodLabelActive,
+                      ]}
+                    >
                       {m.label}
                     </Text>
                   </TouchableOpacity>
@@ -689,7 +937,9 @@ const st = StyleSheet.create({
   composeContent: {
     padding: 28,
     paddingBottom: 120,
-    ...(Platform.OS === "web" ? { maxWidth: 720, alignSelf: "center" as any, width: "100%" as any } : {}),
+    ...(Platform.OS === "web"
+      ? { maxWidth: 720, alignSelf: "center" as any, width: "100%" as any }
+      : {}),
   },
 
   // ── Date header ───────────────────────────
@@ -1049,7 +1299,7 @@ const st = StyleSheet.create({
   fab: {
     position: "absolute",
     bottom: Platform.OS === "ios" ? 32 : 24,
-    left: 24,
+    right: 24,
     borderRadius: radii.full,
     ...ambientShadow,
     shadowOpacity: 0.15,

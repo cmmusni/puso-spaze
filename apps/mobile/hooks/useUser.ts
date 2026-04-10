@@ -49,20 +49,37 @@ export function useUser() {
   );
 
   /**
-   * Login anonymously — generates a username locally, registers on server.
+   * Login anonymously — tries preferredName first, then retries with new
+   * generated names if taken. Returns the display name that was actually used.
    */
-  const loginAnonymously = useCallback(async (): Promise<void> => {
-    const anonName = generateAnonUsername();
+  const loginAnonymously = useCallback(async (preferredName?: string): Promise<string> => {
     const deviceId = await getDeviceId();
     const generatedId = uuidv4();
-    try {
-      const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiCreateUser({ displayName: anonName, deviceId });
-      await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER');
-    } catch {
-      // Offline fallback — still allow local login
-      await loginUser(generatedId, anonName, 'USER');
+    const MAX_ATTEMPTS = 5;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const anonName = attempt === 0 && preferredName ? preferredName : generateAnonUsername();
+      try {
+        const { userId: serverId, displayName: serverName, role: serverRole } =
+          await apiCreateUser({ displayName: anonName, deviceId });
+        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER');
+        return serverName || anonName;
+      } catch (err: any) {
+        const serverError = err?.response?.data?.error ?? err?.message ?? '';
+        const isTaken =
+          serverError.toLowerCase().includes('already taken') ||
+          serverError.toLowerCase().includes('unique constraint');
+
+        // If taken, loop and try a new name; otherwise fall through
+        if (isTaken && attempt < MAX_ATTEMPTS - 1) continue;
+
+        // Last attempt or non-conflict error → offline fallback
+        await loginUser(generatedId, anonName, 'USER');
+        return anonName;
+      }
     }
+    // Should never reach here, but TypeScript needs a return
+    return preferredName ?? generateAnonUsername();
   }, [loginUser, getDeviceId]);
 
   /**

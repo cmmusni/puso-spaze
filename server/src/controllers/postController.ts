@@ -28,6 +28,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     content: string;
     tags?: string[];
   };
+  const bodyIsAnonymous = req.body.isAnonymous;
 
   const imageFile = (req as any).file as Express.Multer.File | undefined;
   const imageUrl = imageFile ? `/uploads/${imageFile.filename}` : null;
@@ -39,8 +40,10 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // ── Anonymous mode ────────────────────────
-  const postIsAnonymous = user.isAnonymous;
+  // ── Anonymous mode (per-post override or user default) ──
+  const postIsAnonymous = bodyIsAnonymous !== undefined
+    ? (bodyIsAnonymous === true || bodyIsAnonymous === 'true')
+    : user.isAnonymous;
   const anonDisplayName = postIsAnonymous ? generateAnonUsername() : null;
 
   // ── AI Moderation ────────────────────────
@@ -147,13 +150,24 @@ export async function createPost(req: Request, res: Response): Promise<void> {
  * Returns all SAFE posts, pinned posts first, then most recent comment activity.
  * Includes author displayName.
  */
-export async function getPosts(_req: Request, res: Response): Promise<void> {
+export async function getPosts(req: Request, res: Response): Promise<void> {
   const { visible: hourlyHopeVisible } = await getHourlyHopeConfig();
+
+  const searchQuery = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
   const posts = await prisma.post.findMany({
     where: {
       moderationStatus: { in: ['SAFE', 'REVIEW'] },
       ...(hourlyHopeVisible ? {} : { userId: { not: SYSTEM_USER_ID } }),
+      ...(searchQuery
+        ? {
+            OR: [
+              { content: { contains: searchQuery, mode: 'insensitive' } },
+              { tags: { hasSome: [searchQuery.toLowerCase()] } },
+              { user: { displayName: { contains: searchQuery, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
     },
     include: {
       user: { select: { displayName: true, role: true, avatarUrl: true } },

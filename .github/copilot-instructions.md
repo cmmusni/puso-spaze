@@ -4,6 +4,25 @@
 
 This is a **universal Expo app** running on both **web** and **native (iOS/Android)**. Always consider both platforms when adding or modifying features.
 
+### Responsive breakpoints
+
+Every screen must be responsive across mobile, tablet, and web. Use `useWindowDimensions()` and derive breakpoints:
+
+```ts
+const { width } = useWindowDimensions();
+const isMedium = width >= 600;   // Tablet / medium web
+const twoCol   = width >= 700;   // Two-column layouts
+const isWide   = Platform.OS === 'web' && width >= 900; // Wide web
+```
+
+- **Mobile-first styles**: Default stylesheet values target the smallest screens (compact padding, smaller fonts, wrapped layouts).
+- **Scale up with breakpoints**: Apply `isMedium && style` overrides in JSX for larger sizes — never the other way around.
+- **Font scaling**: Use tighter font sizes on mobile (e.g. heading 17–19px, stat numbers 20px, body 11–12px). Scale up at `isMedium` (heading 20–24px, stat numbers 28px, labels 12px).
+- **Layout stacking**: Multi-element rows (e.g. input + buttons) should stack vertically on mobile (`!isMedium && columnStyle`) and stay horizontal on wider screens.
+- **Stat cards / grid items**: Use `flex: 1` with a small `minWidth` so cards wrap gracefully. Reduce gap/padding on mobile; restore at `isMedium`.
+- **Two-column grids**: Use `twoCol && { flexDirection: 'row' }` for side-by-side card layouts.
+- **ScrollView content**: Constrain with `maxWidth: 900, alignSelf: 'center', width: '100%'` on web. Use tighter padding on mobile (`spacing.md`), more padding on wide (`spacing.xl`).
+
 ### Key rules
 
 - Use `Platform.OS` checks when behaviour must diverge between web and native (file uploads, navigation, CSS injection).

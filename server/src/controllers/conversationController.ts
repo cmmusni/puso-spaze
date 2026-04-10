@@ -7,6 +7,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { createNotification } from '../services/notificationService';
 
 // ── GET /api/conversations/coaches ───────────
 // Returns all users with COACH or ADMIN role
@@ -278,4 +279,66 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
       sender: message.sender,
     },
   });
+
+  // Notify the other participant (non-blocking)
+  const recipientId =
+    conversation.userId === senderId ? conversation.coachId : conversation.userId;
+  if (recipientId && recipientId !== senderId) {
+    createNotification({
+      userId: recipientId,
+      type: 'MESSAGE',
+      title: `New message from ${sender.displayName}`,
+      body: message.content.length > 100
+        ? message.content.slice(0, 100) + '…'
+        : message.content,
+      data: { conversationId, senderId },
+    }).catch((err) => console.error('[sendMessage] notification error:', err));
+  }
+}
+
+// ── In-memory typing store ───────────────────
+// key: `${conversationId}:${userId}` → expiry timestamp (ms)
+const typingStore = new Map<string, number>();
+const TYPING_TTL_MS = 4000; // expire after 4 s of silence
+
+// ── POST /api/conversations/:conversationId/typing ──
+// Body: { userId: string }
+// Sets the caller as "typing". Clears itself after TYPING_TTL_MS.
+export async function setTyping(req: Request, res: Response): Promise<void> {
+  const { conversationId } = req.params;
+  const { userId } = req.body as { userId: string };
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required.' });
+    return;
+  }
+  typingStore.set(`${conversationId}:${userId}`, Date.now() + TYPING_TTL_MS);
+  res.json({ ok: true });
+}
+
+// ── GET /api/conversations/:conversationId/typing?userId=me ──
+// Returns { typing: boolean, typingUserId: string | null }
+// where typing = true when the *other* participant is currently typing.
+export async function getTyping(req: Request, res: Response): Promise<void> {
+  const { conversationId } = req.params;
+  const myId = req.query.userId as string;
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { userId: true, coachId: true },
+  });
+  if (!conversation) {
+    res.status(404).json({ error: 'Conversation not found.' });
+    return;
+  }
+
+  const otherId = conversation.userId === myId ? conversation.coachId : conversation.userId;
+  const expiry = typingStore.get(`${conversationId}:${otherId}`);
+  const isTyping = !!expiry && expiry > Date.now();
+
+  // Prune expired entry
+  if (expiry && expiry <= Date.now()) {
+    typingStore.delete(`${conversationId}:${otherId}`);
+  }
+
+  res.json({ typing: isTyping, typingUserId: isTyping ? otherId : null });
 }

@@ -17,16 +17,20 @@ import {
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
-import { apiFetchMessages, apiSendMessage } from "../services/api";
+import { apiFetchMessages, apiSendMessage, apiSetTyping, apiGetTyping } from "../services/api";
 import { colors, fonts, radii, spacing } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
+import { useFocusEffect } from "@react-navigation/native";
 import type { Message } from "../../../packages/types";
 
 const POLL_INTERVAL = 5000;
+const TYPING_POLL_INTERVAL = 2000;
+const TYPING_DEBOUNCE_MS = 800;
 
 export default function ChatScreen({ navigation, route }: any) {
   const { conversationId } = route.params as { conversationId: string };
@@ -38,7 +42,32 @@ export default function ChatScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [otherIsTyping, setOtherIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Animated dots for typing indicator ───
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!otherIsTyping) return;
+    const anim = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.delay(600),
+        ])
+      );
+    const a1 = anim(dot1, 0);
+    const a2 = anim(dot2, 200);
+    const a3 = anim(dot3, 400);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); dot1.setValue(0); dot2.setValue(0); dot3.setValue(0); };
+  }, [otherIsTyping, dot1, dot2, dot3]);
 
   // ── Fetch messages ────────────────────────
   const fetchMessages = useCallback(async () => {
@@ -53,15 +82,44 @@ export default function ChatScreen({ navigation, route }: any) {
     }
   }, [userId, conversationId]);
 
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+  // ── Poll for new messages (only while focused) ───
+  useFocusEffect(
+    useCallback(() => {
+      fetchMessages();
+      const interval = setInterval(fetchMessages, POLL_INTERVAL);
+      return () => clearInterval(interval);
+    }, [fetchMessages])
+  );
 
-  // ── Poll for new messages ─────────────────
-  useEffect(() => {
-    const interval = setInterval(fetchMessages, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
+  // ── Poll for typing status (only while focused) ──
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId || !conversationId) return;
+      const poll = async () => {
+        try {
+          const { typing } = await apiGetTyping(conversationId, userId);
+          setOtherIsTyping(typing);
+        } catch { /* silent */ }
+      };
+      poll();
+      const interval = setInterval(poll, TYPING_POLL_INTERVAL);
+      return () => {
+        clearInterval(interval);
+        setOtherIsTyping(false);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      };
+    }, [userId, conversationId])
+  );
+
+  // ── Notify server when user types ────────
+  const handleTextChange = (val: string) => {
+    setText(val);
+    if (!userId || !val.trim()) return;
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      apiSetTyping(conversationId, userId).catch(() => {});
+    }, TYPING_DEBOUNCE_MS);
+  };
 
   // ── Send message ──────────────────────────
   const handleSend = async () => {
@@ -185,7 +243,7 @@ export default function ChatScreen({ navigation, route }: any) {
         style={styles.topBar}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate(isCoach ? "SpazeConversations" : "SpazeCoach")}
           style={styles.topBarBtn}
         >
           <Ionicons name="arrow-back" size={22} color={colors.onPrimary} />
@@ -213,12 +271,12 @@ export default function ChatScreen({ navigation, route }: any) {
         ) : (
           <>
             {/* ── Transparency banner ── */}
-            <View style={styles.transparencyBanner}>
+            {/* <View style={styles.transparencyBanner}>
               <Ionicons name="eye-outline" size={14} color={colors.muted5} />
               <Text style={styles.transparencyText}>
                 All coaches can view this conversation for your safety and support.
               </Text>
-            </View>
+            </View> */}
 
             {/* ── Messages ── */}
             <FlatList
@@ -239,6 +297,23 @@ export default function ChatScreen({ navigation, route }: any) {
                   </Text>
                 </View>
               }
+              ListFooterComponent={
+                otherIsTyping ? (
+                  <View style={styles.typingRow}>
+                    <View style={styles.typingBubble}>
+                      {[dot1, dot2, dot3].map((dot, i) => (
+                        <Animated.View
+                          key={i}
+                          style={[
+                            styles.typingDot,
+                            { opacity: dot, transform: [{ translateY: dot.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] },
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : null
+              }
             />
 
             {/* ── Input bar ── */}
@@ -249,7 +324,7 @@ export default function ChatScreen({ navigation, route }: any) {
                   placeholder="Type a message..."
                   placeholderTextColor={colors.placeholder}
                   value={text}
-                  onChangeText={setText}
+                  onChangeText={handleTextChange}
                   maxLength={2000}
                   multiline
                   onSubmitEditing={handleSend}
@@ -455,6 +530,28 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     color: colors.muted5,
     marginTop: spacing.sm,
+  },
+
+  // ── Typing indicator ──────────────────────
+  typingRow: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    alignItems: "flex-start",
+  },
+  typingBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.onSurfaceVariant,
   },
 
   // ── Input bar ─────────────────────────────

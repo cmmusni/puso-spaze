@@ -20,7 +20,7 @@ async function getExpoClient() {
 
 export interface NotificationData {
   userId: string;
-  type: 'REACTION' | 'COMMENT' | 'ENCOURAGEMENT' | 'SYSTEM';
+  type: 'REACTION' | 'COMMENT' | 'ENCOURAGEMENT' | 'SYSTEM' | 'MESSAGE';
   title: string;
   body: string;
   data?: any;

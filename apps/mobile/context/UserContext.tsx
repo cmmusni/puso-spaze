@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../../../packages/types';
-import { apiCreateUser, apiToggleAnonymous } from '../services/api';
+import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications } from '../services/api';
 
 // ── Storage keys ─────────────────────────────
 const USER_ID_KEY    = 'puso_user_id';
@@ -21,6 +21,8 @@ const DEV_OWNER_KEY  = 'puso_device_owner'; // Device-level username binding (pe
 const DEVICE_ID_KEY  = 'puso_device_id';    // Permanent device UUID (never cleared, sent to server)
 const DEVICE_SYNCED_KEY = 'puso_device_id_synced'; // Flag: deviceId has been sent to server
 const ANONYMOUS_KEY  = 'puso_anonymous';     // Anonymous mode on/off
+const AVATAR_URL_KEY = 'puso_avatar_url';   // Profile picture URL
+const NOTIFICATIONS_KEY = 'puso_notifications'; // Daily reflection reminders on/off
 
 // ── Platform-aware storage helper ────────────
 // expo-secure-store is native-only; fall back to AsyncStorage on web.
@@ -50,7 +52,9 @@ export interface UserState {
   userId: string | null;
   username: string | null;
   role: UserRole | null;
+  avatarUrl: string | null;
   isAnonymous: boolean;
+  notificationsEnabled: boolean;
   isLoggedIn: boolean;
   isLoading: boolean;
 
@@ -78,6 +82,9 @@ export interface UserState {
   /** Update the user's username in storage and state */
   updateUsername: (newUsername: string) => Promise<void>;
 
+  /** Update the user's avatar URL in storage and state */
+  updateAvatarUrl: (url: string) => Promise<void>;
+
   /** Read current device owner binding username (if any). */
   getDeviceOwner: () => Promise<string | null>;
 
@@ -86,6 +93,9 @@ export interface UserState {
 
   /** Toggle anonymous mode on/off, persists to server + local storage */
   toggleAnonymous: (value: boolean) => Promise<void>;
+
+  /** Toggle daily reflection reminder notifications on/off */
+  toggleNotifications: (value: boolean) => Promise<void>;
 
   /**
    * Get or generate a permanent device UUID.
@@ -100,7 +110,9 @@ export const useUserStore = create<UserState>((set, get) => ({
   userId: null,
   username: null,
   role: null,
+  avatarUrl: null,
   isAnonymous: false,
+  notificationsEnabled: true,
   isLoggedIn: false,
   isLoading: true,
 
@@ -114,7 +126,10 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (userId && username) {
         const savedAnon = await storage.getItem(ANONYMOUS_KEY);
         const isAnonymous = savedAnon === 'true';
-        set({ userId, username, role: role ?? 'USER', isAnonymous, isLoggedIn: true, isLoading: false });
+        const savedNotif = await storage.getItem(NOTIFICATIONS_KEY);
+        const notificationsEnabled = savedNotif !== 'false'; // default true
+        const avatarUrl = await storage.getItem(AVATAR_URL_KEY);
+        set({ userId, username, role: role ?? 'USER', avatarUrl, isAnonymous, notificationsEnabled, isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
 
         // One-time deviceId sync for users who were already logged in before the update
@@ -188,7 +203,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (err) {
       console.warn('[UserStore] Could not clear session:', err);
     }
-    set({ userId: null, username: null, role: null, isAnonymous: false, isLoggedIn: false, isLoading: false });
+    set({ userId: null, username: null, role: null, avatarUrl: null, isAnonymous: false, notificationsEnabled: true, isLoggedIn: false, isLoading: false });
   },
 
   updateUsername: async (newUsername: string) => {
@@ -230,6 +245,16 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
+  updateAvatarUrl: async (url: string) => {
+    try {
+      await storage.setItem(AVATAR_URL_KEY, url);
+      set({ avatarUrl: url });
+    } catch (err) {
+      console.warn('[UserStore] Could not persist avatar URL:', err);
+      throw err;
+    }
+  },
+
   getDeviceOwner: async () => {
     try {
       return await storage.getItem(DEV_OWNER_KEY);
@@ -254,6 +279,14 @@ export const useUserStore = create<UserState>((set, get) => ({
     await apiToggleAnonymous(userId, value);
     await storage.setItem(ANONYMOUS_KEY, String(value));
     set({ isAnonymous: value });
+  },
+
+  toggleNotifications: async (value: boolean) => {
+    const { userId } = get();
+    if (!userId) return;
+    await apiToggleNotifications(userId, value);
+    await storage.setItem(NOTIFICATIONS_KEY, String(value));
+    set({ notificationsEnabled: value });
   },
 
   getDeviceId: async () => {

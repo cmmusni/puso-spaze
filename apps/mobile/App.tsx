@@ -28,6 +28,7 @@ import { useUserStore } from './context/UserContext';
 import { colors } from './constants/theme';
 import { useThemeStore } from './context/ThemeContext';
 import WebShell from './components/WebShell';
+import CustomAlertModal from './components/CustomAlertModal';
 
 export default function App() {
   const loadUser = useUserStore((s) => s.loadUser);
@@ -69,6 +70,7 @@ export default function App() {
       <WebShell>
         <AppNavigator />
       </WebShell>
+      <CustomAlertModal />
     </GestureHandlerRootView>
   );
 }

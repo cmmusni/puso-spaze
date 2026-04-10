@@ -18,6 +18,7 @@ import notificationRoutes from './api/notificationRoutes';
 import journalRoutes from './api/journalRoutes';
 import conversationRoutes from './api/conversationRoutes';
 import { startEncouragementScheduler } from './services/encouragementScheduler';
+import { startReflectionReminderScheduler } from './services/reflectionReminderScheduler';
 
 // ── App ───────────────────────────────────────
 const app = express();
@@ -127,6 +128,9 @@ async function main() {
 
   // Start the hourly encouragement scheduler
   startEncouragementScheduler();
+
+  // Start the daily reflection reminder scheduler
+  startReflectionReminderScheduler();
 
   app.listen(env.PORT, '0.0.0.0', () => {
     console.log(

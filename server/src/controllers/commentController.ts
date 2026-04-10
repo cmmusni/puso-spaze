@@ -15,7 +15,7 @@ import { generateAnonUsername } from '../utils/generateAnonUsername';
 // ── POST /api/posts/:postId/comments ─────────
 export async function createComment(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
-  const { userId, content } = req.body as { userId: string; content: string };
+  const { userId, content, parentId } = req.body as { userId: string; content: string; parentId?: string };
 
   if (!userId || !content?.trim()) {
     res.status(400).json({ error: 'userId and content are required.' });
@@ -46,7 +46,15 @@ export async function createComment(req: Request, res: Response): Promise<void> 
 
   try {
     const comment = await prisma.comment.create({
-      data: { postId, userId, content: content.trim(), moderationStatus, isAnonymous: commentIsAnonymous, anonDisplayName },
+      data: {
+        postId,
+        userId,
+        content: content.trim(),
+        moderationStatus,
+        isAnonymous: commentIsAnonymous,
+        anonDisplayName,
+        ...(parentId ? { parentId } : {}),
+      },
       include: { user: { select: { displayName: true } } },
     });
 
@@ -103,15 +111,42 @@ export async function createComment(req: Request, res: Response): Promise<void> 
 // ── GET /api/posts/:postId/comments ──────────
 export async function getComments(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
+  const requestUserId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+
+  const reactionInclude = {
+    reactions: {
+      select: { type: true, userId: true },
+    },
+  };
 
   const comments = await prisma.comment.findMany({
-    where: { postId, moderationStatus: { not: 'FLAGGED' } },
+    where: { postId, parentId: null, moderationStatus: { not: 'FLAGGED' } },
     orderBy: { createdAt: 'asc' },
-    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
+    include: {
+      user: { select: { displayName: true, role: true, avatarUrl: true } },
+      ...reactionInclude,
+      replies: {
+        where: { moderationStatus: { not: 'FLAGGED' } },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          user: { select: { displayName: true, role: true, avatarUrl: true } },
+          ...reactionInclude,
+        },
+      },
+    },
   });
 
-  res.json({
-    comments: comments.map((c) => ({
+  const mapComment = (c: any) => {
+    const reactionCounts: Record<string, number> = {};
+    let userReaction: string | null = null;
+    for (const r of c.reactions ?? []) {
+      reactionCounts[r.type] = (reactionCounts[r.type] ?? 0) + 1;
+      if (requestUserId && r.userId === requestUserId) {
+        userReaction = r.type;
+      }
+    }
+
+    return {
       id: c.id,
       postId: c.postId,
       userId: c.userId,
@@ -120,11 +155,17 @@ export async function getComments(req: Request, res: Response): Promise<void> {
       moderationStatus: c.moderationStatus,
       isAnonymous: c.isAnonymous,
       anonDisplayName: c.anonDisplayName,
+      parentId: c.parentId ?? null,
       user: c.isAnonymous
         ? { displayName: c.anonDisplayName ?? 'Anonymous', role: c.user.role }
         : c.user,
-    })),
-  });
+      reactionCounts: Object.keys(reactionCounts).length > 0 ? reactionCounts : undefined,
+      userReaction,
+      replies: c.replies?.map(mapComment),
+    };
+  };
+
+  res.json({ comments: comments.map(mapComment) });
 }
 
 // ── DELETE /api/posts/:postId/comments/:commentId ──────────
@@ -256,5 +297,41 @@ export async function updateComment(req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Error updating comment:', error);
     res.status(500).json({ error: 'Failed to update comment.' });
+  }
+}
+
+// ── POST /api/posts/:postId/comments/:commentId/reactions ──
+export async function upsertCommentReaction(req: Request, res: Response): Promise<void> {
+  const { commentId } = req.params;
+  const { userId, type } = req.body as { userId: string; type: string };
+
+  if (!userId || !type) {
+    res.status(400).json({ error: 'userId and type are required.' });
+    return;
+  }
+
+  try {
+    const existing = await prisma.commentReaction.findUnique({
+      where: { commentId_userId: { commentId, userId } },
+    });
+
+    if (existing && existing.type === type) {
+      // Same type → remove (toggle off)
+      await prisma.commentReaction.delete({ where: { id: existing.id } });
+      res.json({ removed: true });
+      return;
+    }
+
+    // Upsert (replace or create)
+    const reaction = await prisma.commentReaction.upsert({
+      where: { commentId_userId: { commentId, userId } },
+      update: { type: type as any },
+      create: { commentId, userId, type: type as any },
+    });
+
+    res.json({ removed: false, type: reaction.type, reaction: { id: reaction.id, type: reaction.type } });
+  } catch (error) {
+    console.error('Error upserting comment reaction:', error);
+    res.status(500).json({ error: 'Failed to react to comment.' });
   }
 }

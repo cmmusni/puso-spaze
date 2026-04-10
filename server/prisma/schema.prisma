@@ -26,14 +26,17 @@ model User {
   displayName   String   @unique
   deviceId      String?  // Permanent device UUID — only this device can use this username
   role          UserRole @default(USER)
-  isAnonymous   Boolean  @default(false) // Hide identity from community
-  expoPushToken String?  // For mobile push notifications
-  createdAt     DateTime @default(now())
-  lastActiveAt  DateTime @default(now())
+  isAnonymous          Boolean  @default(false) // Hide identity from community
+  expoPushToken        String?  // For mobile push notifications
+  avatarUrl            String?  // Profile picture URL
+  notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
+  createdAt            DateTime @default(now())
+  lastActiveAt         DateTime @default(now())
 
   posts         Post[]
   reactions     Reaction[]
   comments      Comment[]
+  commentReactions CommentReaction[]
   notifications Notification[]
   journals      Journal[]
   conversationsAsUser  Conversation[] @relation("ConversationUser")
@@ -87,6 +90,7 @@ enum ReactionType {
   PRAY
   CARE
   SUPPORT
+  LIKE
 }
 
 // ── Reaction ──────────────────────────────────
@@ -115,11 +119,30 @@ model Comment {
   moderationStatus ModerationStatus @default(REVIEW)
   isAnonymous      Boolean          @default(false)
   anonDisplayName  String?
+  parentId         String?
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post     Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[]         @relation("CommentReplies")
+  reactions CommentReaction[]
 
   @@map("comments")
+}
+
+// ── CommentReaction ───────────────────────────
+model CommentReaction {
+  id        String       @id @default(uuid())
+  commentId String
+  userId    String
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("comment_reactions")
 }
 
 // ── NotificationType enum ─────────────────────
@@ -128,6 +151,7 @@ enum NotificationType {
   COMMENT       // Someone commented on your post
   ENCOURAGEMENT // New encouragement post
   SYSTEM        // System announcements
+  MESSAGE       // New chat message from a user
 }
 
 // ── Notification ──────────────────────────────

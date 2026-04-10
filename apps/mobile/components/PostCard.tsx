@@ -12,10 +12,10 @@ import {
   Modal,
   Animated,
   StyleSheet,
-  Dimensions,
   type GestureResponderEvent,
   Image,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,7 +27,7 @@ import type {
   ReactionCounts,
 } from "../../../packages/types";
 import type { RootStackParamList } from "../navigation/AppNavigator";
-import { PrayIcon, SupportIcon } from "./ReactionIcons";
+import { PrayIcon, SupportIcon, LikeIcon } from "./ReactionIcons";
 import {
   apiGetReactions,
   apiUpsertReaction,
@@ -44,8 +44,19 @@ import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
 
-const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT"];
+const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
 const SYSTEM_USER_ID = "system-encouragement-bot";
+
+const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
+  grateful: { emoji: "\u{1F60A}", label: "Grateful" },
+  prayerful: { emoji: "\u{1F64F}", label: "Prayerful" },
+  strong: { emoji: "\u{1F4AA}", label: "Strong" },
+  struggling: { emoji: "\u{1F622}", label: "Struggling" },
+  hopeful: { emoji: "\u{1F917}", label: "Hopeful" },
+  "heavy-hearted": { emoji: "\u{1F614}", label: "Heavy-hearted" },
+  blessed: { emoji: "\u2728", label: "Blessed" },
+  loved: { emoji: "\u2764\uFE0F", label: "Loved" },
+};
 
 const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
   "heart",
@@ -61,12 +72,14 @@ function getCareIcon(): keyof typeof Ionicons.glyphMap {
 function renderReactionIcon(type: ReactionType, size: number, color: string) {
   if (type === "PRAY") return <PrayIcon size={size} color={color} />;
   if (type === "SUPPORT") return <SupportIcon size={size} color={color} />;
+  if (type === "LIKE") return <LikeIcon size={size} color={color} />;
   return <Ionicons name={getCareIcon()} size={size} color={color} />;
 }
 
 interface PostCardProps {
   post: Post;
   onDelete?: (postId: string) => void;
+  onPin?: (postId: string) => void;
 }
 
 /**
@@ -87,12 +100,12 @@ function formatRelativeTime(dateStr: string): string {
 // PostCard is used inside drawer screens, so we use any for navigation type
 type CardNavProp = any;
 
-export default function PostCard({ post, onDelete }: PostCardProps) {
+export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
   const { userId, role } = useUser();
   const { colors: themeColors } = useThemeStore();
-  const screenWidth = Dimensions.get("window").width;
-  const screenHeight = Dimensions.get("window").height;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isMedium = screenWidth >= 600;
 
   const displayName = post.user?.displayName ?? "Anonymous";
   const timeAgo = formatRelativeTime(post.createdAt);
@@ -283,12 +296,13 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
     try {
       if (post.pinned) {
         await apiUnpinPost(post.id, userId);
-        showAlert("Success", "Post has been unpinned.");
+        await showAlert("Success", "Post has been unpinned.");
+        onDelete?.(post.id);
       } else {
         await apiPinPost(post.id, userId);
-        showAlert("Success", "Post has been pinned.");
+        await showAlert("Success", "Post has been pinned.");
+        onPin?.(post.id) ?? onDelete?.(post.id);
       }
-      onDelete?.(post.id);
     } catch (error: any) {
       const message =
         error?.response?.data?.error ??
@@ -361,6 +375,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
           post.pinned ? styles.cardPinned : null,
           styles.cardDefault,
           { backgroundColor: themeColors.card },
+          isMedium && { padding: 24, marginBottom: 20 },
         ]}
       >
         {/* ── Author row ── */}
@@ -369,22 +384,22 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
             {post.userId === "system-encouragement-bot" ? (
               <Image
                 source={require("../assets/logo.png")}
-                style={styles.avatar}
+                style={[styles.avatar, isMedium && styles.avatarMd]}
               />
             ) : (
               <LinearGradient
                 colors={colorPair}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.avatar}
+                style={[styles.avatar, isMedium && styles.avatarMd]}
               >
-                <Text style={styles.avatarInitial}>{initial}</Text>
+                <Text style={[styles.avatarInitial, isMedium && { fontSize: 17 }]}>{initial}</Text>
               </LinearGradient>
             )}
 
             <View>
               <View style={styles.authorNameRow}>
-                <Text style={styles.authorName}>{displayName}</Text>
+                <Text style={[styles.authorName, isMedium && { fontSize: 15 }]}>{displayName}</Text>
                 {post.userId !== "system-encouragement-bot" && post.user?.role !== "USER" && !post.isAnonymous && (
                   <View style={[
                     styles.roleBadge,
@@ -406,14 +421,29 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
                   </View>
                 )}
               </View>
-              <Text style={styles.authorSubtitle}>{timeAgo}</Text>
+              <View style={styles.subtitleRow}>
+                <Text style={styles.authorSubtitle}>{timeAgo}</Text>
+                {(() => {
+                  const feelingTag = post.tags?.find((t) => FEELING_MAP[t]);
+                  if (!feelingTag) return null;
+                  const f = FEELING_MAP[feelingTag];
+                  return (
+                    <Text style={styles.feelingText}>
+                      {" · is feeling "}
+                      <Text style={styles.feelingEmoji}>{f.emoji}</Text>
+                      {" "}
+                      <Text style={styles.feelingLabel}>{f.label}</Text>
+                    </Text>
+                  );
+                })()}
+              </View>
             </View>
           </View>
           <View style={styles.headerRight}>
             {post.pinned && (
               <View style={styles.pinnedPill}>
                 <Ionicons name="pin" size={12} color={colors.accent} />
-                <Text style={styles.pinnedPillText}>Pinned</Text>
+                {isMedium && <Text style={styles.pinnedPillText}>Pinned</Text>}
               </View>
             )}
             <TouchableOpacity
@@ -439,7 +469,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         {post.imageUrl && (
           <Image
             source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
-            style={styles.postImage}
+            style={[styles.postImage, isMedium && { height: 260 }]}
             resizeMode="cover"
           />
         )}
@@ -456,63 +486,96 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         )}
 
         {/* ── Footer: reaction + comment counts ── */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, isMedium && { marginTop: 20, paddingTop: 16 }]}>
           <View style={styles.footerLeft}>
+            {/* Main reaction button — defaults to Pray, shows user's reaction when set */}
             <TouchableOpacity
-              onPress={() => handleReaction("CARE")}
+              onPress={() => handleReaction(userReaction ?? "PRAY")}
               onLongPress={openPicker}
               delayLongPress={300}
               activeOpacity={0.75}
               style={styles.countButton}
             >
-              <Ionicons name={userReaction === "CARE" ? getCareIcon() : "heart"} size={16} color={userReaction === "CARE" ? colors.primary : colors.lightPrimary} />
-              <Text style={styles.footerCount}>
-                {reactionLoading ? "…" : counts.CARE === 0 || counts.CARE === undefined ? '' : counts.CARE}
-              </Text>
+              {renderReactionIcon(
+                userReaction ?? "PRAY",
+                18,
+                userReaction ? colors.primary : colors.lightPrimary,
+              )}
             </TouchableOpacity>
+            {/* Comment button */}
             <TouchableOpacity
-              onPress={() => handleReaction("PRAY")}
-              onLongPress={openPicker}
-              delayLongPress={300}
+              onPress={() =>
+                navigation.getParent()?.navigate("PostDetail", { postId: post.id })
+              }
               activeOpacity={0.75}
               style={styles.countButton}
             >
-              <PrayIcon
-                size={16}
-                color={userReaction === "PRAY" ? colors.primary : colors.lightPrimary}
-              />
-              <Text style={styles.footerCount}>
-                {reactionLoading ? "…" : counts.PRAY === 0 || counts.PRAY === undefined ? '' : counts.PRAY}
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.countButton}>
               <Ionicons
-                name="chatbubble"
-                size={14}
+                name="chatbubble-outline"
+                size={16}
                 color={colors.muted5}
               />
               <Text style={styles.footerCountMuted}>
-                {reactionLoading ? "…" : post.commentCount === 0 || post.commentCount === undefined ? '' : post.commentCount}
+                {post.commentCount ? `${post.commentCount}` : "Comment"}
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
+
+          {/* Right side: overlapping reaction summary */}
+          {topReactions.length > 0 && (
+            <TouchableOpacity
+              onPress={openPicker}
+              activeOpacity={0.75}
+              style={styles.reactionSummary}
+            >
+              <View style={styles.reactionStack}>
+                {topReactions.map((type, i) => (
+                  <View
+                    key={type}
+                    style={[
+                      styles.reactionStackIcon,
+                      { zIndex: topReactions.length - i, marginLeft: i === 0 ? 0 : -6 },
+                    ]}
+                  >
+                    {renderReactionIcon(type, 14, colors.card)}
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.reactionSummaryCount}>{localTotal}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {post.latestComment && post.latestComment.userId !== SYSTEM_USER_ID && (
-          <View style={styles.latestCommentWrap}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={13}
-              color={colors.muted5}
-            />
-            <MentionText
-              text={`${post.latestComment.user?.displayName ?? "Member"}: ${post.latestComment.content}`}
-              baseStyle={styles.latestCommentText}
-              mentionStyle={styles.mentionText}
-              numberOfLines={1}
-            />
-          </View>
-        )}
+        {post.latestComment && post.latestComment.userId !== SYSTEM_USER_ID && (() => {
+          const cName = post.latestComment.user?.displayName ?? "Member";
+          const cInitial = cName.charAt(0).toUpperCase();
+          const cColorPair = avatarPalette[cInitial.charCodeAt(0) % avatarPalette.length];
+          const cTime = formatRelativeTime(post.latestComment.createdAt);
+          return (
+            <View style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}>
+              <LinearGradient
+                colors={cColorPair}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.commentAvatar, isMedium && { width: 28, height: 28, borderRadius: 14 }]}
+              >
+                <Text style={styles.commentAvatarText}>{cInitial}</Text>
+              </LinearGradient>
+              <View style={styles.commentBody}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentAuthor} numberOfLines={1}>{cName}</Text>
+                  <Text style={styles.commentTime}>{cTime}</Text>
+                </View>
+                <MentionText
+                  text={post.latestComment.content}
+                  baseStyle={styles.latestCommentText}
+                  mentionStyle={styles.mentionText}
+                  numberOfLines={2}
+                />
+              </View>
+            </View>
+          );
+        })()}
       </TouchableOpacity>
 
       {/* ── Floating Reaction Picker Modal ── */}
@@ -599,7 +662,7 @@ export default function PostCard({ post, onDelete }: PostCardProps) {
         onRequestClose={closeMenu}
       >
         <TouchableOpacity
-          style={styles.modalBackdrop}
+          style={styles.menuBackdrop}
           activeOpacity={1}
           onPress={closeMenu}
         >
@@ -800,8 +863,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.xl,
-    padding: 24,
-    marginBottom: 20,
+    padding: 16,
+    marginBottom: 14,
     marginHorizontal: 4,
     ...ambientShadow,
   },
@@ -814,7 +877,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   row: {
     flexDirection: "row",
@@ -840,16 +903,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
   },
   avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  avatarMd: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
     marginRight: 12,
   },
   avatarInitial: {
     color: colors.onPrimary,
-    fontSize: 17,
+    fontSize: 14,
     fontFamily: fonts.displayBold,
   },
   authorNameRow: {
@@ -860,12 +929,12 @@ const styles = StyleSheet.create({
   authorName: {
     color: colors.onSurface,
     fontFamily: fonts.displaySemiBold,
-    fontSize: 15,
+    fontSize: 14,
   },
   roleBadge: {
-    borderRadius: radii.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: radii.full,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   roleBadgeCoach: {
     backgroundColor: colors.primary,
@@ -890,11 +959,29 @@ const styles = StyleSheet.create({
   roleBadgeTextMember: {
     color: colors.onSurfaceVariant,
   },
+  subtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginTop: 1,
+  },
   authorSubtitle: {
     color: colors.onSurfaceVariant,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.bodyRegular,
-    marginTop: 2,
+  },
+  feelingText: {
+    color: colors.onSurfaceVariant,
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+  },
+  feelingEmoji: {
+    fontSize: 12,
+  },
+  feelingLabel: {
+    color: colors.primary,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
   },
   menuButton: {
     width: 32,
@@ -906,9 +993,9 @@ const styles = StyleSheet.create({
   // ── Body ──────────────────────────────────
   content: {
     color: colors.onSurface,
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: fonts.bodyRegular,
-    lineHeight: 26,
+    lineHeight: 24,
   },
   mentionText: {
     color: colors.primary,
@@ -916,9 +1003,9 @@ const styles = StyleSheet.create({
   },
   postImage: {
     width: "100%",
-    height: 260,
+    height: 200,
     borderRadius: radii.lg,
-    marginTop: 16,
+    marginTop: 14,
   },
 
   // ── Tags — reflection chips ───────────────
@@ -944,14 +1031,14 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
-    marginTop: 20,
-    paddingTop: 16,
+    justifyContent: "space-between",
+    marginTop: 14,
+    paddingTop: 12,
   },
   footerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 16,
   },
   footerCount: {
     fontSize: 14,
@@ -969,19 +1056,75 @@ const styles = StyleSheet.create({
     gap: 6,
     height: 28,
   },
-  latestCommentWrap: {
+  reactionSummary: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  reactionStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reactionStackIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.card,
+  },
+  reactionSummaryCount: {
+    fontSize: 13,
+    color: colors.onSurfaceVariant,
+    fontFamily: fonts.bodySemiBold,
+  },
+  latestCommentWrap: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
     marginTop: 14,
     paddingTop: 14,
-    backgroundColor: colors.surfaceContainerLow,
-    marginHorizontal: -24,
-    marginBottom: -24,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
+    backgroundColor: colors.surfaceContainerHigh,
+    marginHorizontal: -16,
+    marginBottom: -16,
+    paddingHorizontal: 14,
+    paddingBottom: 16,
     borderBottomLeftRadius: radii.xl,
     borderBottomRightRadius: radii.xl,
+  },
+  commentAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  commentAvatarText: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontFamily: fonts.displayBold,
+  },
+  commentBody: {
+    flex: 1,
+    gap: 2,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  commentAuthor: {
+    fontSize: 13,
+    fontFamily: fonts.displaySemiBold,
+    color: colors.onSurface,
+  },
+  commentTime: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    color: colors.muted5,
   },
   latestCommentText: {
     flex: 1,
@@ -1092,28 +1235,35 @@ const styles = StyleSheet.create({
   },
 
   // ── 3-Dot Menu ────────────────────────────
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
   menuModalContainer: {
     position: "absolute",
     alignItems: "flex-end",
   },
   menuDropdown: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.card,
     borderRadius: radii.lg,
-    paddingVertical: 8,
-    minWidth: 200,
+    paddingVertical: 6,
+    minWidth: 190,
     ...ambientShadow,
-    shadowOpacity: 0.12,
-    elevation: 12,
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 14,
   },
   menuOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
   },
   menuDivider: {
-    height: 8,
+    height: 1,
+    backgroundColor: colors.outline + "15",
+    marginHorizontal: 12,
   },
   menuOptionIcon: {
     fontSize: 20,

@@ -31,6 +31,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
   const { width } = useWindowDimensions();
+
   const isWide = Platform.OS === "web" && width >= 900;
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -65,6 +66,8 @@ export default function SpazeConversationsScreen({ navigation }: any) {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  // ── Block render for non-coaches ─────────
 
   // ── Filter conversations ──────────────────
   const filtered = search.trim()
