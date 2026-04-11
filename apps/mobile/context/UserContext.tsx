@@ -133,16 +133,19 @@ export const useUserStore = create<UserState>((set, get) => ({
         console.log('[UserStore] User loaded successfully');
 
         // One-time deviceId sync for users who were already logged in before the update
-        const alreadySynced = await storage.getItem(DEVICE_SYNCED_KEY);
-        if (!alreadySynced) {
-          try {
-            const deviceId = await get().getDeviceId();
-            await apiCreateUser({ displayName: username, deviceId });
-            await storage.setItem(DEVICE_SYNCED_KEY, 'true');
-            console.log('[UserStore] deviceId synced to server');
-          } catch (syncErr) {
-            // Non-blocking — will retry on next app launch
-            console.warn('[UserStore] deviceId sync deferred:', syncErr);
+        // Skip on web — no persistent device ID available
+        if (Platform.OS !== 'web') {
+          const alreadySynced = await storage.getItem(DEVICE_SYNCED_KEY);
+          if (!alreadySynced) {
+            try {
+              const deviceId = await get().getDeviceId();
+              await apiCreateUser({ displayName: username, deviceId });
+              await storage.setItem(DEVICE_SYNCED_KEY, 'true');
+              console.log('[UserStore] deviceId synced to server');
+            } catch (syncErr) {
+              // Non-blocking — will retry on next app launch
+              console.warn('[UserStore] deviceId sync deferred:', syncErr);
+            }
           }
         }
       } else {

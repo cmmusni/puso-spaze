@@ -1,0 +1,2 @@
+println "PATH: " + System.getenv("PATH")
+println "Node location: " + ["which", "node"].execute().text.trim()

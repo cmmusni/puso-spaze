@@ -219,22 +219,33 @@ export default function SpazeConversationsScreen({ navigation }: any) {
   };
 
   // ── Empty state ───────────────────────────
-  const renderEmpty = () => (
-    <View style={s.emptyState}>
-      <View style={s.emptyIconWrap}>
-        <LinearGradient
-          colors={[colors.secondaryFixed, colors.surfaceContainerHigh]}
-          style={s.emptyIconGrad}
-        >
-          <Ionicons name="people-outline" size={36} color={colors.secondary} />
-        </LinearGradient>
+  const renderEmpty = () => {
+    const isSearching = search.trim().length > 0;
+    return (
+      <View style={s.emptyState}>
+        <View style={s.emptyIconWrap}>
+          <LinearGradient
+            colors={[colors.secondaryFixed, colors.surfaceContainerHigh]}
+            style={s.emptyIconGrad}
+          >
+            <Ionicons
+              name={isSearching ? "search-outline" : "people-outline"}
+              size={36}
+              color={colors.secondary}
+            />
+          </LinearGradient>
+        </View>
+        <Text style={[s.emptyTitle, { color: colors.onSurface }]}>
+          {isSearching ? "No results found" : "No conversations yet"}
+        </Text>
+        <Text style={[s.emptySubtext, { color: colors.muted5 }]}>
+          {isSearching
+            ? `No conversations matching "${search.trim()}". Try a different name or keyword.`
+            : "When members start chatting with coaches, conversations will appear here."}
+        </Text>
       </View>
-      <Text style={[s.emptyTitle, { color: colors.onSurface }]}>No conversations yet</Text>
-      <Text style={[s.emptySubtext, { color: colors.muted5 }]}>
-        When members start chatting with coaches, conversations will appear here.
-      </Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
@@ -293,6 +304,9 @@ export default function SpazeConversationsScreen({ navigation }: any) {
                 placeholderTextColor={colors.muted4}
                 value={search}
                 onChangeText={setSearch}
+                returnKeyType="search"
+                autoCorrect={false}
+                clearButtonMode="while-editing"
               />
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch("")}>

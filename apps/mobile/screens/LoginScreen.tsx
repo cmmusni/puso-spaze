@@ -96,6 +96,15 @@ export default function LoginScreen() {
     return () => { mounted = false; clearInterval(interval); };
   }, []);
 
+  // ── Prefill username from device binding ───
+  useEffect(() => {
+    let cancelled = false;
+    getDeviceOwner().then((owner) => {
+      if (!cancelled && owner) setCustomName(owner);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Handlers ──────────────────────────────
 
   const extractBoundUser = (message: string): string | null => {

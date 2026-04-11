@@ -33,12 +33,12 @@ export async function getReviewQueue(req: Request, res: Response): Promise<void>
   try {
     const [posts, comments] = await Promise.all([
       prisma.post.findMany({
-        where: { moderationStatus: 'REVIEW' },
+        where: { moderationStatus: { in: ['REVIEW', 'FLAGGED'] } },
         include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.comment.findMany({
-        where: { moderationStatus: 'REVIEW' },
+        where: { moderationStatus: { in: ['REVIEW', 'FLAGGED'] } },
         include: {
           user: { select: { displayName: true, role: true, avatarUrl: true } },
           post: { select: { id: true, content: true } },

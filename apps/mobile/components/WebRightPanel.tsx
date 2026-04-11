@@ -54,12 +54,12 @@ export default function WebRightPanel() {
         </View>
         {stats.trendingTags && stats.trendingTags.length > 0 ? (
           <View style={styles.trendingList}>
-            {stats.trendingTags.map((tag) => {
-              const meta = tagLabels[tag] ?? { category: "TRENDING", count: "souls sharing" };
+            {stats.trendingTags.map((item) => {
+              const meta = tagLabels[item.tag] ?? { category: "TRENDING", count: "souls sharing" };
               return (
-                <View key={tag} style={styles.trendingItem}>
+                <View key={item.tag} style={styles.trendingItem}>
                   <Text style={styles.trendingCategory}>{meta.category}</Text>
-                  <Text style={styles.trendingTag}>#{tag}</Text>
+                  <Text style={styles.trendingTag}>#{item.tag}</Text>
                   <Text style={styles.trendingCount}>{meta.count}</Text>
                 </View>
               );

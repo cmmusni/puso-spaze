@@ -1,0 +1,49 @@
+#!/usr/bin/env zsh
+# ─────────────────────────────────────────────
+# .githooks/pre-commit
+# Reminds to update memory-bank/ when source
+# files have changed but memory-bank/ has not.
+# ─────────────────────────────────────────────
+
+# Files staged for commit (added, modified, renamed)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Check if any source files (non-memory-bank) are staged
+HAS_SOURCE=false
+HAS_MEMORY=false
+
+while IFS= read -r file; do
+  case "$file" in
+    memory-bank/*) HAS_MEMORY=true ;;
+    *.ts|*.tsx|*.js|*.jsx|*.json|*.prisma) HAS_SOURCE=true ;;
+  esac
+done <<< "$STAGED"
+
+# If source files changed but memory-bank didn't, warn
+if $HAS_SOURCE && ! $HAS_MEMORY; then
+  echo ""
+  echo "┌──────────────────────────────────────────────┐"
+  echo "│  📝 Memory Bank Reminder                     │"
+  echo "│                                              │"
+  echo "│  Source files changed but memory-bank/ was   │"
+  echo "│  not updated. Consider updating:             │"
+  echo "│    • memory-bank/activeContext.md             │"
+  echo "│    • memory-bank/progress.md                 │"
+  echo "│    • memory-bank/tasks/_index.md             │"
+  echo "│                                              │"
+  echo "│  To skip: git commit --no-verify             │"
+  echo "│  To update: update memory bank in Copilot    │"
+  echo "└──────────────────────────────────────────────┘"
+  echo ""
+
+  # Prompt — allow bypass
+  printf "Continue without updating memory bank? [y/N] "
+  exec < /dev/tty
+  read -r REPLY
+  if [[ "$REPLY" != "y" && "$REPLY" != "Y" ]]; then
+    echo "Commit aborted. Update memory-bank/ and try again."
+    exit 1
+  fi
+fi
+
+exit 0

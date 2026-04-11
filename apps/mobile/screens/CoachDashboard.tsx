@@ -177,7 +177,7 @@ export default function CoachDashboard() {
         )}
       </View>
       <Text style={s.statLabel}>{label}</Text>
-      <Text style={s.statValue}>{typeof value === 'number' ? String(value).padStart(2, '0') : value}</Text>
+      <Text style={s.statValue}>{value}</Text>
     </View>
   );
 
@@ -188,6 +188,7 @@ export default function CoachDashboard() {
     const displayAuthor = isAnonymous ? (item as any).anonDisplayName ?? 'Anonymous Member' : author;
     const tags = type === 'post' ? ((item as Post).tags ?? []) : [];
     const postRef = type === 'comment' ? (item as Comment).post : null;
+    const isFlagged = item.moderationStatus === 'FLAGGED';
 
     return (
       <View key={item.id} style={s.reviewCard}>
@@ -198,7 +199,15 @@ export default function CoachDashboard() {
               <Ionicons name="person-outline" size={16} color={colors.onSurfaceVariant} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.reviewAuthor}>{displayAuthor}</Text>
+              <View style={s.authorStatusRow}>
+                <Text style={s.reviewAuthor}>{displayAuthor}</Text>
+                {isFlagged && (
+                  <View style={s.flaggedBadge}>
+                    <Ionicons name="flag" size={10} color={colors.danger} />
+                    <Text style={s.flaggedBadgeText}>FLAGGED</Text>
+                  </View>
+                )}
+              </View>
               {postRef && (
                 <Text style={s.reviewPostRef} numberOfLines={1}>
                   On post: {postRef.content?.slice(0, 40)}…
@@ -272,24 +281,28 @@ export default function CoachDashboard() {
         </View>
         {(stats?.trendingTags ?? []).length > 0 ? (
           <>
-            {(stats?.trendingTags ?? []).slice(0, 3).map((tag, i) => {
-              const tc = getTagColor(tag);
-              const pct = Math.max(20, 90 - i * 25);
-              return (
-                <View key={tag} style={s.sentimentRow}>
-                  <Text style={[s.sentimentTag, { color: tc.text }]}>#{tag}</Text>
-                  <View style={s.sentimentBarBg}>
-                    <LinearGradient
-                      colors={[tc.text, tc.text + '99']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[s.sentimentBarFill, { width: `${pct}%` as any }]}
-                    />
+            {(() => {
+              const tags = (stats?.trendingTags ?? []).slice(0, 3);
+              const maxCount = Math.max(...tags.map((t) => t.count), 1);
+              return tags.map((item) => {
+                const tc = getTagColor(item.tag);
+                const pct = Math.round((item.count / maxCount) * 100);
+                return (
+                  <View key={item.tag} style={s.sentimentRow}>
+                    <Text style={[s.sentimentTag, { color: tc.text }]}>#{item.tag}</Text>
+                    <View style={s.sentimentBarBg}>
+                      <LinearGradient
+                        colors={[tc.text, tc.text + '99']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[s.sentimentBarFill, { width: `${pct}%` as any }]}
+                      />
+                    </View>
+                    <Text style={s.sentimentPct}>{pct}%</Text>
                   </View>
-                  <Text style={s.sentimentPct}>{pct}%</Text>
-                </View>
-              );
-            })}
+                );
+              });
+            })()}
             <Text style={s.sentimentNote}>
               The PUSO community is active and thriving today.
             </Text>
@@ -355,7 +368,13 @@ export default function CoachDashboard() {
   const allItems = [
     ...posts.map(p => ({ ...p, _type: 'post' as const })),
     ...comments.map(c => ({ ...c, _type: 'comment' as const })),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  ].sort((a, b) => {
+    // REVIEW items first, FLAGGED items last
+    const aFlagged = a.moderationStatus === 'FLAGGED' ? 1 : 0;
+    const bFlagged = b.moderationStatus === 'FLAGGED' ? 1 : 0;
+    if (aFlagged !== bFlagged) return aFlagged - bFlagged;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   // ── Main render ───────────────────────────
 
@@ -439,15 +458,12 @@ export default function CoachDashboard() {
                 <Text style={s.queueBadgeText}>{allItems.length} Pending</Text>
               </View>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={s.viewAllLink}>View All</Text>
-            </TouchableOpacity>
           </View>
 
           {allItems.length === 0 ? (
             <View style={s.emptyWrap}>
               <View style={s.emptyIcon}>
-                <Ionicons name="checkmark-done-outline" size={28} color={colors.primary} />
+                <Ionicons name="checkmark-done-outline" size={28} color={colors.onPrimary} />
               </View>
               <Text style={s.emptyTitle}>All clear!</Text>
               <Text style={s.emptySubtitle}>No posts or comments waiting for review.</Text>
@@ -647,6 +663,25 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.bodyBold,
     color: colors.onSurface,
+  },
+  authorStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  flaggedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.danger + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+  },
+  flaggedBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.danger,
   },
   reviewPostRef: {
     fontSize: 12,

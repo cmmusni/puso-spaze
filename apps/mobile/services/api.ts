@@ -655,7 +655,7 @@ export interface DashboardStats {
   totalMembers: number;
   dailyStories: number;
   onlineCount: number;
-  trendingTags: string[];
+  trendingTags: { tag: string; count: number }[];
   dailyReflection: { id: string; content: string; createdAt: string } | null;
 }
 

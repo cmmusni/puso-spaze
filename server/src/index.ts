@@ -73,7 +73,7 @@ app.get('/api/stats/dashboard', async (_req, res) => {
       }).then((posts) => {
         const tc: Record<string,number> = {};
         for (const p of posts) for (const t of p.tags) tc[t]=(tc[t]||0)+1;
-        return Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t])=>t);
+        return Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t,c])=>({ tag: t, count: c }));
       }),
       prisma.post.findFirst({
         where: { moderationStatus: 'SAFE', userId: 'system-encouragement-bot' },

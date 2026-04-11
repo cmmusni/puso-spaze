@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────
 
 import { useCallback } from 'react';
+import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { useUserStore } from '../context/UserContext';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
@@ -39,10 +40,10 @@ export function useUser() {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
-      const deviceId = await getDeviceId();
+      const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
       const generatedId = uuidv4();
       const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiCreateUser({ displayName, deviceId });
+        await apiCreateUser({ displayName, ...(deviceId ? { deviceId } : {}) });
       await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER');
     },
     [loginUser, validateDeviceOwner, getDeviceId]
@@ -53,7 +54,7 @@ export function useUser() {
    * generated names if taken. Returns the display name that was actually used.
    */
   const loginAnonymously = useCallback(async (preferredName?: string): Promise<string> => {
-    const deviceId = await getDeviceId();
+    const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
     const generatedId = uuidv4();
     const MAX_ATTEMPTS = 5;
 
@@ -61,7 +62,7 @@ export function useUser() {
       const anonName = attempt === 0 && preferredName ? preferredName : generateAnonUsername();
       try {
         const { userId: serverId, displayName: serverName, role: serverRole } =
-          await apiCreateUser({ displayName: anonName, deviceId });
+          await apiCreateUser({ displayName: anonName, ...(deviceId ? { deviceId } : {}) });
         await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER');
         return serverName || anonName;
       } catch (err: any) {
@@ -91,9 +92,9 @@ export function useUser() {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
-      const deviceId = await getDeviceId();
+      const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
       const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiRedeemInviteCode({ displayName, code, deviceId });
+        await apiRedeemInviteCode({ displayName, code, ...(deviceId ? { deviceId } : {}) });
       await loginUser(serverId, serverName, serverRole);
     },
     [loginUser, validateDeviceOwner, getDeviceId]

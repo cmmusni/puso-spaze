@@ -46,6 +46,7 @@ import {
 import { useThemeStore } from "../context/ThemeContext";
 import type { Journal } from "../../../packages/types";
 import { showAlert } from "../utils/alertPlatform";
+import { BarChart } from "react-native-chart-kit";
 
 // ── Mood config ──────────────────────────────
 const MOODS = [
@@ -196,6 +197,7 @@ export default function JournalScreen({ navigation }: any) {
   // ── Calendar state ────────────────────────
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [showMoodCal, setShowMoodCal] = useState(false);
 
   // ── Prompt ────────────────────────────────
   const dateParts = getDateParts();
@@ -220,6 +222,19 @@ export default function JournalScreen({ navigation }: any) {
       set.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
     });
     return set;
+  }, [journals]);
+
+  // ── Journal mood colors for calendar ──────
+  const journalMoodColors = useMemo(() => {
+    const map = new Map<string, string>();
+    journals.forEach((j) => {
+      if (!j.mood) return;
+      const d = new Date(j.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const moodObj = MOODS.find((m) => m.key === j.mood);
+      if (moodObj) map.set(key, moodObj.color);
+    });
+    return map;
   }, [journals]);
 
   // ── Streak calculation ────────────────────
@@ -262,6 +277,24 @@ export default function JournalScreen({ navigation }: any) {
 
   const dominantMoodLabel =
     moodStats.length > 0 ? "Harmonious" : "Begin journaling";
+
+  // ── All mood counts for chart ─────────────
+  const allMoodCounts = useMemo(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const recent = journals.filter(
+      (j) => new Date(j.createdAt) >= oneWeekAgo && j.mood,
+    );
+    const counts: Record<string, number> = {};
+    recent.forEach((j) => {
+      if (j.mood) counts[j.mood] = (counts[j.mood] ?? 0) + 1;
+    });
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    return entries.map(([key, count]) => ({
+      mood: MOODS.find((m) => m.key === key) ?? MOODS[0],
+      count,
+    }));
+  }, [journals]);
 
   // ── Fetch journals ────────────────────────
   const fetchJournals = useCallback(async () => {
@@ -335,7 +368,7 @@ export default function JournalScreen({ navigation }: any) {
     setSaving(true);
     try {
       const title = `${dateParts.dayOfWeek}, ${dateParts.month} ${dateParts.day}`;
-      await apiCreateJournal({
+      const { journal: created } = await apiCreateJournal({
         userId,
         title,
         content: content.trim(),
@@ -344,7 +377,21 @@ export default function JournalScreen({ navigation }: any) {
       setContent("");
       setMood(null);
       setSessionType(null);
-      fetchJournals();
+      await fetchJournals();
+      setHighlightedId(created.id);
+      setTimeout(() => {
+        const ref = entryRefs.current[created.id];
+        if (ref && composeScrollRef.current) {
+          ref.measureLayout(
+            composeScrollRef.current.getInnerViewNode?.() as any,
+            (_x: number, y: number) => {
+              composeScrollRef.current?.scrollTo({ y: y - 20, animated: true });
+            },
+            () => {},
+          );
+        }
+      }, 400);
+      setTimeout(() => setHighlightedId(null), 2500);
     } catch (err) {
       console.error("Failed to save journal:", err);
       showAlert("Error", "Could not save journal entry. Please try again.");
@@ -480,32 +527,54 @@ export default function JournalScreen({ navigation }: any) {
             const hasEntry =
               cell.current &&
               journalDates.has(`${calYear}-${calMonth}-${cell.day}`);
+            const moodColor =
+              showMoodCal && cell.current
+                ? journalMoodColors.get(`${calYear}-${calMonth}-${cell.day}`)
+                : undefined;
             return (
               <View key={i} style={st.calCell}>
-                <View style={[st.calDayCircle, isTodayCell && st.calDayToday]}>
+                <View
+                  style={[
+                    st.calDayCircle,
+                    isTodayCell && !moodColor && st.calDayToday,
+                    moodColor ? { backgroundColor: moodColor } : undefined,
+                  ]}
+                >
                   <Text
                     style={[
                       st.calDayText,
                       !cell.current && st.calDayInactive,
-                      isTodayCell && st.calDayTodayText,
+                      (isTodayCell || !!moodColor) && st.calDayTodayText,
                     ]}
                   >
                     {cell.day}
                   </Text>
                 </View>
-                {hasEntry && <View style={st.calDot} />}
+                {hasEntry && !moodColor && <View style={st.calDot} />}
               </View>
             );
           })}
         </View>
+        {showMoodCal && (
+          <View style={st.moodLegend}>
+            {MOODS.map((m) => (
+              <View key={m.key} style={st.moodLegendItem}>
+                <View style={[st.moodLegendDot, { backgroundColor: m.color }]} />
+                <Text style={st.moodLegendLabel}>{m.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Mood Bloom */}
       <View style={st.sideCard}>
         <View style={st.moodBloomHeader}>
           <Text style={st.sideCardTitle}>Mood Bloom</Text>
-          <TouchableOpacity>
-            <Text style={st.viewTrends}>View Trends</Text>
+          <TouchableOpacity onPress={() => setShowMoodCal(!showMoodCal)}>
+            <Text style={st.viewTrends}>
+              {showMoodCal ? "Hide Insights" : "My Insights"}
+            </Text>
           </TouchableOpacity>
         </View>
         <View style={st.moodBloomSummary}>
@@ -533,27 +602,80 @@ export default function JournalScreen({ navigation }: any) {
             <Text style={st.moodBloomSub}>Last 7 days</Text>
           </View>
         </View>
-        {moodStats.map((ms) => (
-          <View key={ms.mood.key} style={st.moodBarRow}>
-            <Text style={st.moodBarLabel}>{ms.mood.label}</Text>
-            <View style={st.moodBarTrack}>
-              <View
-                style={[
-                  st.moodBarFill,
-                  {
-                    backgroundColor: ms.mood.color,
-                    width:
-                      `${Math.max(10, (ms.count / ms.total) * 100)}%` as any,
-                  },
-                ]}
-              />
+        {showMoodCal && allMoodCounts.length > 0 ? (
+          <View style={{ marginTop: 4 }}>
+            <BarChart
+              data={{
+                labels: allMoodCounts.map((mc) => mc.mood.emoji),
+                datasets: [{
+                  data: allMoodCounts.map((mc) => mc.count),
+                  colors: allMoodCounts.map(
+                    (mc) => () => mc.mood.color,
+                  ),
+                }],
+              }}
+              width={280}
+              height={180}
+              yAxisLabel=""
+              yAxisSuffix=""
+              fromZero
+              showValuesOnTopOfBars
+              withCustomBarColorFromData
+              flatColor
+              chartConfig={{
+                backgroundColor: colors.surfaceContainerLowest,
+                backgroundGradientFrom: colors.surfaceContainerLowest,
+                backgroundGradientTo: colors.surfaceContainerLowest,
+                decimalPlaces: 0,
+                color: () => colors.onSurfaceVariant,
+                labelColor: () => colors.onSurface,
+                propsForLabels: {
+                  fontSize: 14,
+                },
+                barPercentage: 0.6,
+                propsForBackgroundLines: {
+                  stroke: colors.surfaceVariant,
+                  strokeDasharray: "",
+                },
+              }}
+              style={{ borderRadius: radii.md, marginLeft: -16 }}
+            />
+            <View style={st.chartLegend}>
+              {allMoodCounts.map((mc) => (
+                <View key={mc.mood.key} style={st.chartLegendItem}>
+                  <View style={[st.chartLegendDot, { backgroundColor: mc.mood.color }]} />
+                  <Text style={st.chartLegendLabel}>
+                    {mc.mood.label} ({mc.count})
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
-        ))}
-        {moodStats.length === 0 && (
-          <Text style={st.moodEmptyText}>
-            Journal with a mood to see trends
-          </Text>
+        ) : (
+          <>
+            {moodStats.map((ms) => (
+              <View key={ms.mood.key} style={st.moodBarRow}>
+                <Text style={st.moodBarLabel}>{ms.mood.label}</Text>
+                <View style={st.moodBarTrack}>
+                  <View
+                    style={[
+                      st.moodBarFill,
+                      {
+                        backgroundColor: ms.mood.color,
+                        width:
+                          `${Math.max(10, (ms.count / ms.total) * 100)}%` as any,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            ))}
+            {moodStats.length === 0 && (
+              <Text style={st.moodEmptyText}>
+                Journal with a mood to see trends
+              </Text>
+            )}
+          </>
         )}
       </View>
 
@@ -681,7 +803,7 @@ export default function JournalScreen({ navigation }: any) {
       </View>
 
       {/* Bottom action row */}
-      <View style={st.actionRow}>
+      <View style={[st.actionRow, !isWide && { marginBottom: 10, alignSelf: 'flex-end' }]}>
         {/* Mood picker */}
         <TouchableOpacity
           onPress={() => {
@@ -729,40 +851,29 @@ export default function JournalScreen({ navigation }: any) {
             ]}
           >
             {sessionType === "morning"
-              ? "MORNING\nSESSION"
+              ? "MORNING SESSION"
               : sessionType === "evening"
-                ? "EVENING\nSESSION"
+                ? "EVENING SESSION"
                 : "SESSION"}
           </Text>
         </TouchableOpacity>
 
-        {/* Archive */}
-        <TouchableOpacity style={st.actionChip}>
-          <Ionicons
-            name="albums-outline"
-            size={14}
-            color={colors.onSurfaceVariant}
-          />
-          <Text style={st.actionChipText}>Archive</Text>
-        </TouchableOpacity>
-
         <View style={{ flex: 1 }} />
 
-        {/* Save */}
-        <TouchableOpacity
-          onPress={handleSaveNew}
-          disabled={saving || !content.trim()}
-          style={[st.saveBtn, !content.trim() && st.saveBtnDisabled]}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.onPrimary} />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
-              <Text style={st.saveBtnText}>Save Entry</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSaveNew}
+            disabled={saving || !content.trim()}
+            style={[st.saveBtn, !content.trim() && st.saveBtnDisabled]}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
+                <Text style={st.saveBtnText}>Save Entry</Text>
+              </>
+            )}
+          </TouchableOpacity>
       </View>
 
       {/* Past entries */}
@@ -1021,6 +1132,11 @@ const st = StyleSheet.create({
     flexWrap: "wrap",
     marginBottom: 36,
   },
+  saveRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginBottom: 36,
+  },
   actionChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -1202,6 +1318,51 @@ const st = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.primary,
     marginTop: 2,
+  },
+  moodLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceVariant,
+  },
+  moodLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  moodLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  moodLegendLabel: {
+    fontSize: 10,
+    fontFamily: fonts.bodyMedium,
+    color: colors.onSurfaceVariant,
+  },
+  chartLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  chartLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  chartLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  chartLegendLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
+    color: colors.onSurfaceVariant,
   },
 
   // ── Mood Bloom ────────────────────────────

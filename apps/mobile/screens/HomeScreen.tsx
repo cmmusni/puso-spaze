@@ -482,9 +482,9 @@ export default function HomeScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>TRENDING TOPICS</Text>
               <View style={styles.tagsRow}>
-                {stats.trendingTags.map((tag) => (
-                  <View key={tag} style={styles.tagChip}>
-                    <Text style={styles.tagText}>#{tag}</Text>
+                {stats.trendingTags.map((item) => (
+                  <View key={item.tag} style={styles.tagChip}>
+                    <Text style={styles.tagText}>#{item.tag}</Text>
                   </View>
                 ))}
               </View>
@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   // ── FAB & Journal button ──
   fabWrap: {
     position: "absolute",
-    bottom: Platform.OS === "web" ? 60 : 36,
+    bottom: 24,
     left: 20,
     right: 20,
     flexDirection: "row",
