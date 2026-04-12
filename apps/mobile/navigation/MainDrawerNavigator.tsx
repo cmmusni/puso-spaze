@@ -218,6 +218,18 @@ function withTabs(Screen: React.ComponentType<any>, routeName: string) {
   };
 }
 
+// ── Pre-built wrapped screens (stable references) ──
+// Called at module level so component identity never changes on re-render.
+// This prevents screens from unmounting/remounting when the navigator
+// re-renders (e.g. keyboard open changes viewport height on mobile web).
+const HomeWithTabs = withTabs(HomeScreen, "Home");
+const ProfileWithTabs = withTabs(ProfileScreen, "Profile");
+const CoachDashboardWithTabs = withTabs(CoachDashboard, "ReviewQueue");
+const NotificationsWithTabs = withTabs(NotificationsScreen, "Notifications");
+const JournalWithTabs = withTabs(JournalScreen, "Journal");
+const SpazeCoachWithTabs = withTabs(SpazeCoachScreen, "SpazeCoach");
+const SpazeConversationsWithTabs = withTabs(SpazeConversationsScreen, "SpazeConversations");
+
 // ── Drawer navigator ──────────────────────────
 export default function MainDrawerNavigator() {
   const role = useUserStore((s) => s.role);
@@ -242,17 +254,17 @@ export default function MainDrawerNavigator() {
       {/* All screens are always defined - shown/hidden via drawer content */}
       <Drawer.Screen
         name="Home"
-        component={withTabs(HomeScreen, "Home")}
+        component={HomeWithTabs}
         options={{ title: "PUSO Spaze \u2014 Feed" }}
       />
       <Drawer.Screen
         name="Profile"
-        component={withTabs(ProfileScreen, "Profile")}
+        component={ProfileWithTabs}
         options={{ title: "PUSO Spaze \u2014 Profile" }}
       />
       <Drawer.Screen
         name="ReviewQueue"
-        component={withTabs(CoachDashboard, "ReviewQueue")}
+        component={CoachDashboardWithTabs}
         options={{ title: "PUSO Spaze \u2014 Coach Dashboard" }}
       />
       <Drawer.Screen
@@ -269,7 +281,7 @@ export default function MainDrawerNavigator() {
       />
       <Drawer.Screen
         name="Notifications"
-        component={withTabs(NotificationsScreen, "Notifications")}
+        component={NotificationsWithTabs}
         options={{
           title: "PUSO Spaze \u2014 Notifications",
           headerShown: false,
@@ -277,7 +289,7 @@ export default function MainDrawerNavigator() {
       />
       <Drawer.Screen
         name="Journal"
-        component={withTabs(JournalScreen, "Journal")}
+        component={JournalWithTabs}
         options={{
           title: "PUSO Spaze \u2014 My Journal",
           headerShown: false,
@@ -285,7 +297,7 @@ export default function MainDrawerNavigator() {
       />
       <Drawer.Screen
         name="SpazeCoach"
-        component={withTabs(SpazeCoachScreen, "SpazeCoach")}
+        component={SpazeCoachWithTabs}
         options={{
           title: "PUSO Spaze \u2014 Spaze Coach",
           headerShown: false,
@@ -294,7 +306,7 @@ export default function MainDrawerNavigator() {
       {isCoach && (
         <Drawer.Screen
           name="SpazeConversations"
-          component={withTabs(SpazeConversationsScreen, "SpazeConversations")}
+          component={SpazeConversationsWithTabs}
           options={{
             title: "PUSO Spaze \u2014 Spaze Conversations",
             headerShown: false,
