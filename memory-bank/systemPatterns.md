@@ -52,9 +52,12 @@
 ### Authentication / Identity
 - No password auth — device-bound username identity
 - Device ID (UUID) stored locally, sent to server on login
-- Server enforces device-username binding (native only; web skips device ID)
+- Server enforces device-username binding (native + web)
 - Device owner binding persisted in SecureStore/AsyncStorage
 - Roles: USER, COACH, ADMIN (COACH via invite code redemption)
+- **JWT auth**: All write endpoints require `Authorization: Bearer <token>` via `requireAuth` middleware; tokens signed with `JWT_SECRET` (7-day expiry, payload: `{ userId, role }`)
+- **PIN-based cross-device login**: Each user gets a unique 6-digit PIN (auto-generated on first login); presenting username + PIN from a different device allows migration
+- **Account recovery**: Locked-out users submit recovery request (public, no auth) → coaches review with user's post/journal history → approval clears device binding
 
 ### API Communication
 - Axios-based API client in `services/api.ts`

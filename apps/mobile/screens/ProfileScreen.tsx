@@ -30,7 +30,7 @@ import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from ".
 import { useUserStore } from "../context/UserContext";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
-import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, getBaseUrl } from "../services/api";
+import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, apiGetPin, apiUpdatePin, getBaseUrl } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal } from "../../../packages/types";
@@ -69,6 +69,13 @@ export default function ProfileScreen() {
   // ── Avatar upload state ───────────────────
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // ── PIN state ─────────────────────────────
+  const [pinCode, setPinCode] = useState<string | null>(null);
+  const [isEditingPin, setIsEditingPin] = useState(false);
+  const [editedPin, setEditedPin] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
+  const [pinVisible, setPinVisible] = useState(false);
+
   // ── Preferences state ─────────────────────
 
   const displayName = username ?? "User";
@@ -83,8 +90,12 @@ export default function ProfileScreen() {
     try {
       await fetchPosts();
       if (userId) {
-        const res = await apiFetchJournals(userId);
-        setJournals(res.journals);
+        const [journalRes, pinRes] = await Promise.all([
+          apiFetchJournals(userId),
+          apiGetPin(userId).catch(() => ({ pin: null })),
+        ]);
+        setJournals(journalRes.journals);
+        setPinCode(pinRes.pin);
       }
     } catch (err) {
       console.warn("[ProfileScreen] load error:", err);
@@ -210,6 +221,41 @@ export default function ProfileScreen() {
       showAlert("Error", msg);
     } finally {
       setSavingUsername(false);
+    }
+  };
+
+  // ── PIN editing ───────────────────────────
+  const handleEditPin = () => {
+    setEditedPin(pinCode ?? "");
+    setIsEditingPin(true);
+  };
+
+  const handleCancelPin = () => {
+    setIsEditingPin(false);
+    setEditedPin("");
+  };
+
+  const handleSavePin = async () => {
+    if (!/^\d{6}$/.test(editedPin)) {
+      showAlert("Invalid PIN", "PIN must be exactly 6 digits.");
+      return;
+    }
+    if (editedPin === pinCode) { setIsEditingPin(false); return; }
+    if (!userId) {
+      showAlert("Error", "User session not found.");
+      return;
+    }
+    setSavingPin(true);
+    try {
+      const res = await apiUpdatePin(userId, editedPin);
+      setPinCode(res.pin);
+      showAlert("Success", "PIN updated successfully.");
+      setIsEditingPin(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? err?.message ?? "Failed to update PIN.";
+      showAlert("Error", msg);
+    } finally {
+      setSavingPin(false);
     }
   };
 
@@ -459,6 +505,54 @@ export default function ProfileScreen() {
                 thumbColor={colors.onPrimary}
               />
             </View>
+
+            {/* PIN Code */}
+            <View style={[s.prefRow, { borderBottomWidth: 0 }]}>
+              <View style={s.prefInfo}>
+                <Text style={[s.prefLabel, { color: colors.onSurface }]}>Login PIN</Text>
+                <Text style={[s.prefDesc, { color: colors.onSurfaceVariant }]}>Use this PIN to log in from another device</Text>
+              </View>
+            </View>
+            {isEditingPin ? (
+              <View style={[s.pinEditRow, !isMedium && s.pinEditRowMobile]}>
+                <TextInput
+                  style={[s.editInput, { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurface }]}
+                  value={editedPin}
+                  onChangeText={(t) => setEditedPin(t.replace(/[^0-9]/g, "").slice(0, 6))}
+                  placeholder="6-digit PIN"
+                  placeholderTextColor={colors.muted3}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  editable={!savingPin}
+                  autoFocus
+                />
+                <View style={[s.editActions, !isMedium && s.editActionsMobile]}>
+                  <TouchableOpacity onPress={handleCancelPin} style={[s.cancelBtn, { borderColor: colors.outline }]}>
+                    <Text style={[s.cancelBtnText, { color: colors.onSurfaceVariant }]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleSavePin} disabled={savingPin} style={[s.saveBtnSmall, { backgroundColor: colors.primary }]}>
+                    {savingPin ? (
+                      <ActivityIndicator size="small" color={colors.onPrimary} />
+                    ) : (
+                      <Text style={[s.saveBtnSmallText, { color: colors.onPrimary }]}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={s.pinDisplayRow}>
+                <TouchableOpacity onPress={() => setPinVisible(!pinVisible)} style={s.pinValueWrap}>
+                  <Text style={[s.pinValue, { color: colors.onSurface }]}>
+                    {pinCode ? (pinVisible ? pinCode : "••••••") : "No PIN set"}
+                  </Text>
+                  <Ionicons name={pinVisible ? "eye-off" : "eye"} size={18} color={colors.onSurfaceVariant} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleEditPin} style={[s.editPinBtn, { borderColor: colors.outline }]}>
+                  <Ionicons name="pencil" size={14} color={colors.onSurfaceVariant} />
+                  <Text style={[s.editPinBtnText, { color: colors.onSurfaceVariant }]}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -780,5 +874,47 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     color: colors.onSurfaceVariant,
     marginTop: 2,
+  },
+
+  // ── PIN styles ────────────────────────────
+  pinEditRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  pinEditRowMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: spacing.xs,
+  },
+  pinDisplayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: spacing.xs,
+  },
+  pinValueWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  pinValue: {
+    fontSize: 16,
+    fontFamily: fonts.displaySemiBold,
+    letterSpacing: 2,
+  },
+  editPinBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  editPinBtnText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
   },
 });

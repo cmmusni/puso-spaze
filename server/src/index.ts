@@ -17,6 +17,7 @@ import coachRoutes from './api/coachRoutes';
 import notificationRoutes from './api/notificationRoutes';
 import journalRoutes from './api/journalRoutes';
 import conversationRoutes from './api/conversationRoutes';
+import recoveryRoutes from './api/recoveryRoutes';
 import { startReflectionReminderScheduler } from './services/reflectionReminderScheduler';
 import { getDailyReflection, getPersonalisedDailyReflection } from './services/dailyReflectionService';
 
@@ -119,6 +120,7 @@ app.use('/api/coach', coachRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/journals', journalRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/recovery-requests', recoveryRoutes);
 
 // ── 404 handler ───────────────────────────────
 app.use((_req, res) => {

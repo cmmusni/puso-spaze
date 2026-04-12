@@ -32,6 +32,8 @@
 | Resend | ^6.9.2 | Email service |
 | expo-server-sdk | ^6.0.0 | Push notification delivery |
 | uuid | ^9.0.0 | UUID generation |
+| jsonwebtoken | ^9.0.2 | JWT token auth |
+| bcryptjs | ^2.4.3 | PIN hashing (if applicable) |
 
 ### Database
 - PostgreSQL (hosted on Railway)
@@ -85,12 +87,16 @@ DATABASE_URL=postgresql://...
 NODE_ENV=production
 PORT=3000
 OPENAI_API_KEY=...
+JWT_SECRET=...              # MUST override hardcoded default in production
+ADMIN_SECRET=...            # MUST override hardcoded default in production
 GMAIL_USER=...
 GMAIL_PASS=...
 ```
 
 ## Technical Constraints
-- Web has no persistent device ID — `localStorage` is cleared with browser cache
-- Device ID enforcement skipped on web; only enforced on native
+- Web deviceId persisted in localStorage — cleared with browser cache
+- Device ID enforcement on both native and web (since JWT + PIN update)
 - Expo SDK 50 — must stay compatible with this version
-- No password/email auth — identity is device-bound username only
+- No password/email auth — identity is device-bound username + optional PIN
+- PIN is 6-digit unique; 8-digit fallback on collision (10 retries)
+- Recovery requests are public/unauthenticated — potential spam target

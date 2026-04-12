@@ -34,11 +34,13 @@ import {
   apiDeleteComment,
   apiGetDashboardStats,
   apiFetchConversations,
+  apiGetRecoveryRequests,
+  apiReviewRecovery,
   getBaseUrl,
 } from '../services/api';
 import type { DashboardStats } from '../services/api';
-import { showAlert } from '../utils/alertPlatform';
-import type { Post, Comment, Conversation } from '../../../packages/types';
+import { showAlert, showConfirm } from '../utils/alertPlatform';
+import type { Post, Comment, Conversation, RecoveryRequest } from '../../../packages/types';
 import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
 
 type Nav = DrawerNavigationProp<MainDrawerParamList>;
@@ -100,6 +102,7 @@ export default function CoachDashboard() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
@@ -110,15 +113,17 @@ export default function CoachDashboard() {
     if (!userId) return;
     if (!silent) setLoading(true);
     try {
-      const [queue, dashStats, convos] = await Promise.all([
+      const [queue, dashStats, convos, recoveryRes] = await Promise.all([
         apiGetReviewQueue(userId),
         apiGetDashboardStats(),
         apiFetchConversations(userId),
+        apiGetRecoveryRequests(userId),
       ]);
       setPosts(queue.posts);
       setComments(queue.comments);
       setStats(dashStats);
       setConversations(convos.conversations.slice(0, 3));
+      setRecoveryRequests(recoveryRes.requests);
     } catch {
       if (!silent) showAlert('Error', 'Could not load dashboard.');
     } finally {
@@ -177,6 +182,29 @@ export default function CoachDashboard() {
       setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not delete comment.';
+      showAlert('Error', msg);
+    } finally { setActing(null); }
+  };
+
+  // ── Recovery actions ──────────────────────
+
+  const handleRecovery = async (requestId: string, action: 'approve' | 'deny') => {
+    if (!userId) return;
+    const label = action === 'approve' ? 'Approve' : 'Deny';
+    const confirmed = await showConfirm(
+      `${label} Recovery?`,
+      action === 'approve'
+        ? 'This will clear the device binding so the user can log in from any device. Are you sure?'
+        : 'This will reject the recovery request. The user will need to submit a new one.'
+    );
+    if (!confirmed) return;
+
+    setActing(requestId);
+    try {
+      await apiReviewRecovery(requestId, { coachId: userId, action });
+      setRecoveryRequests((prev) => prev.filter((r) => r.id !== requestId));
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? 'Could not process recovery request.';
       showAlert('Error', msg);
     } finally { setActing(null); }
   };
@@ -523,6 +551,98 @@ export default function CoachDashboard() {
             </View>
           ) : (
             allItems.map((item) => renderReviewCard(item, item._type))
+          )}
+
+          {/* ── Recovery Requests ── */}
+          {recoveryRequests.length > 0 && (
+            <>
+              <View style={s.queueHeader}>
+                <View style={s.queueTitleRow}>
+                  <Text style={[s.queueTitle, isNarrow && s.queueTitleNarrow]}>Account Recovery</Text>
+                  <View style={[s.queueBadge, { backgroundColor: colors.warningBg }]}>
+                    <Text style={[s.queueBadgeText, { color: colors.warningText }]}>{recoveryRequests.length} Pending</Text>
+                  </View>
+                </View>
+              </View>
+              {recoveryRequests.map((req) => {
+                const isBusy = acting === req.id;
+                const history = req.userHistory;
+                return (
+                  <View key={req.id} style={s.reviewCard}>
+                    <View style={s.reviewHeader}>
+                      <View style={s.reviewAuthorRow}>
+                        <View style={[s.reviewAvatar, { backgroundColor: colors.warningBg }]}>
+                          <Ionicons name="key-outline" size={16} color={colors.warningText} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.reviewAuthor}>{req.displayName}</Text>
+                          <Text style={s.reviewTime}>
+                            Requested {formatRelativeTime(req.createdAt)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <Text style={s.reviewContent}>"{req.reason}"</Text>
+
+                    {/* Identity verification: user's post/journal history */}
+                    {history && (history.posts.length > 0 || history.journals.length > 0) && (
+                      <View style={s.recoveryHistory}>
+                        <Text style={s.recoveryHistoryTitle}>
+                          <Ionicons name="shield-checkmark-outline" size={13} color={colors.primary} />
+                          {' '}Identity Verification
+                        </Text>
+                        {history.accountAge && (
+                          <Text style={s.recoveryHistoryItem}>
+                            Account created: {new Date(history.accountAge).toLocaleDateString()}
+                          </Text>
+                        )}
+                        {history.posts.length > 0 && (
+                          <>
+                            <Text style={s.recoveryHistoryLabel}>Recent posts:</Text>
+                            {history.posts.slice(0, 3).map((p, i) => (
+                              <Text key={i} style={s.recoveryHistoryItem} numberOfLines={2}>
+                                • "{p.content.slice(0, 80)}{p.content.length > 80 ? '…' : ''}"
+                              </Text>
+                            ))}
+                          </>
+                        )}
+                        {history.journals.length > 0 && (
+                          <>
+                            <Text style={s.recoveryHistoryLabel}>Recent journals:</Text>
+                            {history.journals.slice(0, 3).map((j, i) => (
+                              <Text key={i} style={s.recoveryHistoryItem}>
+                                • {j.title} {j.mood ? `(${j.mood})` : ''}
+                              </Text>
+                            ))}
+                          </>
+                        )}
+                      </View>
+                    )}
+
+                    <View style={s.reviewActions}>
+                      <TouchableOpacity
+                        onPress={() => handleRecovery(req.id, 'deny')}
+                        disabled={isBusy}
+                        style={s.flagBtn}
+                      >
+                        {isBusy ? <ActivityIndicator size="small" color={colors.onSurface} /> : (
+                          <Text style={s.flagBtnText}>Deny</Text>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleRecovery(req.id, 'approve')}
+                        disabled={isBusy}
+                        style={s.approveBtn}
+                      >
+                        {isBusy ? <ActivityIndicator size="small" color="#fff" /> : (
+                          <Text style={s.approveBtnText}>Approve</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </>
           )}
         </ScrollView>
 
@@ -990,5 +1110,34 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodyBold,
     color: colors.primary,
     letterSpacing: 0.6,
+  },
+
+  // ── Recovery history ──────────────────────
+  recoveryHistory: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radii.md,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  recoveryHistoryTitle: {
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
+    color: colors.primary,
+    marginBottom: 6,
+  },
+  recoveryHistoryLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  recoveryHistoryItem: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    lineHeight: 16,
+    marginLeft: 4,
   },
 });

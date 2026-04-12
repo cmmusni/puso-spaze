@@ -9,8 +9,9 @@ import { body, param, query } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar } from '../controllers/userController';
+import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, getPin, updatePin } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
+import { requireAuth } from '../middlewares/requireAuth';
 import { isValidImageFile } from '../utils/validateImageMagicBytes';
 import fs from 'fs';
 
@@ -81,6 +82,11 @@ router.post(
       .optional()
       .isUUID()
       .withMessage('deviceId must be a valid UUID'),
+    body('pin')
+      .optional()
+      .isString()
+      .matches(/^\d{6,8}$/)
+      .withMessage('PIN must be 6–8 digits'),
     validate,
   ],
   createUser
@@ -97,6 +103,7 @@ router.get(
 
 router.patch(
   '/:userId/username',
+  requireAuth,
   [
     param('userId').isUUID().withMessage('userId must be a valid UUID'),
     body('displayName')
@@ -112,6 +119,7 @@ router.patch(
 
 router.patch(
   '/:userId/anonymous',
+  requireAuth,
   [
     param('userId').isUUID().withMessage('userId must be a valid UUID'),
     body('isAnonymous').isBoolean().withMessage('isAnonymous must be a boolean'),
@@ -122,6 +130,7 @@ router.patch(
 
 router.patch(
   '/:userId/notifications',
+  requireAuth,
   [
     param('userId').isUUID().withMessage('userId must be a valid UUID'),
     body('enabled').isBoolean().withMessage('enabled must be a boolean'),
@@ -132,6 +141,7 @@ router.patch(
 
 router.post(
   '/:userId/avatar',
+  requireAuth,
   [
     param('userId').isUUID().withMessage('userId must be a valid UUID'),
     validate,
@@ -154,6 +164,30 @@ router.post(
     }
   },
   uploadAvatar
+);
+
+router.get(
+  '/:userId/pin',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  getPin
+);
+
+router.patch(
+  '/:userId/pin',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    body('pin')
+      .isString()
+      .matches(/^\d{6}$/)
+      .withMessage('PIN must be exactly 6 digits'),
+    validate,
+  ],
+  updatePin
 );
 
 export default router;

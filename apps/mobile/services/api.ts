@@ -54,6 +54,9 @@ import type {
   GetMessagesResponse,
   SendMessageRequest,
   SendMessageResponse,
+  SubmitRecoveryResponse,
+  GetRecoveryRequestsResponse,
+  ReviewRecoveryResponse,
 } from '../../../packages/types';
 
 // ── Base URL ─────────────────────────────────
@@ -71,12 +74,39 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Interceptor: log errors in dev ──────────
+// ── JWT token management ─────────────────────
+// Token is stored in memory and persisted via UserContext.
+// Set by loginUser, cleared by logoutUser.
+let _authToken: string | null = null;
+
+/** Set the JWT token for all subsequent API calls. */
+export function setAuthToken(token: string | null): void {
+  _authToken = token;
+}
+
+/** Get the current JWT token (used by upload functions that bypass axios). */
+export function getAuthToken(): string | null {
+  return _authToken;
+}
+
+// ── Interceptor: attach JWT to all requests ──
+client.interceptors.request.use((config) => {
+  if (_authToken) {
+    config.headers.Authorization = `Bearer ${_authToken}`;
+  }
+  return config;
+});
+
+// ── Interceptor: log errors in dev, handle 401 ──
 client.interceptors.response.use(
   (res) => res,
   (error) => {
     if (__DEV__) {
       console.error('[API Error]', error?.response?.data ?? error.message);
+    }
+    if (error?.response?.status === 401) {
+      // Token expired or invalid — clear it so the app can prompt re-login
+      _authToken = null;
     }
     return Promise.reject(error);
   }
@@ -181,12 +211,36 @@ export async function apiUploadAvatar(
   const response = await fetch(`${BASE_URL}/api/users/${userId}/avatar`, {
     method: 'POST',
     body: formData,
+    headers: _authToken ? { Authorization: `Bearer ${_authToken}` } : undefined,
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error ?? 'Failed to upload avatar');
   }
   return response.json();
+}
+
+/**
+ * GET /api/users/:userId/pin
+ * Returns the user's current PIN code.
+ */
+export async function apiGetPin(
+  userId: string
+): Promise<{ pin: string | null }> {
+  const { data } = await client.get(`/api/users/${userId}/pin`);
+  return data;
+}
+
+/**
+ * PATCH /api/users/:userId/pin
+ * Updates the user's PIN code.
+ */
+export async function apiUpdatePin(
+  userId: string,
+  pin: string
+): Promise<{ success: boolean; pin: string }> {
+  const { data } = await client.patch(`/api/users/${userId}/pin`, { pin });
+  return data;
 }
 
 // ── Post endpoints ───────────────────────────
@@ -252,6 +306,7 @@ export async function apiCreatePost(
     const response = await fetch(`${BASE_URL}/api/posts`, {
       method: 'POST',
       body: formData,
+      headers: _authToken ? { Authorization: `Bearer ${_authToken}` } : undefined,
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -830,6 +885,43 @@ export async function apiGetTyping(
   const { data } = await client.get(
     `/api/conversations/${conversationId}/typing`,
     { params: { userId } }
+  );
+  return data;
+}
+
+// ── Recovery requests ────────────────────────
+
+/** POST /api/recovery-requests — public, no auth needed */
+export async function apiSubmitRecoveryRequest(
+  displayName: string,
+  reason: string
+): Promise<SubmitRecoveryResponse> {
+  const { data } = await client.post<SubmitRecoveryResponse>(
+    '/api/recovery-requests',
+    { displayName, reason }
+  );
+  return data;
+}
+
+/** GET /api/coach/recovery-requests?coachId=... — coach only */
+export async function apiGetRecoveryRequests(
+  coachId: string
+): Promise<GetRecoveryRequestsResponse> {
+  const { data } = await client.get<GetRecoveryRequestsResponse>(
+    '/api/coach/recovery-requests',
+    { params: { coachId } }
+  );
+  return data;
+}
+
+/** PATCH /api/coach/recovery-requests/:id — approve or deny */
+export async function apiReviewRecovery(
+  requestId: string,
+  body: { coachId: string; action: 'approve' | 'deny' }
+): Promise<ReviewRecoveryResponse> {
+  const { data } = await client.patch<ReviewRecoveryResponse>(
+    `/api/coach/recovery-requests/${requestId}`,
+    body
   );
   return data;
 }

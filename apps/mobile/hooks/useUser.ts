@@ -37,15 +37,15 @@ export function useUser() {
    *    No need to re-enter the invite code.
    */
   const loginWithUsername = useCallback(
-    async (displayName: string): Promise<void> => {
+    async (displayName: string, pin?: string): Promise<void> => {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
-      const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
+      const deviceId = await getDeviceId();
       const generatedId = uuidv4();
-      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar } =
-        await apiCreateUser({ displayName, ...(deviceId ? { deviceId } : {}), platform: Platform.OS });
-      await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER', serverAvatar);
+      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
+        await apiCreateUser({ displayName, deviceId, platform: Platform.OS, ...(pin ? { pin } : {}) });
+      await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER', serverAvatar, token);
     },
     [loginUser, validateDeviceOwner, getDeviceId]
   );
@@ -55,16 +55,16 @@ export function useUser() {
    * generated names if taken. Returns the display name that was actually used.
    */
   const loginAnonymously = useCallback(async (preferredName?: string): Promise<string> => {
-    const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
+    const deviceId = await getDeviceId();
     const generatedId = uuidv4();
     const MAX_ATTEMPTS = 5;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const anonName = attempt === 0 && preferredName ? preferredName : generateAnonUsername();
       try {
-        const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar } =
-          await apiCreateUser({ displayName: anonName, ...(deviceId ? { deviceId } : {}), platform: Platform.OS });
-        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER', serverAvatar);
+        const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
+          await apiCreateUser({ displayName: anonName, deviceId, platform: Platform.OS });
+        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER', serverAvatar, token);
         return serverName || anonName;
       } catch (err: any) {
         const serverError = err?.response?.data?.error ?? err?.message ?? '';
@@ -93,10 +93,10 @@ export function useUser() {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
-      const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
-      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar } =
-        await apiRedeemInviteCode({ displayName, code, ...(deviceId ? { deviceId } : {}), platform: Platform.OS });
-      await loginUser(serverId, serverName, serverRole, serverAvatar);
+      const deviceId = await getDeviceId();
+      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
+        await apiRedeemInviteCode({ displayName, code, deviceId, platform: Platform.OS });
+      await loginUser(serverId, serverName, serverRole, serverAvatar, token);
     },
     [loginUser, validateDeviceOwner, getDeviceId]
   );

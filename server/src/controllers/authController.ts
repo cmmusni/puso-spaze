@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
+import { signToken } from '../utils/jwt';
 
 /**
  * POST /api/auth/redeem-invite
@@ -82,6 +83,7 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
       displayName: user.displayName,
       role: user.role,
       avatarUrl: user.avatarUrl,
+      token: signToken({ userId: user.id, role: user.role }),
     });
   } catch (err) {
     console.error('[AuthController] redeemInvite error:', err);

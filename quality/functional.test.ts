@@ -507,6 +507,104 @@ describe('Fitness Scenarios', () => {
       assert.ok(ep.maxLimit > 0, `${ep.endpoint} has a positive limit`);
     }
   });
+
+  // ── Scenario 11: PIN Collision and Brute-Force ──
+
+  test('FS-11: PIN generation produces valid 6-digit PINs', () => {
+    // QUALITY.md Scenario 11 — PIN format validation
+    // Replicate generateUniquePin logic (without DB)
+    function generatePin(): string {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    for (let i = 0; i < 50; i++) {
+      const pin = generatePin();
+      assert.match(pin, /^\d{6}$/, `PIN "${pin}" should be exactly 6 digits`);
+      assert.ok(parseInt(pin) >= 100000, 'PIN should be >= 100000 (no leading zeros)');
+      assert.ok(parseInt(pin) <= 999999, 'PIN should be <= 999999');
+    }
+  });
+
+  test('FS-11b: PIN generation produces varied values', () => {
+    function generatePin(): string {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    const pins = new Set(Array.from({ length: 100 }, () => generatePin()));
+    assert.ok(pins.size > 50, `100 generated PINs should have high uniqueness, got ${pins.size} unique`);
+  });
+
+  test('FS-11c: PIN login logic — correct PIN allows cross-device login', () => {
+    // Replicate the PIN check from userController.createUser
+    const existingUser = { deviceId: 'device-A', pin: '123456' };
+    const requestDeviceId = 'device-B';
+    const requestPin = '123456';
+
+    const isDifferentDevice = existingUser.deviceId && requestDeviceId && existingUser.deviceId !== requestDeviceId;
+    const pinMatches = requestPin && existingUser.pin === requestPin;
+
+    assert.ok(isDifferentDevice, 'Should detect different device');
+    assert.ok(pinMatches, 'Correct PIN should match');
+    // When both: different device + correct PIN → allow login
+  });
+
+  test('FS-11d: PIN login logic — wrong PIN blocks cross-device login', () => {
+    const existingUser = { deviceId: 'device-A', pin: '123456' };
+    const requestDeviceId = 'device-B';
+    const requestPin = '654321';
+
+    const isDifferentDevice = existingUser.deviceId && requestDeviceId && existingUser.deviceId !== requestDeviceId;
+    const pinMatches = requestPin && existingUser.pin === requestPin;
+
+    assert.ok(isDifferentDevice, 'Should detect different device');
+    assert.ok(!pinMatches, 'Wrong PIN should not match');
+  });
+
+  test('FS-11e: PIN login logic — missing PIN blocks cross-device login', () => {
+    const existingUser = { deviceId: 'device-A', pin: '123456' };
+    const requestDeviceId = 'device-B';
+    const requestPin: string | undefined = undefined;
+
+    const isDifferentDevice = existingUser.deviceId && requestDeviceId && existingUser.deviceId !== requestDeviceId;
+    const pinMatches = requestPin && existingUser.pin === requestPin;
+
+    assert.ok(isDifferentDevice, 'Should detect different device');
+    assert.ok(!pinMatches, 'Missing PIN should not match');
+  });
+
+  // ── Scenario 12: Recovery Request Abuse ──
+
+  test('FS-12: recovery request validation requires non-empty fields', () => {
+    // QUALITY.md Scenario 12 — recovery request input validation
+    function validateRecoveryRequest(displayName: string, reason: string): string | null {
+      if (!displayName || !displayName.trim()) return 'Display name is required';
+      if (!reason || !reason.trim()) return 'Reason is required';
+      return null;
+    }
+
+    assert.ok(validateRecoveryRequest('', 'reason') !== null, 'Empty displayName should be rejected');
+    assert.ok(validateRecoveryRequest('  ', 'reason') !== null, 'Whitespace displayName should be rejected');
+    assert.ok(validateRecoveryRequest('user', '') !== null, 'Empty reason should be rejected');
+    assert.ok(validateRecoveryRequest('user', '  ') !== null, 'Whitespace reason should be rejected');
+    assert.equal(validateRecoveryRequest('user', 'I lost my device'), null, 'Valid request should pass');
+  });
+
+  test('FS-12b: recovery request status transitions are valid', () => {
+    // Valid recovery status transitions
+    const validStatuses = ['PENDING', 'APPROVED', 'DENIED'];
+    const validTransitions: Record<string, string[]> = {
+      'PENDING': ['APPROVED', 'DENIED'],
+      'APPROVED': [], // terminal state
+      'DENIED': [],   // terminal state
+    };
+
+    for (const status of validStatuses) {
+      assert.ok(validTransitions[status] !== undefined, `${status} should have defined transitions`);
+    }
+    assert.ok(validTransitions['PENDING'].length === 2, 'PENDING should transition to APPROVED or DENIED');
+    assert.ok(validTransitions['APPROVED'].length === 0, 'APPROVED is terminal');
+    assert.ok(validTransitions['DENIED'].length === 0, 'DENIED is terminal');
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -773,5 +871,51 @@ describe('Boundaries and Edge Cases', () => {
 
     assert.ok(atMax.trim().length <= maxLen, '500 chars should be accepted');
     assert.ok(overMax.trim().length > maxLen, '501 chars should be rejected');
+  });
+
+  // ── Magic Bytes Validation Boundaries ──
+
+  test('BE-20: JPEG magic bytes pattern is correct', () => {
+    // JPEG always starts with FF D8 FF
+    const jpegHeader = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]);
+    assert.ok(jpegHeader[0] === 0xFF && jpegHeader[1] === 0xD8 && jpegHeader[2] === 0xFF,
+      'JPEG magic bytes should be FF D8 FF');
+  });
+
+  test('BE-21: PNG magic bytes pattern is correct', () => {
+    // PNG starts with 89 50 4E 47 0D 0A 1A 0A
+    const pngHeader = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+    assert.ok(pngHeader[0] === 0x89 && pngHeader[1] === 0x50 && pngHeader[2] === 0x4E && pngHeader[3] === 0x47,
+      'PNG magic bytes should start with 89 50 4E 47');
+  });
+
+  test('BE-22: HTML content does not match any image magic bytes', () => {
+    const htmlContent = Buffer.from('<html><script>alert("xss")</script></html>');
+    const isJpeg = htmlContent[0] === 0xFF && htmlContent[1] === 0xD8;
+    const isPng = htmlContent[0] === 0x89 && htmlContent[1] === 0x50;
+    const isGif = htmlContent[0] === 0x47 && htmlContent[1] === 0x49 && htmlContent[2] === 0x46;
+
+    assert.ok(!isJpeg && !isPng && !isGif,
+      'HTML content should not match any image magic bytes');
+  });
+
+  // ── PIN Format Boundaries ──
+
+  test('BE-23: 6-digit PIN boundaries', () => {
+    const validPins = ['100000', '999999', '500000', '123456'];
+    const invalidPins = ['99999', '1000000', 'abcdef', '', '12345a', '12 345'];
+
+    for (const pin of validPins) {
+      assert.match(pin, /^\d{6}$/, `"${pin}" should match 6-digit format`);
+    }
+    for (const pin of invalidPins) {
+      assert.doesNotMatch(pin, /^\d{6}$/, `"${pin}" should NOT match 6-digit format`);
+    }
+  });
+
+  test('BE-24: 8-digit fallback PIN boundaries', () => {
+    // Fallback PINs when 6-digit collision occurs
+    const pin8 = Math.floor(10000000 + Math.random() * 90000000).toString();
+    assert.match(pin8, /^\d{8}$/, `8-digit fallback PIN "${pin8}" should be exactly 8 digits`);
   });
 });

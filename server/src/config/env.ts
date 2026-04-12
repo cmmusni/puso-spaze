@@ -25,6 +25,8 @@ export const env = {
   OPENAI_API_KEY: optional('OPENAI_API_KEY', ''),
   /** Secret used to protect the invite-code generation endpoint */
   ADMIN_SECRET: optional('ADMIN_SECRET', 'pusocoach_admin_2026'),
+  /** Secret used to sign JWT auth tokens — MUST be set in production */
+  JWT_SECRET: optional('JWT_SECRET', 'puso_jwt_dev_secret_change_me'),
   ALLOWED_ORIGINS: optional(
     'ALLOWED_ORIGINS',
     'https://api.puso-spaze.org,https://puso-spaze.org,https://www.puso-spaze.org'
@@ -55,5 +57,11 @@ if (!process.env.OPENAI_API_KEY) {
   console.warn(
     '⚠️  [SECURITY] OPENAI_API_KEY is not set — all content that passes the ' +
     'local keyword filter will default to REVIEW status.'
+  );
+}
+if (!process.env.JWT_SECRET) {
+  console.warn(
+    '⚠️  [SECURITY] JWT_SECRET is using the hardcoded default. ' +
+    'Set the JWT_SECRET environment variable in production!'
   );
 }

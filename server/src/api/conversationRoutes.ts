@@ -20,6 +20,7 @@ import {
   getTyping,
 } from '../controllers/conversationController';
 import { validate } from '../middlewares/validate';
+import { requireAuth } from '../middlewares/requireAuth';
 
 const router = Router();
 
@@ -27,11 +28,12 @@ const router = Router();
 router.get('/coaches', getCoaches);
 
 // ── GET /api/conversations/all ─────────────
-router.get('/all', getAllConversations);
+router.get('/all', requireAuth, getAllConversations);
 
 // ── GET /api/conversations ─────────────────
 router.get(
   '/',
+  requireAuth,
   [
     query('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     validate,
@@ -42,6 +44,7 @@ router.get(
 // ── POST /api/conversations ────────────────
 router.post(
   '/',
+  requireAuth,
   [
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('coachId').trim().isUUID().withMessage('coachId must be a valid UUID'),
@@ -53,6 +56,7 @@ router.post(
 // ── GET /api/conversations/:conversationId/messages ──
 router.get(
   '/:conversationId/messages',
+  requireAuth,
   [
     param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
     query('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
@@ -64,6 +68,7 @@ router.get(
 // ── POST /api/conversations/:conversationId/messages ──
 router.post(
   '/:conversationId/messages',
+  requireAuth,
   [
     param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
     body('senderId').trim().isUUID().withMessage('senderId must be a valid UUID'),
@@ -79,6 +84,7 @@ router.post(
 // ── POST /api/conversations/:conversationId/typing ──
 router.post(
   '/:conversationId/typing',
+  requireAuth,
   [
     param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
@@ -90,6 +96,7 @@ router.post(
 // ── GET /api/conversations/:conversationId/typing ──
 router.get(
   '/:conversationId/typing',
+  requireAuth,
   [
     param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
     query('userId').trim().isUUID().withMessage('userId must be a valid UUID'),

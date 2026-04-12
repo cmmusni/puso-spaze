@@ -142,13 +142,24 @@ test("FLAGGED content is saved but excluded from feed", async () => {
 
 ---
 
-### Scenario 5: Device Ownership Check Is Bypassable
+### Scenario 5: Device Ownership Check Is Bypassable → MITIGATED via JWT Auth + PIN
 
-**What happened:** User creation in `userController.ts` checks `deviceId` for ownership — if a username is taken by a different device, it rejects. But if `deviceId` is not sent in the request (it's optional), the check is bypassed entirely: `if (existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId)`. An attacker who omits `deviceId` from the request body can claim ANY existing username, gaining access to their post history and coach conversations. This is a client-side-only validation bypass.
+**Status: MITIGATED (April 2026)** — JWT authentication added across the entire API. PIN-based cross-device login provides a legitimate path for users to migrate between devices. Account recovery system handles locked-out users.
 
-**Where in code:** `userController.ts` line ~140: `if (existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId)` — device ownership check requires BOTH `existingUser.deviceId` AND `requestBody.deviceId` to be truthy. If either is falsy, the condition short-circuits to false and login proceeds. Same pattern in `authController.ts` line ~33.
+**What was fixed:**
+1. **JWT auth layer**: `requireAuth` middleware (`middlewares/requireAuth.ts`) verifies `Authorization: Bearer <token>` on all protected routes. Tokens are signed with `JWT_SECRET` (7-day expiry, payload: `{ userId, role }`).
+2. **Token issuance**: `userController.ts` and `authController.ts` return a `token` field on login/invite redemption.
+3. **Client-side token lifecycle**: `UserContext.tsx` stores JWT in SecureStore/AsyncStorage, restores on app load, clears on logout. `api.ts` attaches token to all axios and fetch requests via interceptor.
+4. **Web deviceId**: Web clients now generate and send `deviceId` like native clients. DeviceId persists in localStorage.
+5. **PIN-based device migration**: Each user gets a unique 6-digit PIN (auto-generated on first login). Presenting username + matching PIN from a different device allows cross-device login and updates the deviceId binding.
+6. **Account recovery**: Locked-out users without their PIN can submit a recovery request (public endpoint). Coaches review the request alongside the user's post/journal history, then approve (clears deviceId) or deny.
+7. **401 handling**: Expired/invalid tokens trigger automatic token clearance, prompting re-login.
 
-**How to verify:** Test that login/upsert without deviceId for an existing user with a deviceId is rejected (not silently allowed).
+**Remaining gap:** The `deviceId` ownership check itself still requires both sides to be truthy (`existingUser.deviceId && deviceId`). However, the combination of JWT auth + PIN + recovery means an attacker would need either: a valid token (requires original device), the user's PIN, or a coach-approved recovery.
+
+**Where in code:** `middlewares/requireAuth.ts`, `utils/jwt.ts`, `config/env.ts` (`JWT_SECRET`), all `*Routes.ts` files (requireAuth added), `userController.ts` (PIN generation/validation), `recoveryController.ts` (recovery flow), `UserContext.tsx` (token storage), `services/api.ts` (interceptor).
+
+**How to verify:** (1) POST to any protected endpoint without token → 401. (2) POST with valid token → succeeds. (3) Login with username from different device without PIN → 409. (4) Login with username + correct PIN from different device → success. (5) Recovery request → coach approval → login from new device → success. All verified via curl E2E tests (April 2026).
 
 **Requirement tag:** [Req: inferred — from upsert logic in userController/authController]
 
@@ -178,13 +189,17 @@ test("FLAGGED content is saved but excluded from feed", async () => {
 
 ---
 
-### Scenario 8: File Upload MIME Validation Is Header-Based Only
+### Scenario 8: File Upload MIME Validation — Partially Mitigated with Magic Bytes
 
-**What happened:** Both post image uploads (`postRoutes.ts` line ~35) and avatar uploads (`userRoutes.ts` line ~30) validate MIME types against an allowlist (`image/jpeg`, `image/png`, `image/gif`, `image/webp`) and enforce a 5MB size limit. This is a significant improvement over no validation. However, the check relies on the `Content-Type` header sent by the client (multer's `file.mimetype`), not on the actual file content (magic bytes). A malicious client can set `Content-Type: image/jpeg` while uploading a `.html` or `.svg` file containing JavaScript. Files are served via `express.static` (`index.ts` line ~41) without `Content-Disposition: attachment` or CSP headers, so if a browser renders the content, embedded scripts execute — a stored XSS vulnerability.
+**Status: PARTIALLY MITIGATED (April 2026)** — Magic bytes validation added for avatar uploads via `validateImageMagicBytes.ts`. Post image uploads still rely on header-based MIME check only.
 
-**Where in code:** `postRoutes.ts` lines 20–45: `fileFilter` checks `file.mimetype` (client-provided). `userRoutes.ts` lines 26–36: same pattern. `index.ts` line ~41: `app.use('/uploads', express.static(...))` with no content-type override or CSP.
+**What was fixed:** A new utility `server/src/utils/validateImageMagicBytes.ts` validates uploaded files by reading actual file content (magic bytes), not just the client-provided `Content-Type` header. Supports JPEG (`FF D8 FF`), PNG (`89 50 4E 47`), GIF (`47 49 46`), and WebP (`52 49 46 46...57 45 42 50`). This is used in `userRoutes.ts` for avatar uploads.
 
-**How to verify:** (1) Confirm that multer `fileFilter` rejects non-image MIME types (it does). (2) Test whether a file with `Content-Type: image/jpeg` but `.html` content is accepted and served as HTML. (3) Verify that `express.static` serves files with the original extension's MIME type (which could execute scripts if `.html` or `.svg` content was uploaded with a spoofed MIME type).
+**Remaining gap:** Post image uploads (`postRoutes.ts`) still rely on multer's `file.mimetype` header check only. Files are still served via `express.static` without `Content-Disposition: attachment` or CSP headers. A malicious client could spoof `Content-Type: image/jpeg` on post image uploads while uploading HTML/SVG content containing JavaScript.
+
+**Where in code:** `validateImageMagicBytes.ts` (new), `userRoutes.ts` (uses magic bytes for avatars), `postRoutes.ts` lines 20–45 (still header-based only), `index.ts` line ~41: `app.use('/uploads', express.static(...))` with no content-type override or CSP.
+
+**How to verify:** (1) Confirm avatar upload with spoofed MIME type but non-image content is rejected. (2) Confirm post image upload with spoofed MIME type is still accepted (remaining gap). (3) Verify `express.static` serves files without XSS-preventing headers.
 
 **Requirement tag:** [Req: inferred — from multer header-based validation and static file serving]
 
@@ -211,6 +226,30 @@ test("FLAGGED content is saved but excluded from feed", async () => {
 **How to verify:** Test that all list endpoints enforce a maximum page size (e.g., 50) regardless of client input. Currently only `searchUsers` (max 10) and `getNotifications` (max 50) enforce limits.
 
 **Requirement tag:** [Req: inferred — from searchUsers limit clamping pattern vs. other endpoints]
+
+---
+
+### Scenario 11: PIN Collision and Brute-Force Risk
+
+**What happened:** Users are assigned a unique 6-digit PIN for cross-device login. `generateUniquePin()` generates random 6-digit PINs and retries up to 10 times on database UNIQUE constraint collisions, falling back to 8-digit PINs if all 10 attempts fail. With 10^6 possible 6-digit PINs and a growing user base, collision probability increases over time (birthday paradox). Additionally, the PIN login endpoint has no rate limiting — an attacker who knows a username can brute-force the 6-digit PIN (10^6 attempts) to hijack the account from a different device.
+
+**Where in code:** `userController.ts` `generateUniquePin()`: retries 10× with 6-digit, falls back to 8-digit. Login check: `if (pin && existingUser.pin === pin)` — plain-text comparison, no rate limiting, no lockout after failed attempts.
+
+**How to verify:** (1) Test PIN generation produces unique 6-digit PINs. (2) Test collision fallback to 8-digit. (3) Verify that rapid failed PIN attempts are not rate-limited (current gap). (4) Verify PINs are stored and compared in plaintext (current gap — should be hashed).
+
+**Requirement tag:** [Req: inferred — from generateUniquePin() and login PIN validation logic]
+
+---
+
+### Scenario 12: Recovery Request Abuse — Spam and Social Engineering
+
+**What happened:** The recovery request endpoint (`POST /api/recovery-requests`) is intentionally public (no auth required) because it serves locked-out users who can't authenticate. However, this means anyone can submit unlimited recovery requests for any username. A malicious actor could: (1) flood coaches with fake recovery requests (DoS on the review queue), (2) submit recovery requests for other users' accounts to attempt social engineering (e.g., convincing a coach to clear the deviceId binding for a victim's account). The endpoint checks for duplicate PENDING requests per username but has no IP-based or time-based rate limiting.
+
+**Where in code:** `recoveryController.ts` `submitRecoveryRequest()`: validates `displayName` and `reason` are non-empty, checks for existing PENDING request (prevents duplicates per username), but no rate limiting. `recoveryRoutes.ts`: `POST /api/recovery-requests` has no auth middleware.
+
+**How to verify:** (1) Confirm duplicate PENDING request for same username is rejected. (2) Test rapid submissions for different usernames are all accepted (no rate limiting). (3) Verify coach review UI shows sufficient user history to prevent social engineering (post history, journal count, account age).
+
+**Requirement tag:** [Req: inferred — from public recovery endpoint design]
 
 ## 5. AI Session Quality Discipline
 

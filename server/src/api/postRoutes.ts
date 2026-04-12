@@ -19,6 +19,7 @@ import { createPost, getPosts, getPostById, deletePost, updatePost } from '../co
 import { upsertReaction, getReactions } from '../controllers/reactionController';
 import { createComment, getComments, deleteComment, updateComment, upsertCommentReaction } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
+import { requireAuth } from '../middlewares/requireAuth';
 import { isValidImageFile } from '../utils/validateImageMagicBytes';
 import fs from 'fs';
 
@@ -64,6 +65,7 @@ router.get(
 // ── POST /api/posts ────────────────────────
 router.post(
   '/',
+  requireAuth,
   (req: Request, res: Response, next: NextFunction) => {
     if (req.is('multipart/form-data')) {
       upload.single('image')(req, res, (err) => {
@@ -109,6 +111,7 @@ router.post(
 // ── DELETE /api/posts/:postId ──────────────
 router.delete(
   '/:postId',
+  requireAuth,
   [
     param('postId').isUUID().withMessage('postId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
@@ -119,6 +122,7 @@ router.delete(
 
 router.patch(
   '/:postId',
+  requireAuth,
   [
     param('postId').isUUID().withMessage('postId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
@@ -137,12 +141,13 @@ router.patch(
 
 // ── Reactions ──────────────────────────────
 router.get('/:postId/reactions', getReactions);
-router.post('/:postId/reactions', upsertReaction);
+router.post('/:postId/reactions', requireAuth, upsertReaction);
 
 // ── Comments ───────────────────────────────
 router.get('/:postId/comments', getComments);
 router.post(
   '/:postId/comments',
+  requireAuth,
   [
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('content')
@@ -156,6 +161,7 @@ router.post(
 
 router.delete(
   '/:postId/comments/:commentId',
+  requireAuth,
   [
     param('postId').isUUID().withMessage('postId must be a valid UUID'),
     param('commentId').isUUID().withMessage('commentId must be a valid UUID'),
@@ -166,6 +172,7 @@ router.delete(
 
 router.patch(
   '/:postId/comments/:commentId',
+  requireAuth,
   [
     param('postId').isUUID().withMessage('postId must be a valid UUID'),
     param('commentId').isUUID().withMessage('commentId must be a valid UUID'),
@@ -182,6 +189,7 @@ router.patch(
 // ── Comment Reactions ──────────────────────
 router.post(
   '/:postId/comments/:commentId/reactions',
+  requireAuth,
   [
     param('postId').isUUID().withMessage('postId must be a valid UUID'),
     param('commentId').isUUID().withMessage('commentId must be a valid UUID'),

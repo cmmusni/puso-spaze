@@ -17,12 +17,14 @@ import {
   deleteJournal,
 } from '../controllers/journalController';
 import { validate } from '../middlewares/validate';
+import { requireAuth } from '../middlewares/requireAuth';
 
 const router = Router();
 
 // ── GET /api/journals ──────────────────────
 router.get(
   '/',
+  requireAuth,
   [
     query('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     validate,
@@ -33,6 +35,7 @@ router.get(
 // ── GET /api/journals/:journalId ───────────
 router.get(
   '/:journalId',
+  requireAuth,
   [
     param('journalId').isUUID().withMessage('journalId must be a valid UUID'),
     query('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
@@ -44,6 +47,7 @@ router.get(
 // ── POST /api/journals ─────────────────────
 router.post(
   '/',
+  requireAuth,
   [
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('title')
@@ -71,6 +75,7 @@ router.post(
 // ── PATCH /api/journals/:journalId ─────────
 router.patch(
   '/:journalId',
+  requireAuth,
   [
     param('journalId').isUUID().withMessage('journalId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
@@ -99,6 +104,7 @@ router.patch(
 // ── DELETE /api/journals/:journalId ────────
 router.delete(
   '/:journalId',
+  requireAuth,
   [
     param('journalId').isUUID().withMessage('journalId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),

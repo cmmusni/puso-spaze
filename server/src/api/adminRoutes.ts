@@ -12,6 +12,7 @@ import {
   sendInviteCodeByEmail,
   pinPost,
   unpinPost,
+  resetUserDevice,
 } from '../controllers/adminController';
 import { env } from '../config/env';
 
@@ -62,6 +63,13 @@ router.post(
   '/posts/:postId/unpin',
   [body('userId').isString().notEmpty().withMessage('userId is required.'), validate],
   unpinPost
+);
+
+// POST /api/admin/users/:userId/reset-device
+router.post(
+  '/users/:userId/reset-device',
+  requireAdmin,
+  resetUserDevice
 );
 
 export default router;

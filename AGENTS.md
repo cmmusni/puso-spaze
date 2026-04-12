@@ -6,7 +6,7 @@
 
 **PUSO Spaze** is a faith-based mental wellness community app for Filipino youth. Users share emotional struggles (anonymously or publicly), receive AI-moderated biblical encouragement, and connect with trained coaches. The app runs on web and mobile (Expo/React Native) with an Express+Prisma+PostgreSQL backend.
 
-**One-sentence summary:** A safe, AI-moderated community space where Filipino Gen Z can share feelings, get biblical encouragement, and talk to coaches — with content moderation, anonymous posting, and push notifications.
+**One-sentence summary:** A safe, AI-moderated community space where Filipino Gen Z can share feelings, get biblical encouragement, and talk to coaches — with content moderation, anonymous posting, PIN-based cross-device login, account recovery, and push notifications.
 
 ## Quick Setup
 
@@ -62,10 +62,11 @@ apps/mobile/          — Expo/React Native universal app (web + iOS + Android)
   navigation/         — Drawer navigator + web layout wrapper
 
 server/               — Express + Prisma + PostgreSQL
-  src/controllers/    — Route handlers (post, comment, user, reaction, admin, coach, journal, notification, conversation, auth)
+  src/controllers/    — Route handlers (post, comment, user, reaction, admin, coach, journal, notification, conversation, auth, recovery)
   src/services/       — Business logic (moderation, encouragement, notifications, mentions)
   src/config/         — env.ts (env vars), db.ts (Prisma client)
-  src/middlewares/    — Logger, validation
+  src/middlewares/    — Logger, validation, requireAuth (JWT)
+  src/utils/          — jwt.ts, generateAnonUsername, validateImageMagicBytes
   prisma/             — Schema, migrations, seed
 
 packages/types/       — Shared TypeScript types (User, Post, Comment, etc.)
@@ -91,26 +92,30 @@ User Input → Client Validation → API Request → Express Router
 1. **Moderation-first**: Every post and comment is AI-moderated before publishing. Content defaults to REVIEW on moderation failure — never silently approved.
 2. **Anonymous mode**: Users can toggle anonymous posting. Anonymous posts get a randomly generated display name frozen at creation time.
 3. **Hourly Hope**: A cron-based scheduler generates biblical encouragement posts every hour using OpenAI, with contextual auto-comments on user posts.
-4. **Device binding**: Usernames are bound to device IDs to prevent impersonation. No passwords — login is by device + display name.
-5. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
+4. **Device binding + PIN auth**: Usernames are bound to device IDs. Users get a unique 6-digit PIN for cross-device login. Locked-out users can submit recovery requests reviewed by coaches.
+5. **JWT auth**: All write endpoints require JWT Bearer tokens (7-day expiry). Read endpoints are public.
+6. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
 
 ## Known Quirks
 
 - `OPENAI_API_KEY` not set → moderation returns SAFE for everything (dangerous in production — see `quality/QUALITY.md` Scenario 2)
 - `ADMIN_SECRET` has a hardcoded default `pusocoach_admin_2026` — must be overridden in production (Scenario 6)
+- `JWT_SECRET` has a hardcoded default in dev — must be overridden in production (startup warning logged)
 - Encouragement scheduler catches moderation failures and sets status to SAFE — should be REVIEW (Scenario 3)
-- File uploads validate MIME type via allowlist (JPEG/PNG/GIF/WebP) but check is header-based, not magic-byte (Scenario 8)
+- File uploads: Avatar uploads validate magic bytes; post image uploads still use header-based MIME check only (Scenario 8)
 - Anonymous mode leaks real `displayName` in notification payloads (Scenario 4)
-- Device ownership check is bypassable by omitting `deviceId` from request body (Scenario 5)
+- Device ownership check is bypassable by omitting `deviceId` — mitigated by JWT auth + PIN (Scenario 5)
 - `getPosts`, `getComments`, `getJournals`, `getConversations`, `getMessages` have no pagination limits (Scenario 10)
 - Coach review queue exists (`GET /api/coach/review`) but has no automated escalation for stale REVIEW posts (Scenario 7)
 - Notification delivery is fire-and-forget — push failures are logged but not retried (Scenario 9)
+- PIN login has no rate limiting — brute-force risk for 6-digit PINs (Scenario 11)
+- Recovery request endpoint is public (no auth) — potential spam vector (Scenario 12)
 
 ## Quality Docs
 
 This project has a quality playbook. Read these before making changes:
 
-- [`quality/QUALITY.md`](quality/QUALITY.md) — Quality constitution (10 fitness scenarios, coverage targets, theater prevention)
+- [`quality/QUALITY.md`](quality/QUALITY.md) — Quality constitution (12 fitness scenarios, coverage targets, theater prevention)
 - [`quality/functional.test.ts`](quality/functional.test.ts) — Automated functional tests (run: `npx tsx --test quality/functional.test.ts`)
 - [`quality/RUN_CODE_REVIEW.md`](quality/RUN_CODE_REVIEW.md) — Code review protocol with guardrails
 - [`quality/RUN_INTEGRATION_TESTS.md`](quality/RUN_INTEGRATION_TESTS.md) — Integration test protocol
@@ -123,6 +128,7 @@ This project has a quality playbook. Read these before making changes:
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `OPENAI_API_KEY` | No | `''` | Content moderation + encouragement generation |
 | `ADMIN_SECRET` | No | `pusocoach_admin_2026` | Admin endpoint auth (MUST override in prod) |
+| `JWT_SECRET` | No | Hardcoded dev default | JWT signing secret (MUST override in prod) |
 | `RESEND_API_KEY` | No | `''` | Email sending (new user alerts, invite codes) |
 | `PORT` | No | `4000` | Server port |
 | `ALLOWED_ORIGINS` | No | Production URLs | CORS allowed origins |

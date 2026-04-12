@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../../../packages/types';
-import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications } from '../services/api';
+import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications, setAuthToken } from '../services/api';
 
 // ── Storage keys ─────────────────────────────
 const USER_ID_KEY    = 'puso_user_id';
@@ -23,6 +23,7 @@ const DEVICE_SYNCED_KEY = 'puso_device_id_synced'; // Flag: deviceId has been se
 const ANONYMOUS_KEY  = 'puso_anonymous';     // Anonymous mode on/off
 const AVATAR_URL_KEY = 'puso_avatar_url';   // Profile picture URL
 const NOTIFICATIONS_KEY = 'puso_notifications'; // Daily reflection reminders on/off
+const JWT_TOKEN_KEY  = 'puso_jwt_token';     // JWT auth token from server
 
 // ── Platform-aware storage helper ────────────
 // expo-secure-store is native-only; fall back to AsyncStorage on web.
@@ -74,8 +75,9 @@ export interface UserState {
    * @param username  Display name (anon or custom)
    * @param role  UserRole (default USER)
    * @param avatarUrl  Profile picture URL from server (optional)
+   * @param token  JWT auth token from server (optional)
    */
-  loginUser: (userId: string, username: string, role?: UserRole, avatarUrl?: string | null) => Promise<void>;
+  loginUser: (userId: string, username: string, role?: UserRole, avatarUrl?: string | null, token?: string | null) => Promise<void>;
 
   /** Clear session from SecureStore and reset state (but keep device owner) */
   logoutUser: () => Promise<void>;
@@ -130,23 +132,28 @@ export const useUserStore = create<UserState>((set, get) => ({
         const savedNotif = await storage.getItem(NOTIFICATIONS_KEY);
         const notificationsEnabled = savedNotif !== 'false'; // default true
         const avatarUrl = await storage.getItem(AVATAR_URL_KEY);
+
+        // Restore JWT token for API calls
+        const savedToken = await storage.getItem(JWT_TOKEN_KEY);
+        if (savedToken) {
+          setAuthToken(savedToken);
+          console.log('[UserStore] JWT token restored');
+        }
+
         set({ userId, username, role: role ?? 'USER', avatarUrl, isAnonymous, notificationsEnabled, isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
 
         // One-time deviceId sync for users who were already logged in before the update
-        // Skip on web — no persistent device ID available
-        if (Platform.OS !== 'web') {
-          const alreadySynced = await storage.getItem(DEVICE_SYNCED_KEY);
-          if (!alreadySynced) {
-            try {
-              const deviceId = await get().getDeviceId();
-              await apiCreateUser({ displayName: username, deviceId, platform: Platform.OS });
-              await storage.setItem(DEVICE_SYNCED_KEY, 'true');
-              console.log('[UserStore] deviceId synced to server');
-            } catch (syncErr) {
-              // Non-blocking — will retry on next app launch
-              console.warn('[UserStore] deviceId sync deferred:', syncErr);
-            }
+        const alreadySynced = await storage.getItem(DEVICE_SYNCED_KEY);
+        if (!alreadySynced) {
+          try {
+            const deviceId = await get().getDeviceId();
+            await apiCreateUser({ displayName: username, deviceId, platform: Platform.OS });
+            await storage.setItem(DEVICE_SYNCED_KEY, 'true');
+            console.log('[UserStore] deviceId synced to server');
+          } catch (syncErr) {
+            // Non-blocking — will retry on next app launch
+            console.warn('[UserStore] deviceId sync deferred:', syncErr);
           }
         }
       } else {
@@ -177,7 +184,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  loginUser: async (userId: string, username: string, role: UserRole = 'USER', avatarUrl?: string | null) => {
+  loginUser: async (userId: string, username: string, role: UserRole = 'USER', avatarUrl?: string | null, token?: string | null) => {
     try {
       // Set device owner on first login (immutable thereafter)
       const deviceOwner = await storage.getItem(DEV_OWNER_KEY);
@@ -192,6 +199,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       // Persist avatar URL from server if provided
       if (avatarUrl) {
         await storage.setItem(AVATAR_URL_KEY, avatarUrl);
+      }
+      // Persist JWT token and set it for API calls
+      if (token) {
+        await storage.setItem(JWT_TOKEN_KEY, token);
+        setAuthToken(token);
       }
       // Mark deviceId as synced (login already sent it to the server)
       await storage.setItem(DEVICE_SYNCED_KEY, 'true');
@@ -209,6 +221,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       await storage.removeItem(USERNAME_KEY);
       await storage.removeItem(ROLE_KEY);
       await storage.removeItem(AVATAR_URL_KEY);
+      await storage.removeItem(JWT_TOKEN_KEY);
+      setAuthToken(null);
     } catch (err) {
       console.warn('[UserStore] Could not clear session:', err);
     }

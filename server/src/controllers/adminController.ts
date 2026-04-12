@@ -250,3 +250,38 @@ export async function unpinPost(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Failed to unpin post.' });
   }
 }
+
+/**
+ * POST /api/admin/users/:userId/reset-device
+ * Header: Authorization: Bearer <ADMIN_SECRET>
+ *
+ * Clears a user's deviceId binding so they can log in from any device.
+ * Used for account recovery when a user has lost access (cleared cache, no PIN).
+ * Returns: { success: true, displayName }
+ */
+export async function resetUserDevice(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, displayName: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { deviceId: null },
+    });
+
+    console.log(`[AdminController] Device binding reset for user "${user.displayName}" (${userId})`);
+    res.json({ success: true, displayName: user.displayName });
+  } catch (err) {
+    console.error('[AdminController] resetUserDevice error:', err);
+    res.status(500).json({ error: 'Failed to reset device binding.' });
+  }
+}

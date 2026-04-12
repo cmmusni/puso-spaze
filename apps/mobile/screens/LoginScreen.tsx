@@ -30,7 +30,7 @@ import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
-import { apiGetOnlineCount, apiCheckUsername } from '../services/api';
+import { apiGetOnlineCount, apiCheckUsername, apiSubmitRecoveryRequest } from '../services/api';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
@@ -82,6 +82,17 @@ export default function LoginScreen() {
   const [showAbout, setShowAbout] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
 
+  // ── PIN prompt modal ─────
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinUsername, setPinUsername] = useState('');
+
+  // ── Recovery request modal ─────
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryReason, setRecoveryReason] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+
   // ── Online count ─────
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
 
@@ -126,12 +137,11 @@ export default function LoginScreen() {
       const serverError = err?.response?.data?.error;
       const msg = serverError ?? err?.message ?? 'Could not connect to server. Please try again.';
 
-      // Server-side: username owned by a different device
+      // Server-side: username owned by a different device — prompt for PIN
       if (serverError === 'Username is already taken.') {
-        showAlert(
-          'Username Taken',
-          `"${customName.trim()}" is already in use by someone else. Please choose a different username.`
-        );
+        setPinUsername(customName.trim());
+        setPinInput('');
+        setShowPinModal(true);
         return;
       }
 
@@ -223,6 +233,58 @@ export default function LoginScreen() {
     if (trimmed.length >= 2) { handleLoginWithUsername(); return; }
     // Anonymous path (input is empty)
     handleLoginAnonymously();
+  };
+
+  /** Submit PIN to login from a different device */
+  const handlePinLogin = async () => {
+    if (!/^\d{6}$/.test(pinInput)) {
+      showAlert('Invalid PIN', 'PIN must be exactly 6 digits.');
+      return;
+    }
+    setPinLoading(true);
+    try {
+      await loginWithUsername(pinUsername, pinInput);
+      setShowPinModal(false);
+      navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
+    } catch (err: any) {
+      const serverError = err?.response?.data?.error;
+      if (serverError === 'Username is already taken.') {
+        showAlert('Wrong PIN', 'The PIN you entered is incorrect. Please try again.');
+      } else {
+        showAlert('Login Failed', serverError ?? err?.message ?? 'Could not log in with PIN.');
+      }
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  /** Open the recovery request form */
+  const handleOpenRecovery = () => {
+    setShowPinModal(false);
+    setRecoveryReason('');
+    setShowRecoveryModal(true);
+  };
+
+  /** Submit a recovery request so a coach can verify and reset device binding */
+  const handleSubmitRecovery = async () => {
+    if (recoveryReason.trim().length < 5) {
+      showAlert('Too Short', 'Please describe why you need recovery (at least 5 characters).');
+      return;
+    }
+    setRecoveryLoading(true);
+    try {
+      await apiSubmitRecoveryRequest(pinUsername, recoveryReason.trim());
+      setShowRecoveryModal(false);
+      showAlert(
+        'Request Submitted',
+        'A PUSO Coach will review your request and reset your account if verified. Please check back later.'
+      );
+    } catch (err: any) {
+      const serverError = err?.response?.data?.error;
+      showAlert('Error', serverError ?? 'Could not submit recovery request. Please try again.');
+    } finally {
+      setRecoveryLoading(false);
+    }
   };
 
   // ── Render ────────────────────────────────
@@ -603,6 +665,105 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </LinearGradient>
+
+      {/* ── PIN Login Modal ── */}
+      <Modal
+        visible={showPinModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowPinModal(false)}
+      >
+        <View style={styles.pinOverlay}>
+          <View style={styles.pinModal}>
+            <Text style={styles.pinTitle}>Enter Your PIN</Text>
+            <Text style={styles.pinSubtitle}>
+              "{pinUsername}" is registered on another device. Enter your 6-digit PIN to log in.
+            </Text>
+            <TextInput
+              style={styles.pinInput}
+              value={pinInput}
+              onChangeText={(t) => setPinInput(t.replace(/[^0-9]/g, '').slice(0, 6))}
+              placeholder="000000"
+              placeholderTextColor={colors.muted4}
+              keyboardType="number-pad"
+              maxLength={6}
+              editable={!pinLoading}
+              autoFocus
+              secureTextEntry
+            />
+            <View style={styles.pinActions}>
+              <TouchableOpacity
+                onPress={() => setShowPinModal(false)}
+                disabled={pinLoading}
+                style={styles.pinCancelBtn}
+              >
+                <Text style={styles.pinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handlePinLogin}
+                disabled={pinLoading || pinInput.length !== 6}
+                style={[styles.pinSubmitBtn, (pinLoading || pinInput.length !== 6) && { opacity: 0.5 }]}
+              >
+                {pinLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.pinSubmitText}>Login</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={handleOpenRecovery} style={styles.recoveryLink}>
+              <Text style={styles.recoveryLinkText}>Can't access your account?</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Recovery Request Modal ── */}
+      <Modal
+        visible={showRecoveryModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowRecoveryModal(false)}
+      >
+        <View style={styles.pinOverlay}>
+          <View style={styles.pinModal}>
+            <Text style={styles.pinTitle}>Account Recovery</Text>
+            <Text style={styles.pinSubtitle}>
+              Tell us why you need to recover "{pinUsername}". A PUSO Coach will review your request and verify your identity based on your post history.
+            </Text>
+            <TextInput
+              style={[styles.pinInput, { height: 80, textAlignVertical: 'top' }]}
+              value={recoveryReason}
+              onChangeText={setRecoveryReason}
+              placeholder='e.g. "I cleared my browser cache" or "I got a new phone"'
+              placeholderTextColor={colors.muted4}
+              multiline
+              editable={!recoveryLoading}
+              autoFocus
+            />
+            <View style={styles.pinActions}>
+              <TouchableOpacity
+                onPress={() => setShowRecoveryModal(false)}
+                disabled={recoveryLoading}
+                style={styles.pinCancelBtn}
+              >
+                <Text style={styles.pinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSubmitRecovery}
+                disabled={recoveryLoading || recoveryReason.trim().length < 5}
+                style={[styles.pinSubmitBtn, (recoveryLoading || recoveryReason.trim().length < 5) && { opacity: 0.5 }]}
+              >
+                {recoveryLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.pinSubmitText}>Submit</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -896,6 +1057,86 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '800',
+  },
+
+  // ── PIN modal ──────────────────────────────
+  pinOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pinModal: {
+    backgroundColor: colors.canvas,
+    borderRadius: 20,
+    padding: 28,
+    width: '100%',
+    maxWidth: 380,
+  },
+  pinTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  pinSubtitle: {
+    fontSize: 14,
+    color: colors.muted5,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  pinInput: {
+    backgroundColor: colors.muted1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 8,
+    color: colors.text,
+    marginBottom: 20,
+  },
+  pinActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pinCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.muted3,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  pinCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.muted5,
+  },
+  pinSubmitBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  pinSubmitText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  recoveryLink: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  recoveryLinkText: {
+    fontSize: 13,
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
 });
 

@@ -3,40 +3,52 @@
 **Last Updated:** April 12, 2026
 
 ## Current Work Focus
-- Quality playbook full retest and update
+- PIN-based cross-device auth & account recovery (completed)
+- Quality playbook & memory bank update
 - Android build & testing (Expo prebuild → Android Studio)
 
 ## Recent Changes
 
-### Quality Playbook Retest (April 12, 2026)
-- **Functional tests**: Synced replicated moderation logic with production `moderationService.ts` — was 61% incomplete (missing Unicode normalization, 61 blocked terms, 9 phrase patterns)
-- **Test FS-1h**: Changed from asserting Cyrillic bypass (known gap) to asserting FLAGGED (gap now fixed in production code)
-- **4 new tests added**: FS-1i (zero-width stripping), FS-1j (ableist phrase patterns), FS-1k (Filipino-specific slurs), FS-1l (discrimination terms) — total now 56 tests, all passing
-- **TC-11 Playwright fix**: Changed `btn.click(); btn.click()` to `btn.dblclick()` — button disappears after first click (loading state), causing timeout. Now 20/20 Playwright tests pass
-- **QUALITY.md Scenario 1**: Updated to reflect Unicode homoglyph normalization is now MITIGATED, with remaining gap documented (mathematical alphanumerics)
-- **Server unit tests**: 2/2 passing (commentController.test.ts)
+### PIN-Based Cross-Device Login (April 12, 2026)
+- **Server**: Added `pin` field (TEXT, UNIQUE) to User model; `generateUniquePin()` creates 6-digit PINs (8-digit fallback on collision, 10 retries)
+- **Login flow**: If username exists on a different device and PIN is provided + matches → allow cross-device login + update deviceId. If no PIN → 409
+- **PIN auto-backfill**: On login, if user has no PIN yet, one is auto-generated and saved
+- **New endpoints**: `GET /api/users/:userId/pin`, `PATCH /api/users/:userId/pin` (both JWT-protected)
+- **Client**: LoginScreen has PIN modal for cross-device login; ProfileScreen shows/edits PIN with visibility toggle
 
-### Device ID (April 11, 2026)
-- Removed device ID enforcement for web clients — web no longer sends `deviceId` to server
-- One-time device ID sync skipped on web
-- Native (iOS/Android) retains full device binding
+### Account Recovery System (April 12, 2026)
+- **New model**: `RecoveryRequest` (id, displayName, reason, status: PENDING|APPROVED|DENIED, reviewedBy, reviewedAt)
+- **New controller**: `recoveryController.ts` with submit (public), list (coach), review (coach/admin)
+- **Recovery flow**: Locked-out user → submit recovery request (public, no auth) → coaches see request + user's post/journal history → approve (clears deviceId) or deny
+- **Coach Dashboard**: Added "Account Recovery" queue panel with approve/deny actions + user history display
+- **LoginScreen**: Recovery modal accessible after failed PIN attempts
 
-### Login Screen (April 11, 2026)
-- Added `useEffect` to prefill username from `getDeviceOwner()` on mount
+### Magic Bytes Upload Validation (April 12, 2026)
+- **New utility**: `server/src/utils/validateImageMagicBytes.ts` — validates uploaded files by checking magic bytes (JPEG: FF D8 FF, PNG: 89 50 4E 47, GIF, WebP), not just MIME headers
+- Used in avatar uploads (`userRoutes.ts`) — partially mitigates QUALITY.md Scenario 8
 
-### Coach Dashboard (April 11, 2026)
-- Removed `padStart(2, '0')` from stat values — `0` now displays as `0` not `00`
+### JWT Authentication (April 12, 2026)
+- **Server**: `jwt.ts` utility (sign/verify), `requireAuth` middleware, `JWT_SECRET` env var with default + startup warning
+- **Route protection**: All write endpoints require valid JWT Bearer token; public read endpoints remain open
+- **Token issuance**: Returns `token` on login/invite redemption
+- **Client**: `api.ts` interceptor attaches JWT; `UserContext.tsx` stores/restores/clears token
+- **Web deviceId fix**: Web clients now generate and persist deviceId via AsyncStorage/localStorage
 
-### Journal Screen (April 11, 2026)
-- Save Entry button moved to its own row, right-aligned on mobile and narrow web (< 900px)
-- On wide web (≥ 900px), Save Entry stays inline with action chips
+### Earlier Changes (April 11, 2026)
+- Login screen prefills username from `getDeviceOwner()` on mount
+- Coach Dashboard: `0` displays as `0` not `00`
+- Journal Screen: Save Entry button layout adjusted for responsive breakpoints
 
 ## Next Steps
 - Complete Android APK build and test on physical tablet
-- Test device ID changes on web (clearing cache → re-login)
+- Deploy PIN + recovery + JWT changes to production (set `JWT_SECRET` env var)
+- Add functional tests for PIN validation and recovery request flow
 - Continue responsive UI polish across screens
 
 ## Active Decisions
-- Web users can log in with any username without device binding restriction
-- Native users still enforce device-username binding
-- `isWide` (web ≥ 900px) used as breakpoint for layout decisions (not just `Platform.OS`)
+- All write API endpoints require JWT auth; read endpoints remain public
+- PIN-based cross-device login as alternative to device-bound identity
+- Recovery requests require coach review with user history verification
+- Web clients now generate and persist deviceId (same as native)
+- JWT tokens expire after 7 days — user must re-login
+- `JWT_SECRET` has hardcoded dev default with startup warning (must override in production)

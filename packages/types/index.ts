@@ -113,8 +113,8 @@ export interface ReactionCounts {
 }
 
 // ── API shapes ────────────────────────────────
-export interface CreateUserRequest { displayName: string; deviceId?: string; platform?: string; }
-export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; }
+export interface CreateUserRequest { displayName: string; deviceId?: string; platform?: string; pin?: string; }
+export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; pin?: string | null; token?: string; }
 
 export interface CreatePostRequest { userId: string; content: string; tags?: string[]; isAnonymous?: boolean; }
 export interface CreatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
@@ -145,7 +145,7 @@ export interface UserSession { userId: string; username: string; role: UserRole;
 
 // Coach / Admin
 export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; platform?: string; }
-export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; }
+export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; token?: string; }
 
 export interface ReviewQueue { posts: Post[]; comments: Comment[]; }
 export interface GetReviewQueueResponse { posts: Post[]; comments: Comment[]; }
@@ -215,3 +215,24 @@ export interface GetOrCreateConversationResponse { conversation: Conversation; }
 export interface GetMessagesResponse { messages: Message[]; }
 export interface SendMessageRequest { senderId: string; content: string; }
 export interface SendMessageResponse { message: Message; }
+
+// Recovery Requests
+export interface RecoveryRequest {
+  id: string;
+  displayName: string;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'DENIED';
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  userHistory?: {
+    posts: { content: string; createdAt: string; tags: string[] }[];
+    journals: { title: string; mood: string | null; createdAt: string }[];
+    accountAge: string | null;
+  };
+}
+export interface SubmitRecoveryRequest { displayName: string; reason: string; }
+export interface SubmitRecoveryResponse { id: string; status: string; }
+export interface GetRecoveryRequestsResponse { requests: RecoveryRequest[]; }
+export interface ReviewRecoveryRequest { coachId: string; action: 'approve' | 'deny'; }
+export interface ReviewRecoveryResponse { request: RecoveryRequest; }

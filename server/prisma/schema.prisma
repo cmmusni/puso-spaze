@@ -25,6 +25,7 @@ model User {
   id            String   @id @default(uuid())
   displayName   String   @unique
   deviceId      String?  // Permanent device UUID — only this device can use this username
+  pin           String?  @unique // Random PIN code for cross-device login
   role          UserRole @default(USER)
   isAnonymous          Boolean  @default(false) // Hide identity from community
   expoPushToken        String?  // For mobile push notifications
@@ -235,4 +236,19 @@ model AppConfig {
   updatedAt         DateTime @updatedAt
 
   @@map("app_config")
+}
+
+// ── RecoveryRequest ───────────────────────────
+// A locked-out user requests account recovery. Coaches review and approve.
+model RecoveryRequest {
+  id           String   @id @default(uuid())
+  displayName  String   // The username the user claims
+  reason       String   // User's explanation ("cleared cache", "new phone", etc.)
+  status       String   @default("PENDING") // PENDING | APPROVED | DENIED
+  reviewedBy   String?  // Coach userId who reviewed
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@map("recovery_requests")
 }

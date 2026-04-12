@@ -6,8 +6,24 @@
 // ─────────────────────────────────────────────
 
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { prisma } from '../config/db';
 import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
+import { signToken } from '../utils/jwt';
+
+/**
+ * Generate a unique 6-digit PIN code.
+ * Retries up to 10 times if a collision occurs.
+ */
+async function generateUniquePin(): Promise<string> {
+  for (let i = 0; i < 10; i++) {
+    const pin = String(crypto.randomInt(100000, 999999));
+    const existing = await prisma.user.findUnique({ where: { pin }, select: { id: true } });
+    if (!existing) return pin;
+  }
+  // Fallback: 8-digit PIN for extreme collision edge case
+  return String(crypto.randomInt(10000000, 99999999));
+}
 
 function toMentionHandle(displayName: string): string {
   return displayName.trim().replace(/\s+/g, '_');
@@ -112,13 +128,13 @@ export async function checkUsername(req: Request, res: Response): Promise<void> 
  *    (no need for a new invite code). Their COACH role is retained.
  */
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { displayName, deviceId, platform } = req.body as { displayName: string; deviceId?: string; platform?: string };
+  const { displayName, deviceId, platform, pin: loginPin } = req.body as { displayName: string; deviceId?: string; platform?: string; pin?: string };
   const isWeb = platform === 'web';
 
   try {
     const existingUser = await prisma.user.findUnique({
       where: { displayName },
-      select: { id: true, deviceId: true, role: true, displayName: true },
+      select: { id: true, deviceId: true, pin: true, role: true, displayName: true },
     });
 
     // ── Username exists: verify device ownership ──
@@ -129,21 +145,33 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       // Exception: web clients legitimately have no persistent device ID,
       // so we allow them through (weaker auth is accepted on web).
       if (existingUser.deviceId && !deviceId && !isWeb) {
-        res.status(409).json({ error: 'Username is already taken.' });
-        return;
+        // No deviceId provided — check if PIN was given for cross-device login
+        if (loginPin && existingUser.pin && loginPin === existingUser.pin) {
+          // PIN matches — allow cross-device login and bind new device
+        } else {
+          res.status(409).json({ error: 'Username is already taken.' });
+          return;
+        }
       }
       if (existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId) {
-        res.status(409).json({ error: 'Username is already taken.' });
-        return;
+        // Different device — check if PIN was given for cross-device login
+        if (loginPin && existingUser.pin && loginPin === existingUser.pin) {
+          // PIN matches — allow cross-device login and bind new device
+        } else {
+          res.status(409).json({ error: 'Username is already taken.' });
+          return;
+        }
       }
 
-      // Same device or legacy user without deviceId — allow login
+      // Same device, PIN-verified, or legacy user without deviceId — allow login
       const user = await prisma.user.update({
         where: { displayName },
         data: {
           lastActiveAt: new Date(),
-          // Back-fill deviceId for legacy users on first login with a device
-          ...(deviceId && !existingUser.deviceId ? { deviceId } : {}),
+          // Update deviceId when logging in from a new device via PIN
+          ...(deviceId ? { deviceId } : {}),
+          // Backfill PIN for users created before the PIN feature
+          ...(!existingUser.pin ? { pin: await generateUniquePin() } : {}),
         },
       });
 
@@ -152,13 +180,16 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         displayName: user.displayName,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        pin: user.pin,
+        token: signToken({ userId: user.id, role: user.role }),
       });
       return;
     }
 
-    // ── New user: create with deviceId ──
+    // ── New user: create with deviceId and generate PIN ──
+    const pin = await generateUniquePin();
     const user = await prisma.user.create({
-      data: { displayName, ...(deviceId ? { deviceId } : {}) },
+      data: { displayName, pin, ...(deviceId ? { deviceId } : {}) },
     });
 
     const context = extractNewUserAlertContext(req);
@@ -176,6 +207,8 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       displayName: user.displayName,
       role: user.role,
       avatarUrl: user.avatarUrl,
+      pin: user.pin,
+      token: signToken({ userId: user.id, role: user.role }),
     });
   } catch (err) {
     console.error('[UserController] createUser error:', err);
@@ -341,6 +374,59 @@ export async function uploadAvatar(req: Request, res: Response): Promise<void> {
     } else {
       console.error('[UserController] uploadAvatar error:', err);
       res.status(500).json({ error: 'Failed to upload avatar.' });
+    }
+  }
+}
+
+/**
+ * GET /api/users/:userId/pin
+ * Returns the user's current PIN code.
+ */
+export async function getPin(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { pin: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ pin: user.pin });
+  } catch (err) {
+    console.error('[UserController] getPin error:', err);
+    res.status(500).json({ error: 'Failed to get PIN.' });
+  }
+}
+
+/**
+ * PATCH /api/users/:userId/pin
+ * Body: { pin: string } — 6-digit numeric PIN
+ * Updates the user's PIN code. Must be unique across all users.
+ */
+export async function updatePin(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const { pin } = req.body as { pin: string };
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { pin },
+      select: { id: true, pin: true },
+    });
+    res.json({ success: true, pin: user.pin });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else if (err.code === 'P2002') {
+      res.status(409).json({ error: 'This PIN is already in use. Please choose a different one.' });
+    } else {
+      console.error('[UserController] updatePin error:', err);
+      res.status(500).json({ error: 'Failed to update PIN.' });
     }
   }
 }
