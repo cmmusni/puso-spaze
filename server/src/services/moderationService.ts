@@ -184,9 +184,46 @@ const BLOCKED_PHRASE_PATTERNS: RegExp[] = [
 /**
  * Normalise common leet-speak / asterisk obfuscations before keyword matching.
  * Handles substitutions like f*ck → fuck, sh!t → shit, b*tch → bitch, etc.
+ *
+ * QUALITY.md Scenario 1: Also strips Unicode homoglyphs (Cyrillic, Greek, etc.)
+ * and zero-width characters so mixed-script evasions are caught.
  */
 function normalizeObfuscation(text: string): string {
-  return text
+  // ── Step 0: Strip zero-width characters ──
+  let normalized = text.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+  // ── Step 1: Unicode homoglyph → Latin ASCII ──
+  // Maps visually identical characters from Cyrillic, Greek, and other scripts
+  // to their ASCII equivalents so "gаgо" → "gago".
+  const HOMOGLYPH_MAP: Record<string, string> = {
+    // Cyrillic
+    '\u0430': 'a', '\u0410': 'A', // а А
+    '\u0435': 'e', '\u0415': 'E', // е Е
+    '\u043E': 'o', '\u041E': 'O', // о О
+    '\u0440': 'p', '\u0420': 'P', // р Р
+    '\u0441': 'c', '\u0421': 'C', // с С
+    '\u0443': 'y', '\u0423': 'Y', // у У (visual approximation)
+    '\u0445': 'x', '\u0425': 'X', // х Х
+    '\u0456': 'i', '\u0406': 'I', // і І (Ukrainian)
+    // Greek
+    '\u03B1': 'a', '\u0391': 'A', // α Α
+    '\u03B5': 'e', '\u0395': 'E', // ε Ε
+    '\u03BF': 'o', '\u039F': 'O', // ο Ο
+    '\u03B9': 'i', '\u0399': 'I', // ι Ι
+    // Fullwidth Latin
+    '\uFF41': 'a', '\uFF42': 'b', '\uFF43': 'c', '\uFF44': 'd', '\uFF45': 'e',
+    '\uFF46': 'f', '\uFF47': 'g', '\uFF48': 'h', '\uFF49': 'i', '\uFF4A': 'j',
+    '\uFF4B': 'k', '\uFF4C': 'l', '\uFF4D': 'm', '\uFF4E': 'n', '\uFF4F': 'o',
+    '\uFF50': 'p', '\uFF51': 'q', '\uFF52': 'r', '\uFF53': 's', '\uFF54': 't',
+    '\uFF55': 'u', '\uFF56': 'v', '\uFF57': 'w', '\uFF58': 'x', '\uFF59': 'y',
+    '\uFF5A': 'z',
+  };
+
+  normalized = [...normalized]
+    .map((ch) => HOMOGLYPH_MAP[ch] ?? ch)
+    .join('');
+
+  return normalized
     // f*ck / f-ck / f@ck etc.
     .replace(/\bf[\*\.\-\_@!]ck\b/gi, "fuck")
     // sh*t / sh!t / sh-t
@@ -281,12 +318,15 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
   }
 
   // ── 2. Placeholder mode (no API key configured) ──
+  // QUALITY.md Scenario 2: Without OpenAI, content that passes the local
+  // keyword check cannot be verified — default to REVIEW so a human
+  // moderator must approve it before it reaches the feed.
   if (!openai) {
     console.warn(
-      "[Moderation] OPENAI_API_KEY not set — defaulting all content to SAFE. " +
+      "[Moderation] OPENAI_API_KEY not set — defaulting content to REVIEW. " +
         "Set the key in .env to enable real moderation.",
     );
-    return "SAFE";
+    return "REVIEW";
   }
 
   try {

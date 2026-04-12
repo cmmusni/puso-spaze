@@ -1,0 +1,130 @@
+{
+  "results": [
+    {
+      "name": "Greeting renders",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "Username in greeting",
+      "status": "PASS",
+      "ms": 1
+    },
+    {
+      "name": "Welcome subtitle",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "WebSidebar visible (wide)",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "Top bar: logo",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "name": "Top bar: search bar",
+      "status": "PASS",
+      "ms": 2
+    },
+    {
+      "name": "Top bar: avatar initial",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "Daily Reflection label",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "Reflection card content",
+      "status": "PASS",
+      "ms": 7
+    },
+    {
+      "name": "Reflection sparkles icon",
+      "status": "PASS",
+      "ms": 4
+    },
+    {
+      "name": "Composer input visible",
+      "status": "PASS",
+      "ms": 1
+    },
+    {
+      "name": "Photo button",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "Feeling button",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "Post button",
+      "status": "PASS",
+      "ms": 3
+    },
+    {
+      "name": "Post button disabled when empty",
+      "status": "PASS",
+      "ms": 29
+    },
+    {
+      "name": "Type in composer & Post enables",
+      "status": "PASS",
+      "ms": 653
+    },
+    {
+      "name": "Feeling picker opens",
+      "status": "PASS",
+      "ms": 1537
+    },
+    {
+      "name": "Search input accepts text",
+      "status": "PASS",
+      "ms": 637
+    },
+    {
+      "name": "Search clear button appears",
+      "status": "PASS",
+      "ms": 284
+    },
+    {
+      "name": "Feed or empty state renders",
+      "status": "PASS",
+      "ms": 2083
+    },
+    {
+      "name": "WebRightPanel visible",
+      "status": "PASS",
+      "ms": 504
+    },
+    {
+      "name": "Mobile layout (375px)",
+      "status": "PASS",
+      "ms": 1544
+    },
+    {
+      "name": "Tablet layout (768px)",
+      "status": "PASS",
+      "ms": 1559
+    },
+    {
+      "name": "No critical console errors",
+      "status": "PASS",
+      "ms": 0
+    },
+    {
+      "name": "No error banner on homescreen",
+      "status": "PASS",
+      "ms": 2
+    }
+  ],
+  "consoleErrors": []
+}

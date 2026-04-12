@@ -12,11 +12,8 @@ import {
   sendInviteCodeByEmail,
   pinPost,
   unpinPost,
-  getHourlyHopeStatus,
-  updateHourlyHopeStatus,
 } from '../controllers/adminController';
 import { env } from '../config/env';
-import { triggerEncouragementNow } from '../services/encouragementScheduler';
 
 const router = Router();
 
@@ -51,37 +48,6 @@ router.post(
     validate,
   ],
   sendInviteCodeByEmail
-);
-
-// POST /api/admin/encouragement/trigger
-// Manually trigger an encouragement post (for testing)
-router.post('/encouragement/trigger', requireAdmin, async (_req: Request, res: Response) => {
-  try {
-    await triggerEncouragementNow();
-    res.json({ success: true, message: 'Encouragement post created successfully' });
-  } catch (error: any) {
-    const message = error instanceof Error ? error.message : 'Failed to create encouragement post';
-    if (message.includes('paused')) {
-      res.status(409).json({ error: message });
-      return;
-    }
-    res.status(500).json({ error: 'Failed to create encouragement post' });
-  }
-});
-
-// GET /api/admin/hourly-hope/status
-router.get('/hourly-hope/status', requireAdmin, getHourlyHopeStatus);
-
-// PATCH /api/admin/hourly-hope/status
-router.patch(
-  '/hourly-hope/status',
-  requireAdmin,
-  [
-    body('postingEnabled').optional().isBoolean().withMessage('postingEnabled must be boolean'),
-    body('visible').optional().isBoolean().withMessage('visible must be boolean'),
-    validate,
-  ],
-  updateHourlyHopeStatus
 );
 
 // POST /api/admin/posts/:postId/pin

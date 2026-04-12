@@ -60,11 +60,16 @@ export async function createComment(req: Request, res: Response): Promise<void> 
 
     // Send notification to post author (async, don't await)
     if (moderationStatus === 'SAFE') {
+      // QUALITY.md Scenario 4: Use anonDisplayName for anonymous comments
+      const notifyName = commentIsAnonymous
+        ? (anonDisplayName ?? 'Anonymous')
+        : comment.user.displayName;
+
       notifyComment({
         postId,
         postAuthorId: post.userId,
         commenterId: userId,
-        commenterName: comment.user.displayName,
+        commenterName: notifyName,
         commentPreview: content.trim(),
       }).catch((err) => console.error('Failed to send comment notification:', err));
 
@@ -72,7 +77,7 @@ export async function createComment(req: Request, res: Response): Promise<void> 
         postId,
         commentId: comment.id,
         commentAuthorId: userId,
-        commentAuthorName: comment.user.displayName,
+        commentAuthorName: notifyName,
         content: content.trim(),
       }).catch((err) => console.error('Failed to send mention notifications:', err));
     }
@@ -122,6 +127,7 @@ export async function getComments(req: Request, res: Response): Promise<void> {
   const comments = await prisma.comment.findMany({
     where: { postId, parentId: null, moderationStatus: { not: 'FLAGGED' } },
     orderBy: { createdAt: 'asc' },
+    take: 100, // QUALITY.md Scenario 10: Enforce pagination limit
     include: {
       user: { select: { displayName: true, role: true, avatarUrl: true } },
       ...reactionInclude,

@@ -17,6 +17,7 @@ export async function getJournals(req: Request, res: Response): Promise<void> {
   const journals = await prisma.journal.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
+    take: 50, // QUALITY.md Scenario 10: Enforce pagination limit
     include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 

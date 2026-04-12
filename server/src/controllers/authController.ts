@@ -33,10 +33,16 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
     }
 
     // 2. Check device ownership if username already exists
+    // QUALITY.md Scenario 5: Reject if existing user has deviceId but request omits it
     const existingUser = await prisma.user.findUnique({
       where: { displayName },
       select: { id: true, deviceId: true },
     });
+
+    if (existingUser && existingUser.deviceId && !deviceId) {
+      res.status(409).json({ error: 'Username is already taken.' });
+      return;
+    }
 
     if (existingUser && existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId) {
       res.status(409).json({ error: 'Username is already taken.' });

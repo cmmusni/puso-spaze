@@ -11,6 +11,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
+import { isValidImageFile } from '../utils/validateImageMagicBytes';
+import fs from 'fs';
 
 const router = Router();
 
@@ -136,7 +138,17 @@ router.post(
   ],
   (req: Request, res: Response, next: NextFunction) => {
     if (req.is('multipart/form-data')) {
-      avatarUpload.single('image')(req, res, next);
+      avatarUpload.single('image')(req, res, (err) => {
+        if (err) return next(err);
+        // QUALITY.md Scenario 8: Magic byte validation
+        const file = (req as any).file as Express.Multer.File | undefined;
+        if (file && !isValidImageFile(file.path)) {
+          fs.unlink(file.path, () => {});
+          res.status(400).json({ error: 'Uploaded file is not a valid image.' });
+          return;
+        }
+        next();
+      });
     } else {
       res.status(400).json({ error: 'Content-Type must be multipart/form-data.' });
     }

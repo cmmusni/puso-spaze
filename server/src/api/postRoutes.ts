@@ -19,6 +19,8 @@ import { createPost, getPosts, getPostById, deletePost, updatePost } from '../co
 import { upsertReaction, getReactions } from '../controllers/reactionController';
 import { createComment, getComments, deleteComment, updateComment, upsertCommentReaction } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
+import { isValidImageFile } from '../utils/validateImageMagicBytes';
+import fs from 'fs';
 
 const router = Router();
 
@@ -64,7 +66,18 @@ router.post(
   '/',
   (req: Request, res: Response, next: NextFunction) => {
     if (req.is('multipart/form-data')) {
-      upload.single('image')(req, res, next);
+      upload.single('image')(req, res, (err) => {
+        if (err) return next(err);
+        // QUALITY.md Scenario 8: Magic byte validation after multer saves the file
+        const file = (req as any).file as Express.Multer.File | undefined;
+        if (file && !isValidImageFile(file.path)) {
+          // Remove the invalid file
+          fs.unlink(file.path, () => {});
+          res.status(400).json({ error: 'Uploaded file is not a valid image.' });
+          return;
+        }
+        next();
+      });
     } else {
       next();
     }

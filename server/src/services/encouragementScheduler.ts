@@ -53,11 +53,13 @@ async function postEncouragement(): Promise<void> {
     const content = await generateBiblicalEncouragement();
 
     // Moderate the content (should always be SAFE, but just in case)
+    // QUALITY.md Scenario 3: If moderation fails, default to REVIEW
+    // so a human can verify before it reaches the feed.
     let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
     try {
       moderationStatus = await moderateContent(content);
     } catch {
-      moderationStatus = 'SAFE'; // Trust our AI-generated content
+      moderationStatus = 'REVIEW'; // Don't auto-approve on moderation failure
     }
 
     // Create the post
@@ -79,11 +81,15 @@ async function postEncouragement(): Promise<void> {
       time: new Date().toISOString(),
     });
 
-    // Send notifications to all users (async, don't await)
-    notifyNewEncouragement({
-      postId: post.id,
-      preview: content,
-    }).catch((err) => console.error('Failed to send encouragement notifications:', err));
+    // Only notify users if the encouragement was verified SAFE
+    if (moderationStatus === 'SAFE') {
+      notifyNewEncouragement({
+        postId: post.id,
+        preview: content,
+      }).catch((err) => console.error('Failed to send encouragement notifications:', err));
+    } else {
+      console.warn(`[Encouragement] Post ${post.id} created with status ${moderationStatus} — notifications withheld until approved.`);
+    }
   } catch (error) {
     console.error('❌ Failed to post encouragement:', error);
   }

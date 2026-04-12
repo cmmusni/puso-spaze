@@ -18,12 +18,6 @@ function optional(key: string, fallback: string): string {
   return process.env[key] ?? fallback;
 }
 
-function optionalBoolean(key: string, fallback: boolean): boolean {
-  const value = process.env[key];
-  if (typeof value === 'undefined') return fallback;
-  return value.toLowerCase() === 'true';
-}
-
 export const env = {
   PORT: parseInt(optional('PORT', '4000'), 10),
   NODE_ENV: optional('NODE_ENV', 'development'),
@@ -40,7 +34,6 @@ export const env = {
   // ── Email (Resend) ──────────────────────────────────────────────────
   /** Resend API key for transactional emails */
   RESEND_API_KEY: optional('RESEND_API_KEY', ''),
-  HOURLY_HOPE_AUTO_COMMENT_ENABLED: optionalBoolean('HOURLY_HOPE_AUTO_COMMENT_ENABLED', true),
   /** Comma-separated list of emails that receive new user signup alerts */
   NEW_USER_ALERT_TO: optional('NEW_USER_ALERT_TO', '')
     .split(',')
@@ -49,3 +42,18 @@ export const env = {
   /** Sender used for new-user alert emails */
   NEW_USER_ALERT_FROM: optional('NEW_USER_ALERT_FROM', 'PUSO Spaze <noreply@puso-spaze.org>'),
 } as const;
+
+// ── Startup security warnings ────────────────
+// QUALITY.md Scenario 6: Loudly warn if the admin secret is the hardcoded default
+if (!process.env.ADMIN_SECRET) {
+  console.warn(
+    '⚠️  [SECURITY] ADMIN_SECRET is using the hardcoded default. ' +
+    'Set the ADMIN_SECRET environment variable in production!'
+  );
+}
+if (!process.env.OPENAI_API_KEY) {
+  console.warn(
+    '⚠️  [SECURITY] OPENAI_API_KEY is not set — all content that passes the ' +
+    'local keyword filter will default to REVIEW status.'
+  );
+}

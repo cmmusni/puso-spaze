@@ -301,13 +301,22 @@ export default function HomeScreen() {
       {/* ── Daily Reflection card ── */}
       {stats.dailyReflection && (
         <View style={styles.section}>
-          <View style={styles.reflectionCard}>
+          <Text style={styles.sectionLabel}>DAILY REFLECTION</Text>
+          <LinearGradient
+            colors={[colors.surfaceContainerLow, colors.surfaceVariant]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.reflectionCard}
+          >
+            <View style={styles.reflectionIcon}>
+              <Ionicons name="sparkles" size={24} color={colors.secondary} />
+            </View>
             <Text style={styles.reflectionQuote}>
-              {stats.dailyReflection.content.length > 200
-                ? stats.dailyReflection.content.slice(0, 200) + "..."
+              {stats.dailyReflection.content.length > 280
+                ? stats.dailyReflection.content.slice(0, 280) + "..."
                 : stats.dailyReflection.content}
             </Text>
-          </View>
+          </LinearGradient>
         </View>
       )}
 
@@ -443,27 +452,9 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ── Keep Glowing encouragement card (hidden on wide - in right panel) ── */}
+      {/* ── Spaze Stats & trending (hidden on wide - in right panel) ── */}
       {!isWide && (
         <>
-          <View style={styles.section}>
-            <LinearGradient
-              colors={[colors.surfaceContainerLow, colors.surfaceVariant]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.encourageCard}
-            >
-              <View style={styles.encourageSparkles}>
-                <Ionicons name="sparkles" size={28} color={colors.secondary} />
-              </View>
-              <Text style={styles.encourageTitle}>Keep Glowing</Text>
-              <Text style={styles.encourageQuote}>
-                {"\u201C"}Remember that your presence makes a difference. This
-                space is safer because you are in it.{"\u201D"}
-              </Text>
-            </LinearGradient>
-          </View>
-
           {/* ── Spaze Stats (collapsed) ── */}
           <View style={styles.section}>
             <View style={styles.statsRow}>
@@ -1014,38 +1005,18 @@ const styles = StyleSheet.create({
 
   // ── Daily reflection card ──
   reflectionCard: {
-    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.xl,
     padding: 28,
-    ...ambientShadow,
+  },
+  reflectionIcon: {
+    marginBottom: 12,
   },
   reflectionQuote: {
-    fontSize: 16,
-    fontFamily: fonts.bodyItalic,
-    color: colors.onSurface,
-    lineHeight: 26,
-  },
-
-  // ── Encouragement card — soft gradient, no border ──
-  encourageCard: {
-    borderRadius: radii.xl,
-    padding: 32,
-    alignItems: "center",
-  },
-  encourageSparkles: { marginBottom: 16 },
-  encourageTitle: {
-    fontSize: 22,
-    fontFamily: fonts.displayBold,
-    color: colors.onSurface,
-    marginBottom: 14,
-  },
-  encourageQuote: {
     fontSize: 15,
     fontFamily: fonts.bodyRegular,
-    color: colors.onSurfaceVariant,
-    fontStyle: "italic",
-    textAlign: "center",
+    color: colors.onSurface,
     lineHeight: 24,
+    fontStyle: "italic",
   },
 
   // ── Stats — tonal layering ──

@@ -104,6 +104,7 @@ export async function getConversations(req: Request, res: Response): Promise<voi
       },
     },
     orderBy: { updatedAt: 'desc' },
+    take: 50, // QUALITY.md Scenario 10: Enforce pagination limit
   });
 
   const result = conversations.map((c) => ({
@@ -214,6 +215,7 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
   const messages = await prisma.message.findMany({
     where: { conversationId },
     orderBy: { createdAt: 'asc' },
+    take: 200, // QUALITY.md Scenario 10: Enforce pagination limit
     include: { sender: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 

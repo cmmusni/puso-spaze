@@ -122,6 +122,13 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
     // ── Username exists: verify device ownership ──
     if (existingUser) {
+      // QUALITY.md Scenario 5: If the existing user has a deviceId,
+      // the request MUST also provide one — otherwise anyone can
+      // claim the username by simply omitting deviceId.
+      if (existingUser.deviceId && !deviceId) {
+        res.status(409).json({ error: 'Username is already taken.' });
+        return;
+      }
       if (existingUser.deviceId && deviceId && existingUser.deviceId !== deviceId) {
         res.status(409).json({ error: 'Username is already taken.' });
         return;

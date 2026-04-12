@@ -6,16 +6,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
-import { generateContextualEncouragement } from '../services/biblicalEncouragementService';
-import { notifyComment } from '../services/notificationService';
-import { getHourlyHopeConfig } from '../services/appConfigService';
-import { env } from '../config/env';
 import { notifyMentionsInPost } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
-
-const SYSTEM_USER_ID = 'system-encouragement-bot';
-const SYSTEM_USER_DISPLAY_NAME = 'Hourly Hope';
-const HOURLY_HOPE_AUTO_COMMENT_DELAY_MS = 3 * 60 * 1000;
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -73,55 +65,19 @@ export async function createPost(req: Request, res: Response): Promise<void> {
   const underReview = moderationStatus === 'REVIEW';
 
   if (moderationStatus === 'SAFE') {
+    // QUALITY.md Scenario 4: Use anonDisplayName for anonymous posts
+    const notifyName = postIsAnonymous
+      ? (anonDisplayName ?? 'Anonymous')
+      : post.user.displayName;
+
     notifyMentionsInPost({
       postId: post.id,
       authorId: post.userId,
-      authorName: post.user.displayName,
+      authorName: notifyName,
       content: post.content,
     }).catch((err) => {
       console.error('Failed to send post mention notifications:', err);
     });
-  }
-
-  // ── Hourly Hope contextual encouragement comment ─────────
-  if (!flagged && userId !== SYSTEM_USER_ID && env.HOURLY_HOPE_AUTO_COMMENT_ENABLED) {
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const systemUser = await prisma.user.findUnique({ where: { id: SYSTEM_USER_ID } });
-          if (!systemUser) {
-            await prisma.user.create({
-              data: {
-                id: SYSTEM_USER_ID,
-                displayName: SYSTEM_USER_DISPLAY_NAME,
-                role: 'ADMIN',
-              },
-            });
-          }
-
-          const encouragement = await generateContextualEncouragement(content);
-
-          await prisma.comment.create({
-            data: {
-              postId: post.id,
-              userId: SYSTEM_USER_ID,
-              content: encouragement,
-              moderationStatus: 'SAFE',
-            },
-          });
-
-          await notifyComment({
-            postId: post.id,
-            postAuthorId: post.userId,
-            commenterId: SYSTEM_USER_ID,
-            commenterName: SYSTEM_USER_DISPLAY_NAME,
-            commentPreview: encouragement,
-          });
-        } catch (err) {
-          console.error('Failed to auto-create Hourly Hope encouragement comment:', err);
-        }
-      })();
-    }, HOURLY_HOPE_AUTO_COMMENT_DELAY_MS);
   }
 
   res.status(201).json({
@@ -151,14 +107,15 @@ export async function createPost(req: Request, res: Response): Promise<void> {
  * Includes author displayName.
  */
 export async function getPosts(req: Request, res: Response): Promise<void> {
-  const { visible: hourlyHopeVisible } = await getHourlyHopeConfig();
-
   const searchQuery = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+  // QUALITY.md Scenario 10: Enforce pagination limit
+  const limitRaw = parseInt(req.query.limit as string, 10);
+  const take = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 50;
 
   const posts = await prisma.post.findMany({
     where: {
       moderationStatus: { in: ['SAFE', 'REVIEW'] },
-      ...(hourlyHopeVisible ? {} : { userId: { not: SYSTEM_USER_ID } }),
       ...(searchQuery
         ? {
             OR: [
@@ -175,7 +132,6 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
       comments: {
         where: {
           moderationStatus: { in: ['SAFE', 'REVIEW'] },
-          userId: { not: SYSTEM_USER_ID },
         },
         select: {
           id: true,
@@ -188,6 +144,7 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
         take: 1,
       },
     },
+    take,
   });
 
   const sorted = posts.sort((a, b) => {
@@ -239,7 +196,6 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
  */
 export async function getPostById(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
-  const { visible: hourlyHopeVisible } = await getHourlyHopeConfig();
 
   const post = await prisma.post.findUnique({
     where: { id: postId },
@@ -250,11 +206,6 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
   });
 
   if (!post) {
-    res.status(404).json({ error: 'Post not found.' });
-    return;
-  }
-
-  if (!hourlyHopeVisible && post.userId === SYSTEM_USER_ID) {
     res.status(404).json({ error: 'Post not found.' });
     return;
   }

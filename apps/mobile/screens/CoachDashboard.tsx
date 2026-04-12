@@ -30,6 +30,8 @@ import {
   apiGetReviewQueue,
   apiModeratePost,
   apiModerateComment,
+  apiDeletePost,
+  apiDeleteComment,
   apiGetDashboardStats,
   apiFetchConversations,
   getBaseUrl,
@@ -153,6 +155,30 @@ export default function CoachDashboard() {
     } finally { setActing(null); }
   };
 
+  const deletePost = async (postId: string) => {
+    if (!userId) return;
+    setActing(postId);
+    try {
+      await apiDeletePost(postId, userId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? 'Could not delete post.';
+      showAlert('Error', msg);
+    } finally { setActing(null); }
+  };
+
+  const deleteComment = async (commentId: string, postId: string) => {
+    if (!userId) return;
+    setActing(commentId);
+    try {
+      await apiDeleteComment(postId, commentId, userId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? 'Could not delete comment.';
+      showAlert('Error', msg);
+    } finally { setActing(null); }
+  };
+
   // ── Derived data ──────────────────────────
   const pendingCount = posts.length + comments.length;
   const flaggedCount = posts.filter(p => p.moderationStatus === 'FLAGGED').length;
@@ -246,24 +272,49 @@ export default function CoachDashboard() {
 
         {/* Actions */}
         <View style={s.reviewActions}>
-          <TouchableOpacity
-            onPress={() => type === 'post' ? moderatePost(item.id, 'reject') : moderateComment(item.id, 'reject')}
-            disabled={isBusy}
-            style={s.flagBtn}
-          >
-            {isBusy ? <ActivityIndicator size="small" color={colors.onSurface} /> : (
-              <Text style={s.flagBtnText}>Flag</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => type === 'post' ? moderatePost(item.id, 'approve') : moderateComment(item.id, 'approve')}
-            disabled={isBusy}
-            style={s.approveBtn}
-          >
-            {isBusy ? <ActivityIndicator size="small" color="#fff" /> : (
-              <Text style={s.approveBtnText}>Approve</Text>
-            )}
-          </TouchableOpacity>
+          {isFlagged ? (
+            <>
+              <TouchableOpacity
+                onPress={() => type === 'post' ? deletePost(item.id) : deleteComment(item.id, (item as Comment).postId)}
+                disabled={isBusy}
+                style={s.deleteBtn}
+              >
+                {isBusy ? <ActivityIndicator size="small" color={colors.danger} /> : (
+                  <Text style={s.deleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => type === 'post' ? moderatePost(item.id, 'approve') : moderateComment(item.id, 'approve')}
+                disabled={isBusy}
+                style={s.approveBtn}
+              >
+                {isBusy ? <ActivityIndicator size="small" color="#fff" /> : (
+                  <Text style={s.approveBtnText}>Approve</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => type === 'post' ? moderatePost(item.id, 'reject') : moderateComment(item.id, 'reject')}
+                disabled={isBusy}
+                style={s.flagBtn}
+              >
+                {isBusy ? <ActivityIndicator size="small" color={colors.onSurface} /> : (
+                  <Text style={s.flagBtnText}>Flag</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => type === 'post' ? moderatePost(item.id, 'approve') : moderateComment(item.id, 'approve')}
+                disabled={isBusy}
+                style={s.approveBtn}
+              >
+                {isBusy ? <ActivityIndicator size="small" color="#fff" /> : (
+                  <Text style={s.approveBtnText}>Approve</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
     );
@@ -742,6 +793,22 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.bodyBold,
     color: colors.onSurface,
+  },
+  deleteBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.danger + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+    color: colors.danger,
   },
   approveBtn: {
     flex: 1,

@@ -17,8 +17,8 @@ import coachRoutes from './api/coachRoutes';
 import notificationRoutes from './api/notificationRoutes';
 import journalRoutes from './api/journalRoutes';
 import conversationRoutes from './api/conversationRoutes';
-import { startEncouragementScheduler } from './services/encouragementScheduler';
 import { startReflectionReminderScheduler } from './services/reflectionReminderScheduler';
+import { getDailyReflection } from './services/dailyReflectionService';
 
 // ── App ───────────────────────────────────────
 const app = express();
@@ -37,8 +37,14 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ── Serve uploaded images ─────────────────────
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// ── Serve uploaded images with security headers ──
+// QUALITY.md Scenario 8: Prevent uploaded files from executing scripts
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'");
+  res.setHeader('Content-Disposition', 'inline');
+  next();
+}, express.static(path.join(__dirname, '..', 'uploads')));
 
 // ── Health check ──────────────────────────────
 app.get('/health', (_req, res) => {
@@ -63,7 +69,7 @@ app.get('/api/stats/dashboard', async (_req, res) => {
     const now = new Date();
     const h24 = new Date(now.getTime() - 24*60*60*1000);
     const m15 = new Date(now.getTime() - 15*60*1000);
-    const [totalMembers,dailyStories,onlineCount,trendingTags,dailyReflection] = await Promise.all([
+    const [totalMembers,dailyStories,onlineCount,trendingTags,reflectionContent] = await Promise.all([
       prisma.user.count(),
       prisma.post.count({ where: { createdAt: { gte: h24 }, moderationStatus: 'SAFE' } }),
       prisma.user.count({ where: { lastActiveAt: { gte: m15 } } }),
@@ -75,12 +81,11 @@ app.get('/api/stats/dashboard', async (_req, res) => {
         for (const p of posts) for (const t of p.tags) tc[t]=(tc[t]||0)+1;
         return Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t,c])=>({ tag: t, count: c }));
       }),
-      prisma.post.findFirst({
-        where: { moderationStatus: 'SAFE', userId: 'system-encouragement-bot' },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, content: true, createdAt: true },
-      }),
+      getDailyReflection(),
     ]);
+    const dailyReflection = reflectionContent
+      ? { id: 'daily-reflection', content: reflectionContent, createdAt: new Date().toISOString() }
+      : null;
     res.json({ totalMembers, dailyStories, onlineCount, trendingTags, dailyReflection });
   } catch {
     res.json({ totalMembers:0, dailyStories:0, onlineCount:0, trendingTags:[], dailyReflection:null });
@@ -125,9 +130,6 @@ async function main() {
     console.error('[DB] Connection failed:', err);
     process.exit(1);
   }
-
-  // Start the hourly encouragement scheduler
-  startEncouragementScheduler();
 
   // Start the daily reflection reminder scheduler
   startReflectionReminderScheduler();
