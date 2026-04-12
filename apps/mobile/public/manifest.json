@@ -1,0 +1,23 @@
+{
+  "name": "PUSO Spaze",
+  "short_name": "PUSO",
+  "description": "A safe, AI-moderated community space for Filipino Gen Z — share feelings, get biblical encouragement, and connect with coaches.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FCF8FF",
+  "theme_color": "#7C003A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/favicon.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    }
+  ]
+}

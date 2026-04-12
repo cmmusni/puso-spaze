@@ -35,6 +35,10 @@ export interface UseNotificationsResult {
   notification: any | null;
   unreadCount: number;
   refreshUnreadCount: () => Promise<void>;
+  /** Call from a user tap/click to request web push permission (required on iOS PWA) */
+  requestWebPushPermission: () => Promise<void>;
+  /** Whether web push is already subscribed */
+  webPushSubscribed: boolean;
 }
 
 /**
@@ -46,6 +50,7 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [webPushSubscribed, setWebPushSubscribed] = useState<boolean>(false);
 
   const notificationListener = useRef<any>();
   const responseListener = useRef<any>();
@@ -61,12 +66,32 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     }
   }, [userId]);
 
+  /**
+   * Request web push permission — MUST be called from a user gesture (tap/click).
+   * iOS Safari PWA requires this to come from a user interaction.
+   */
+  const requestWebPushPermission = useCallback(async () => {
+    if (Platform.OS !== 'web' || !userId) return;
+    try {
+      await registerForWebPushAsync(userId, true);
+      setWebPushSubscribed(true);
+    } catch (err) {
+      console.error('Web push permission request failed:', err);
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (!userId) return;
 
     if (Platform.OS === 'web') {
-      // ── Web Push registration ──
-      registerForWebPushAsync(userId).catch((err) =>
+      // Inject manifest link for PWA support (needed for iOS web push)
+      injectManifestLink();
+
+      // Only auto-subscribe if permission was already granted previously
+      // (avoids auto-prompting which iOS blocks)
+      registerForWebPushAsync(userId, false).then((subscribed) => {
+        if (subscribed) setWebPushSubscribed(true);
+      }).catch((err) =>
         console.error('Web push registration failed:', err)
       );
     } else {
@@ -108,6 +133,8 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     notification,
     unreadCount,
     refreshUnreadCount,
+    requestWebPushPermission,
+    webPushSubscribed,
   };
 }
 
@@ -130,10 +157,50 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-async function registerForWebPushAsync(userId: string): Promise<void> {
+/**
+ * Injects <link rel="manifest"> into the document head for PWA support.
+ * Required for iOS Safari "Add to Home Screen" + web push.
+ */
+function injectManifestLink(): void {
+  if (typeof document === 'undefined') return;
+  if (document.querySelector('link[rel="manifest"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = '/manifest.json';
+  document.head.appendChild(link);
+
+  // Also set theme-color meta for PWA chrome
+  if (!document.querySelector('meta[name="theme-color"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    meta.content = '#7C003A';
+    document.head.appendChild(meta);
+  }
+
+  // Apple-specific meta tags for PWA
+  if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+    const capable = document.createElement('meta');
+    capable.name = 'apple-mobile-web-app-capable';
+    capable.content = 'yes';
+    document.head.appendChild(capable);
+
+    const statusBar = document.createElement('meta');
+    statusBar.name = 'apple-mobile-web-app-status-bar-style';
+    statusBar.content = 'black-translucent';
+    document.head.appendChild(statusBar);
+  }
+}
+
+/**
+ * Registers a Web Push subscription.
+ * @param promptIfNeeded - If true, will request permission (must be from user gesture).
+ *                         If false, only subscribes if permission was already granted.
+ * @returns true if subscription was successfully registered
+ */
+async function registerForWebPushAsync(userId: string, promptIfNeeded: boolean): Promise<boolean> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('[WebPush] This browser does not support web push notifications');
-    return;
+    return false;
   }
 
   // 1. Register service worker
@@ -147,23 +214,37 @@ async function registerForWebPushAsync(userId: string): Promise<void> {
     vapidPublicKey = publicKey;
   } catch {
     console.warn('[WebPush] Server does not have VAPID keys configured');
-    return;
+    return false;
   }
 
-  // 3. Subscribe to push (or get existing subscription)
+  // 3. Check existing subscription
   let subscription = await registration.pushManager.getSubscription();
 
   if (!subscription) {
-    // Request permission
+    // Check current permission state
+    const currentPermission = Notification.permission;
+
+    if (currentPermission === 'denied') {
+      console.warn('[WebPush] Notification permission was denied by user');
+      return false;
+    }
+
+    if (currentPermission === 'default' && !promptIfNeeded) {
+      // Permission not yet requested and we shouldn't auto-prompt
+      console.log('[WebPush] Permission not yet granted — waiting for user gesture');
+      return false;
+    }
+
+    // Request permission (this will show the browser prompt)
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       console.warn('[WebPush] Notification permission denied');
-      return;
+      return false;
     }
 
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
     });
   }
 
@@ -175,6 +256,7 @@ async function registerForWebPushAsync(userId: string): Promise<void> {
   });
 
   console.log('[WebPush] Subscription registered successfully');
+  return true;
 }
 
 // ─────────────────────────────────────────────

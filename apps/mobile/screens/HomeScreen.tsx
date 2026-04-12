@@ -21,7 +21,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useNavigation, useFocusEffect, useRoute, type RouteProp } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
@@ -122,7 +122,9 @@ export default function HomeScreen() {
   const { username, role, userId, avatarUrl } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
   const { posts, loading, error, fetchPosts, submitPost } = usePosts();
-  const { unreadCount, refreshUnreadCount } = useNotifications(userId);
+  const { unreadCount, refreshUnreadCount, requestWebPushPermission, webPushSubscribed } = useNotifications(userId);
+  const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
+  const showPushBanner = Platform.OS === 'web' && !webPushSubscribed && !pushBannerDismissed;
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
 
@@ -373,6 +375,39 @@ export default function HomeScreen() {
           Welcome to your safe space. What's on your heart today?
         </Text>
       </View>
+
+      {/* ── Push notification permission banner (web only) ── */}
+      {showPushBanner && (
+        <View style={styles.pushBanner}>
+          <View style={styles.pushBannerContent}>
+            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pushBannerTitle}>Enable notifications</Text>
+              <Text style={styles.pushBannerText}>
+                Get notified when someone reacts or comments on your posts.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.pushBannerActions}>
+            <TouchableOpacity
+              onPress={() => setPushBannerDismissed(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.pushBannerDismiss}>Not now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={async () => {
+                await requestWebPushPermission();
+                setPushBannerDismissed(true);
+              }}
+              activeOpacity={0.8}
+              style={styles.pushBannerEnableBtn}
+            >
+              <Text style={styles.pushBannerEnableText}>Enable</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ── Daily Reflection card ── */}
       {stats.dailyReflection && (
@@ -978,6 +1013,57 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginTop: 8,
     lineHeight: 24,
+  },
+
+  // ── Push notification banner ──
+  pushBanner: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    ...ambientShadow,
+    borderWidth: 1,
+    borderColor: colors.outline + '26',
+  },
+  pushBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  pushBannerTitle: {
+    fontSize: 14,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+    marginBottom: 2,
+  },
+  pushBannerText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    lineHeight: 18,
+  },
+  pushBannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  pushBannerDismiss: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  pushBannerEnableBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+  },
+  pushBannerEnableText: {
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+    color: colors.onPrimary,
   },
 
   // ── Inline Composer ──
