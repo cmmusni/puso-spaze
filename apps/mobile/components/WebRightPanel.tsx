@@ -38,12 +38,6 @@ export default function WebRightPanel() {
   const displayName = username ?? "friend";
   const graceQuote = DAILY_GRACE_QUOTES[new Date().getDate() % DAILY_GRACE_QUOTES.length];
 
-  const tagLabels: Record<string, { category: string; count: string }> = {
-    encouragement: { category: "MOST SHARED", count: "1.2k souls sharing" },
-    "daily-glow": { category: "DAILY MANTRA", count: "856 souls sharing" },
-    "finding-peace": { category: "JOURNALING", count: "540 souls sharing" },
-  };
-
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Trending Reflections */}
@@ -55,12 +49,13 @@ export default function WebRightPanel() {
         {stats.trendingTags && stats.trendingTags.length > 0 ? (
           <View style={styles.trendingList}>
             {stats.trendingTags.map((item) => {
-              const meta = tagLabels[item.tag] ?? { category: "TRENDING", count: "souls sharing" };
               return (
                 <View key={item.tag} style={styles.trendingItem}>
-                  <Text style={styles.trendingCategory}>{meta.category}</Text>
+                  <Text style={styles.trendingCategory}>TRENDING</Text>
                   <Text style={styles.trendingTag}>#{item.tag}</Text>
-                  <Text style={styles.trendingCount}>{meta.count}</Text>
+                  <Text style={styles.trendingCount}>
+                    {item.count} {item.count === 1 ? 'soul sharing' : 'souls sharing'}
+                  </Text>
                 </View>
               );
             })}

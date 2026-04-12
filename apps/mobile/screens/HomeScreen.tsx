@@ -144,6 +144,7 @@ export default function HomeScreen() {
     trendingTags: [],
     dailyReflection: null,
   });
+  const [reflectionExpanded, setReflectionExpanded] = useState(false);
 
   const loadStats = useCallback(async () => {
     const d = await apiGetDashboardStats();
@@ -312,10 +313,21 @@ export default function HomeScreen() {
               <Ionicons name="sparkles" size={24} color={colors.secondary} />
             </View>
             <Text style={styles.reflectionQuote}>
-              {stats.dailyReflection.content.length > 280
-                ? stats.dailyReflection.content.slice(0, 280) + "..."
+              {!reflectionExpanded && stats.dailyReflection.content.length > 100
+                ? stats.dailyReflection.content.slice(0, 100) + '...'
                 : stats.dailyReflection.content}
             </Text>
+            {stats.dailyReflection.content.length > 100 && (
+              <TouchableOpacity
+                onPress={() => setReflectionExpanded((prev) => !prev)}
+                activeOpacity={0.7}
+                style={styles.seeMoreBtn}
+              >
+                <Text style={styles.seeMoreText}>
+                  {reflectionExpanded ? 'See less' : 'See more...'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </LinearGradient>
         </View>
       )}
@@ -1017,6 +1029,14 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     lineHeight: 24,
     fontStyle: "italic",
+  },
+  seeMoreBtn: {
+    marginTop: 8,
+  },
+  seeMoreText: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.secondary,
   },
 
   // ── Stats — tonal layering ──

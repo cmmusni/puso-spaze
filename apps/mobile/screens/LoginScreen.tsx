@@ -213,9 +213,15 @@ export default function LoginScreen() {
 
   /** Unified CTA — picks the right login path */
   const handleEnterSpaze = async () => {
+    const trimmed = customName.trim();
+    // If the user typed something but it's too short, show validation error
+    if (trimmed.length > 0 && trimmed.length < 2) {
+      showAlert('Invalid Username', 'Username must be at least 2 characters.');
+      return;
+    }
     // Custom username path
-    if (customName.trim().length >= 2) { handleLoginWithUsername(); return; }
-    // Anonymous path
+    if (trimmed.length >= 2) { handleLoginWithUsername(); return; }
+    // Anonymous path (input is empty)
     handleLoginAnonymously();
   };
 
