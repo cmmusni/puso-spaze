@@ -18,8 +18,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: icon || '/assets/icon.png',
-      badge: badge || '/assets/favicon.png',
+      icon: icon || '/icon-192.png',
+      badge: badge || '/icon-192.png',
       data,
       vibrate: [200, 100, 200],
       tag: data.postId || 'puso-notification',

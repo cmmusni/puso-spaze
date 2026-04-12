@@ -163,13 +163,22 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  */
 function injectManifestLink(): void {
   if (typeof document === 'undefined') return;
-  if (document.querySelector('link[rel="manifest"]')) return;
-  const link = document.createElement('link');
-  link.rel = 'manifest';
-  link.href = '/manifest.json';
-  document.head.appendChild(link);
+  if (!document.querySelector('link[rel="manifest"]')) {
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/manifest.json';
+    document.head.appendChild(link);
+  }
 
-  // Also set theme-color meta for PWA chrome
+  // Apple touch icon (180x180)
+  if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+    const touchIcon = document.createElement('link');
+    touchIcon.rel = 'apple-touch-icon';
+    touchIcon.href = '/apple-touch-icon.png';
+    document.head.appendChild(touchIcon);
+  }
+
+  // Theme-color meta for PWA chrome
   if (!document.querySelector('meta[name="theme-color"]')) {
     const meta = document.createElement('meta');
     meta.name = 'theme-color';
