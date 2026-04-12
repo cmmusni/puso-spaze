@@ -3,7 +3,7 @@
 // Community-wide view of all member ↔ coach conversations
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
 import { apiFetchAllConversations, getBaseUrl } from "../services/api";
-import { colors as staticColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import type { Conversation } from "../../../packages/types";
 
@@ -30,6 +30,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
   const { userId, role } = useUserStore();
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
+  const s = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
 
   const isWide = Platform.OS === "web" && width >= 900;
@@ -344,13 +345,6 @@ export default function SpazeConversationsScreen({ navigation }: any) {
               <Text style={[s.sectionTitle, { color: colors.onSurface }]}>
                 All Conversations
               </Text>
-              {filtered.length > 0 && (
-                <View style={[s.countBadge, { backgroundColor: colors.primaryContainer }]}>
-                  <Text style={[s.countBadgeText, { color: colors.onPrimary }]}>
-                    {filtered.length}
-                  </Text>
-                </View>
-              )}
             </View>
           </>
         }
@@ -369,7 +363,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
 }
 
 // ── Styles ────────────────────────────────────
-const s = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   safeArea: { flex: 1 },
 
   loadingWrap: {

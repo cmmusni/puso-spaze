@@ -28,7 +28,7 @@ import {
   apiGetPostById,
 } from '../services/api';
 import type { Notification, Post } from '../../../packages/types';
-import { colors, fonts } from '../constants/theme';
+import { colors as defaultColors, fonts } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
 
 type NavigationType = DrawerNavigationProp<any>;
@@ -55,32 +55,32 @@ const getNotificationIcon = (type: string): keyof typeof Ionicons.glyphMap => {
 const getNotificationIconColor = (type: string): string => {
   switch (type) {
     case 'REACTION':
-      return colors.primary;
+      return defaultColors.primary;
     case 'COMMENT':
-      return colors.secondary;
+      return defaultColors.secondary;
     case 'ENCOURAGEMENT':
-      return colors.tertiary;
+      return defaultColors.tertiary;
     case 'SYSTEM':
-      return colors.onSurfaceVariant;
+      return defaultColors.onSurfaceVariant;
     case 'MESSAGE':
-      return colors.secondary;
+      return defaultColors.secondary;
     default:
-      return colors.primary;
+      return defaultColors.primary;
   }
 };
 
 const getAvatarColor = (type: string): string => {
   switch (type) {
     case 'REACTION':
-      return colors.outlineVariant;
+      return defaultColors.outlineVariant;
     case 'COMMENT':
-      return colors.secondaryFixed;
+      return defaultColors.secondaryFixed;
     case 'ENCOURAGEMENT':
-      return colors.surfaceContainerHigh;
+      return defaultColors.surfaceContainerHigh;
     case 'MESSAGE':
-      return colors.secondaryFixed;
+      return defaultColors.secondaryFixed;
     default:
-      return colors.surfaceVariant;
+      return defaultColors.surfaceVariant;
   }
 };
 
@@ -119,7 +119,9 @@ const getDateSection = (dateStr: string): string => {
 export default function NotificationsScreen() {
   const { userId } = useUser();
   const navigation = useNavigation<NavigationType>();
-  const { colors: themeColors, isDark } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -280,14 +282,14 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top', 'bottom']}>
-        <View style={[styles.header, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.header, { backgroundColor: colors.surfaceContainerLowest }]}>
           <View style={styles.headerTitleRow}>
-            <Text style={[styles.headerTitle, { color: themeColors.onSurface }]}>Notifications</Text>
+            <Text style={[styles.headerTitle, { color: colors.onSurface }]}>Notifications</Text>
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -296,11 +298,11 @@ export default function NotificationsScreen() {
   // ── Main render ──────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: themeColors.surfaceContainerLowest }]}>
+      <View style={[styles.header, { backgroundColor: colors.surfaceContainerLowest }]}>
         <View style={styles.headerTitleRow}>
-          <Text style={[styles.headerTitle, { color: themeColors.onSurface }]}>Notifications</Text>
+          <Text style={[styles.headerTitle, { color: colors.onSurface }]}>Notifications</Text>
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount} New</Text>
@@ -380,7 +382,7 @@ export default function NotificationsScreen() {
 
 // ── Styles ─────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

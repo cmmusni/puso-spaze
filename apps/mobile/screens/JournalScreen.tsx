@@ -37,7 +37,7 @@ import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import type { RouteProp } from "@react-navigation/native";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import {
-  colors,
+  colors as defaultColors,
   fonts,
   radii,
   spacing,
@@ -154,7 +154,9 @@ export default function JournalScreen({ navigation }: any) {
   const highlightJournalId = route.params?.highlightJournalId ?? null;
   const scrollToPastEntries = route.params?.scrollToPastEntries ?? false;
   const { userId } = useUserStore();
-  const { colors: themeColors, isDark } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const st = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
   const showSidePanel = Platform.OS === "web" && width >= 1100;
@@ -891,16 +893,16 @@ export default function JournalScreen({ navigation }: any) {
 
   return (
     <SafeAreaView
-      style={[st.safeArea, { backgroundColor: themeColors.background }]}
+      style={[st.safeArea, { backgroundColor: colors.background }]}
     >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={themeColors.background}
+        backgroundColor={colors.background}
       />
 
       {loading ? (
         <View style={st.loadingWrap}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <View style={st.mainRow}>
@@ -1035,7 +1037,7 @@ export default function JournalScreen({ navigation }: any) {
 }
 
 // ── Styles ────────────────────────────────────
-const st = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
 

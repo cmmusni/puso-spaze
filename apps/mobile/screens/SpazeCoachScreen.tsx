@@ -5,7 +5,7 @@
 // Coaches: see all conversations across all users
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import {
   apiGetOrCreateConversation,
   getBaseUrl,
 } from "../services/api";
-import { colors as staticColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import type { CoachProfile, Conversation } from "../../../packages/types";
 
@@ -39,6 +39,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
   const { userId, role } = useUserStore();
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
+  const s = useMemo(() => createStyles(colors), [colors]);
   const isCoach = role === "COACH" || role === "ADMIN";
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
@@ -88,7 +89,11 @@ export default function SpazeCoachScreen({ navigation }: any) {
     setStartingChat(coachId);
     try {
       const res = await apiGetOrCreateConversation({ userId, coachId });
-      navigation.navigate("Chat", { conversationId: res.conversation.id });
+      const coach = coaches.find((c: any) => c.id === coachId);
+      navigation.navigate("Chat", {
+        conversationId: res.conversation.id,
+        coachName: coach ? `Coach ${coach.displayName}` : undefined,
+      });
     } catch (err) {
       console.error("Failed to start conversation:", err);
     } finally {
@@ -346,13 +351,6 @@ export default function SpazeCoachScreen({ navigation }: any) {
                 <Text style={[s.sectionTitle, { color: colors.onSurface }]}>
                   {isCoach ? "All Conversations" : "My Conversations"}
                 </Text>
-                {conversations.length > 0 && (
-                  <View style={[s.countBadge, { backgroundColor: colors.primaryContainer }]}>
-                    <Text style={[s.countBadgeText, { color: colors.onPrimary }]}>
-                      {conversations.length}
-                    </Text>
-                  </View>
-                )}
               </View>
             </View>
           </>
@@ -372,7 +370,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
 }
 
 // ── Styles ────────────────────────────────────
-const s = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
   },

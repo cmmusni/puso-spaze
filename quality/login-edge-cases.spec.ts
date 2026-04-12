@@ -283,9 +283,10 @@ test.describe('LoginScreen Edge Cases', () => {
       }
     });
 
-    // Rapid double click
-    await btn.click();
-    await btn.click();
+    // Use dblclick to simulate rapid double-click in a single action.
+    // The button may disappear after the first click (loading state),
+    // so sequential btn.click() calls would timeout.
+    await btn.dblclick();
 
     await page.waitForTimeout(3000);
 

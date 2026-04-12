@@ -659,9 +659,11 @@ export interface DashboardStats {
   dailyReflection: { id: string; content: string; createdAt: string } | null;
 }
 
-export async function apiGetDashboardStats(): Promise<DashboardStats> {
+export async function apiGetDashboardStats(userId?: string): Promise<DashboardStats> {
   try {
-    const { data } = await client.get<DashboardStats>('/api/stats/dashboard');
+    const { data } = await client.get<DashboardStats>('/api/stats/dashboard', {
+      params: userId ? { userId } : undefined,
+    });
     return data;
   } catch {
     return { totalMembers: 0, dailyStories: 0, onlineCount: 0, trendingTags: [], dailyReflection: null };

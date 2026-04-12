@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
 
 // ── Alert event bus ──────────────────────────
 type AlertPayload = {
@@ -42,22 +43,24 @@ function getAlertIcon(title: string): {
 } {
   const t = title.toLowerCase();
   if (t.includes("success") || t.includes("updated") || t.includes("pinned") || t.includes("unpinned"))
-    return { name: "checkmark-circle", color: colors.safe, bg: colors.safe + "18" };
+    return { name: "checkmark-circle", color: defaultColors.safe, bg: defaultColors.safe + "18" };
   if (t.includes("error") || t.includes("failed") || t.includes("invalid"))
-    return { name: "alert-circle", color: colors.danger, bg: colors.danger + "18" };
+    return { name: "alert-circle", color: defaultColors.danger, bg: defaultColors.danger + "18" };
   if (t.includes("flag"))
-    return { name: "flag", color: colors.accent, bg: colors.accent + "18" };
+    return { name: "flag", color: defaultColors.accent, bg: defaultColors.accent + "18" };
   if (t.includes("review") || t.includes("under"))
-    return { name: "hourglass-outline", color: colors.secondary, bg: colors.secondary + "18" };
+    return { name: "hourglass-outline", color: defaultColors.secondary, bg: defaultColors.secondary + "18" };
   if (t.includes("delete") || t.includes("remove"))
-    return { name: "trash-outline", color: colors.danger, bg: colors.danger + "18" };
+    return { name: "trash-outline", color: defaultColors.danger, bg: defaultColors.danger + "18" };
   if (t.includes("confirm"))
-    return { name: "help-circle", color: colors.secondary, bg: colors.secondary + "18" };
-  return { name: "information-circle", color: colors.primary, bg: colors.primaryContainer + "40" };
+    return { name: "help-circle", color: defaultColors.secondary, bg: defaultColors.secondary + "18" };
+  return { name: "information-circle", color: defaultColors.primary, bg: defaultColors.primaryContainer + "40" };
 }
 
 // ── Modal component ──────────────────────────
 export default function CustomAlertModal() {
+  const colors = useThemeStore((s) => s.colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const [payload, setPayload] = useState<AlertPayload | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
@@ -161,7 +164,7 @@ export default function CustomAlertModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.4)",

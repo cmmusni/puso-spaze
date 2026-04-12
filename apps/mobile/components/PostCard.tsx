@@ -3,7 +3,7 @@
 // Renders a single SAFE post in the feed
 // ─────────────────────────────────────────────
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ import {
   getBaseUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
-import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
@@ -80,6 +80,7 @@ interface PostCardProps {
   post: Post;
   onDelete?: (postId: string) => void;
   onPin?: (postId: string) => void;
+  onPostPress?: (postId: string) => void;
 }
 
 /**
@@ -100,10 +101,11 @@ function formatRelativeTime(dateStr: string): string {
 // PostCard is used inside drawer screens, so we use any for navigation type
 type CardNavProp = any;
 
-export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
+export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
   const { userId, role } = useUser();
-  const { colors: themeColors } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isMedium = screenWidth >= 600;
 
@@ -209,6 +211,7 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
 
   const handleViewComments = () => {
     closeMenu();
+    onPostPress?.(post.id);
     navigation.getParent()?.navigate("PostDetail", { postId: post.id });
   };
 
@@ -365,16 +368,17 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
     <>
       <TouchableOpacity
         activeOpacity={0.88}
-        onPress={() =>
-          navigation.getParent()?.navigate("PostDetail", { postId: post.id })
-        }
+        onPress={() => {
+          onPostPress?.(post.id);
+          navigation.getParent()?.navigate("PostDetail", { postId: post.id });
+        }}
         onLongPress={openPicker}
         delayLongPress={300}
         style={[
           styles.card,
           post.pinned ? styles.cardPinned : null,
           styles.cardDefault,
-          { backgroundColor: themeColors.card },
+          { backgroundColor: colors.card },
           isMedium && { padding: 24, marginBottom: 20 },
         ]}
       >
@@ -384,6 +388,11 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
             {post.userId === "system-encouragement-bot" ? (
               <Image
                 source={require("../assets/logo.png")}
+                style={[styles.avatar, isMedium && styles.avatarMd]}
+              />
+            ) : post.user?.avatarUrl ? (
+              <Image
+                source={{ uri: `${getBaseUrl()}${post.user.avatarUrl}` }}
                 style={[styles.avatar, isMedium && styles.avatarMd]}
               />
             ) : (
@@ -504,9 +513,10 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
             </TouchableOpacity>
             {/* Comment button */}
             <TouchableOpacity
-              onPress={() =>
-                navigation.getParent()?.navigate("PostDetail", { postId: post.id })
-              }
+              onPress={() => {
+                onPostPress?.(post.id);
+                navigation.getParent()?.navigate("PostDetail", { postId: post.id });
+              }}
               activeOpacity={0.75}
               style={styles.countButton}
             >
@@ -551,8 +561,15 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
           const cInitial = cName.charAt(0).toUpperCase();
           const cColorPair = avatarPalette[cInitial.charCodeAt(0) % avatarPalette.length];
           const cTime = formatRelativeTime(post.latestComment.createdAt);
+          const cAvatarUrl = post.latestComment.user?.avatarUrl;
           return (
             <View style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}>
+              {cAvatarUrl ? (
+                <Image
+                  source={{ uri: `${getBaseUrl()}${cAvatarUrl}` }}
+                  style={[styles.commentAvatar, isMedium && { width: 28, height: 28, borderRadius: 14 }]}
+                />
+              ) : (
               <LinearGradient
                 colors={cColorPair}
                 start={{ x: 0, y: 0 }}
@@ -561,6 +578,7 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
               >
                 <Text style={styles.commentAvatarText}>{cInitial}</Text>
               </LinearGradient>
+              )}
               <View style={styles.commentBody}>
                 <View style={styles.commentHeader}>
                   <Text style={styles.commentAuthor} numberOfLines={1}>{cName}</Text>
@@ -858,7 +876,7 @@ export default function PostCard({ post, onDelete, onPin }: PostCardProps) {
 // Styles — Sacred Journal design system
 // No 1px borders. Tonal layering. xl corners. Generous padding.
 // ─────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   // ── Card — "fresh page" ───────────────────
   card: {
     backgroundColor: colors.surfaceContainerLowest,

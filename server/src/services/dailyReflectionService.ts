@@ -1,7 +1,9 @@
 // ─────────────────────────────────────────────
 // src/services/dailyReflectionService.ts
 // Generates a daily biblical reflection via OpenAI
-// with in-memory caching (one per calendar day)
+// with in-memory caching (one per calendar day).
+// When a user has recent posts, the reflection is
+// personalised to their emotional context.
 // ─────────────────────────────────────────────
 
 import OpenAI from 'openai';
@@ -16,7 +18,11 @@ interface CachedReflection {
   content: string;
 }
 
-let cache: CachedReflection | null = null;
+/** Generic (non-personalised) cache — one per calendar day */
+let genericCache: CachedReflection | null = null;
+
+/** Per-user personalised cache — keyed by `userId:dateKey` */
+const userCache = new Map<string, CachedReflection>();
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -41,19 +47,19 @@ function getFallback(): string {
 export async function getDailyReflection(): Promise<string> {
   const key = todayKey();
 
-  if (cache && cache.dateKey === key) {
-    return cache.content;
+  if (genericCache && genericCache.dateKey === key) {
+    return genericCache.content;
   }
 
   if (!env.OPENAI_API_KEY) {
     const fb = getFallback();
-    cache = { dateKey: key, content: fb };
+    genericCache = { dateKey: key, content: fb };
     return fb;
   }
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4-mini',
       messages: [
         {
           role: 'system',
@@ -79,16 +85,84 @@ Your reflection should be:
     const content = completion.choices[0]?.message?.content?.trim();
     if (!content) {
       const fb = getFallback();
-      cache = { dateKey: key, content: fb };
+      genericCache = { dateKey: key, content: fb };
       return fb;
     }
 
-    cache = { dateKey: key, content };
+    genericCache = { dateKey: key, content };
     return content;
   } catch (error) {
     console.error('❌ Error generating daily reflection:', error);
     const fb = getFallback();
-    cache = { dateKey: key, content: fb };
+    genericCache = { dateKey: key, content: fb };
     return fb;
+  }
+}
+
+/**
+ * Returns a personalised daily reflection based on the user's recent posts.
+ * Cached per-user per day. Falls back to generic reflection on error or
+ * when OpenAI is unavailable.
+ */
+export async function getPersonalisedDailyReflection(
+  userId: string,
+  recentPostContents: string[],
+): Promise<string> {
+  const key = todayKey();
+  const cacheKey = `${userId}:${key}`;
+
+  const cached = userCache.get(cacheKey);
+  if (cached && cached.dateKey === key) {
+    return cached.content;
+  }
+
+  if (!env.OPENAI_API_KEY) {
+    return getDailyReflection();
+  }
+
+  // Build a concise summary of recent posts (max ~600 chars to stay within token budget)
+  const postsSummary = recentPostContents
+    .slice(0, 5)
+    .map((c, i) => `${i + 1}. ${c.slice(0, 120)}`)
+    .join('\n');
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-5.4-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a compassionate Filipino spiritual guide who writes a personalised daily biblical reflection for a Gen Z Filipino user.
+
+You will receive the user's recent posts. Use them to understand what they're going through emotionally and spiritually.
+
+Your reflection should be:
+- 2-4 sentences long
+- Written in natural Taglish (Tagalog-English mix) that Gen Z Filipinos use
+- Start with a Bible verse that speaks to their current situation (include the reference)
+- Follow with a brief, warm, personalised reflection that acknowledges what they've been sharing
+- Hopeful, gentle, and encouraging — never preachy or judgmental
+- NEVER quote or repeat the user's exact words back to them
+- Do NOT mention that you read their posts`,
+        },
+        {
+          role: 'user',
+          content: `Here are the user's recent posts:\n${postsSummary}\n\nWrite a personalised daily reflection for ${key} that speaks to what this person seems to be going through.`,
+        },
+      ],
+      max_tokens: 200,
+      temperature: 0.85,
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim();
+    if (!content) {
+      return getDailyReflection();
+    }
+
+    userCache.set(cacheKey, { dateKey: key, content });
+    return content;
+  } catch (error) {
+    console.error('❌ Error generating personalised daily reflection:', error);
+    return getDailyReflection();
   }
 }

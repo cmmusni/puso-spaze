@@ -113,8 +113,8 @@ export interface ReactionCounts {
 }
 
 // ── API shapes ────────────────────────────────
-export interface CreateUserRequest { displayName: string; deviceId?: string; }
-export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; }
+export interface CreateUserRequest { displayName: string; deviceId?: string; platform?: string; }
+export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; }
 
 export interface CreatePostRequest { userId: string; content: string; tags?: string[]; isAnonymous?: boolean; }
 export interface CreatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
@@ -144,8 +144,8 @@ export interface SearchUsersResponse { users: MentionUser[]; }
 export interface UserSession { userId: string; username: string; role: UserRole; isLoggedIn: boolean; }
 
 // Coach / Admin
-export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; }
-export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; }
+export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; platform?: string; }
+export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; }
 
 export interface ReviewQueue { posts: Post[]; comments: Comment[]; }
 export interface GetReviewQueueResponse { posts: Post[]; comments: Comment[]; }

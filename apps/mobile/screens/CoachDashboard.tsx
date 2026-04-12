@@ -3,7 +3,7 @@
 // PUSO Coach review dashboard — Sacred Journal design
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 
-import { colors, fonts, radii, ambientShadow } from '../constants/theme';
+import { colors as defaultColors, fonts, radii, ambientShadow } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
 import { useUserStore } from '../context/UserContext';
 import {
@@ -62,9 +62,9 @@ function formatRelativeTime(dateStr: string): string {
 
 function avatarColors(ch: string): [string, string] {
   const gradients: [string, string][] = [
-    [colors.primary, colors.secondary],
-    [colors.gradientStart, colors.gradientEnd],
-    [colors.secondary, colors.tertiary],
+    [defaultColors.primary, defaultColors.secondary],
+    [defaultColors.gradientStart, defaultColors.gradientEnd],
+    [defaultColors.secondary, defaultColors.tertiary],
     ['#A60550', '#7D45A2'],
     ['#371FA9', '#7C003A'],
   ];
@@ -89,7 +89,9 @@ function getTagColor(tag: string) {
 export default function CoachDashboard() {
   const navigation = useNavigation<Nav>();
   const { userId, username, role } = useUserStore();
-  const { colors: themeColors, isDark } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const s = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 1000;
   const isNarrow = width < 500;
@@ -406,10 +408,10 @@ export default function CoachDashboard() {
   // ── Loading state ─────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={[s.root, { backgroundColor: themeColors.background }]}>
-        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
+      <SafeAreaView style={[s.root, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
         <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={s.loadingText}>Loading dashboard…</Text>
         </View>
       </SafeAreaView>
@@ -430,8 +432,8 @@ export default function CoachDashboard() {
   // ── Main render ───────────────────────────
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: themeColors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
+    <SafeAreaView style={[s.root, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       {/* ── Top bar (mobile / narrow) ── */}
       {!isWide && (
@@ -534,7 +536,7 @@ export default function CoachDashboard() {
 // ─────────────────────────────────────────────
 // Styles – Sacred Journal light design
 // ─────────────────────────────────────────────
-const s = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,

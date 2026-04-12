@@ -15,6 +15,7 @@ export function useUser() {
     userId,
     username,
     role,
+    avatarUrl,
     isLoggedIn,
     loginUser,
     logoutUser,
@@ -42,9 +43,9 @@ export function useUser() {
 
       const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
       const generatedId = uuidv4();
-      const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiCreateUser({ displayName, ...(deviceId ? { deviceId } : {}) });
-      await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER');
+      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar } =
+        await apiCreateUser({ displayName, ...(deviceId ? { deviceId } : {}), platform: Platform.OS });
+      await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER', serverAvatar);
     },
     [loginUser, validateDeviceOwner, getDeviceId]
   );
@@ -61,9 +62,9 @@ export function useUser() {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const anonName = attempt === 0 && preferredName ? preferredName : generateAnonUsername();
       try {
-        const { userId: serverId, displayName: serverName, role: serverRole } =
-          await apiCreateUser({ displayName: anonName, ...(deviceId ? { deviceId } : {}) });
-        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER');
+        const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar } =
+          await apiCreateUser({ displayName: anonName, ...(deviceId ? { deviceId } : {}), platform: Platform.OS });
+        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER', serverAvatar);
         return serverName || anonName;
       } catch (err: any) {
         const serverError = err?.response?.data?.error ?? err?.message ?? '';
@@ -93,9 +94,9 @@ export function useUser() {
       await validateDeviceOwner(displayName);
 
       const deviceId = Platform.OS !== 'web' ? await getDeviceId() : undefined;
-      const { userId: serverId, displayName: serverName, role: serverRole } =
-        await apiRedeemInviteCode({ displayName, code, ...(deviceId ? { deviceId } : {}) });
-      await loginUser(serverId, serverName, serverRole);
+      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar } =
+        await apiRedeemInviteCode({ displayName, code, ...(deviceId ? { deviceId } : {}), platform: Platform.OS });
+      await loginUser(serverId, serverName, serverRole, serverAvatar);
     },
     [loginUser, validateDeviceOwner, getDeviceId]
   );
@@ -111,6 +112,7 @@ export function useUser() {
     userId,
     username,
     role,
+    avatarUrl,
     isLoggedIn,
     loginWithUsername,
     loginAnonymously,

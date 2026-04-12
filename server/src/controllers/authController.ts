@@ -81,6 +81,7 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
       userId: user.id,
       displayName: user.displayName,
       role: user.role,
+      avatarUrl: user.avatarUrl,
     });
   } catch (err) {
     console.error('[AuthController] redeemInvite error:', err);

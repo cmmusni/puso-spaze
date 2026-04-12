@@ -73,8 +73,9 @@ export interface UserState {
    * @param userId  UUID string
    * @param username  Display name (anon or custom)
    * @param role  UserRole (default USER)
+   * @param avatarUrl  Profile picture URL from server (optional)
    */
-  loginUser: (userId: string, username: string, role?: UserRole) => Promise<void>;
+  loginUser: (userId: string, username: string, role?: UserRole, avatarUrl?: string | null) => Promise<void>;
 
   /** Clear session from SecureStore and reset state (but keep device owner) */
   logoutUser: () => Promise<void>;
@@ -139,7 +140,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           if (!alreadySynced) {
             try {
               const deviceId = await get().getDeviceId();
-              await apiCreateUser({ displayName: username, deviceId });
+              await apiCreateUser({ displayName: username, deviceId, platform: Platform.OS });
               await storage.setItem(DEVICE_SYNCED_KEY, 'true');
               console.log('[UserStore] deviceId synced to server');
             } catch (syncErr) {
@@ -176,7 +177,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  loginUser: async (userId: string, username: string, role: UserRole = 'USER') => {
+  loginUser: async (userId: string, username: string, role: UserRole = 'USER', avatarUrl?: string | null) => {
     try {
       // Set device owner on first login (immutable thereafter)
       const deviceOwner = await storage.getItem(DEV_OWNER_KEY);
@@ -188,13 +189,17 @@ export const useUserStore = create<UserState>((set, get) => ({
       await storage.setItem(USER_ID_KEY, userId);
       await storage.setItem(USERNAME_KEY, username);
       await storage.setItem(ROLE_KEY, role);
+      // Persist avatar URL from server if provided
+      if (avatarUrl) {
+        await storage.setItem(AVATAR_URL_KEY, avatarUrl);
+      }
       // Mark deviceId as synced (login already sent it to the server)
       await storage.setItem(DEVICE_SYNCED_KEY, 'true');
     } catch (err) {
       console.warn('[UserStore] Could not persist session:', err);
     }
     // Always update in-memory state even if storage fails
-    set({ userId, username, role, isLoggedIn: true, isLoading: false });
+    set({ userId, username, role, avatarUrl: avatarUrl ?? null, isLoggedIn: true, isLoading: false });
   },
 
   logoutUser: async () => {
@@ -203,6 +208,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       await storage.removeItem(USER_ID_KEY);
       await storage.removeItem(USERNAME_KEY);
       await storage.removeItem(ROLE_KEY);
+      await storage.removeItem(AVATAR_URL_KEY);
     } catch (err) {
       console.warn('[UserStore] Could not clear session:', err);
     }

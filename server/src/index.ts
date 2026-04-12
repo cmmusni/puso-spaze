@@ -18,7 +18,7 @@ import notificationRoutes from './api/notificationRoutes';
 import journalRoutes from './api/journalRoutes';
 import conversationRoutes from './api/conversationRoutes';
 import { startReflectionReminderScheduler } from './services/reflectionReminderScheduler';
-import { getDailyReflection } from './services/dailyReflectionService';
+import { getDailyReflection, getPersonalisedDailyReflection } from './services/dailyReflectionService';
 
 // ── App ───────────────────────────────────────
 const app = express();
@@ -64,11 +64,27 @@ app.get('/api/stats/online', async (_req, res) => {
   }
 });
 
-app.get('/api/stats/dashboard', async (_req, res) => {
+app.get('/api/stats/dashboard', async (req, res) => {
   try {
     const now = new Date();
     const h24 = new Date(now.getTime() - 24*60*60*1000);
     const m15 = new Date(now.getTime() - 15*60*1000);
+    const userId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+
+    // Fetch recent user posts (last 7 days, up to 5) if userId is provided
+    const recentUserPosts = userId
+      ? await prisma.post.findMany({
+          where: {
+            userId,
+            moderationStatus: 'SAFE',
+            createdAt: { gte: new Date(now.getTime() - 7*24*60*60*1000) },
+          },
+          select: { content: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        })
+      : [];
+
     const [totalMembers,dailyStories,onlineCount,trendingTags,reflectionContent] = await Promise.all([
       prisma.user.count(),
       prisma.post.count({ where: { createdAt: { gte: h24 }, moderationStatus: 'SAFE' } }),
@@ -81,7 +97,9 @@ app.get('/api/stats/dashboard', async (_req, res) => {
         for (const p of posts) for (const t of p.tags) tc[t]=(tc[t]||0)+1;
         return Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t,c])=>({ tag: t, count: c }));
       }),
-      getDailyReflection(),
+      recentUserPosts.length > 0 && userId
+        ? getPersonalisedDailyReflection(userId, recentUserPosts.map(p => p.content))
+        : getDailyReflection(),
     ]);
     const dailyReflection = reflectionContent
       ? { id: 'daily-reflection', content: reflectionContent, createdAt: new Date().toISOString() }

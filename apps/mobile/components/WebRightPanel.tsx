@@ -1,14 +1,15 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useUser } from "../hooks/useUser";
-import { apiGetDashboardStats, type DashboardStats } from "../services/api";
+import { apiGetDashboardStats, apiFetchCoaches, apiGetOrCreateConversation, getBaseUrl, type DashboardStats } from "../services/api";
+import type { CoachProfile } from "../../../packages/types";
 
 const DAILY_GRACE_QUOTES = [
   "The world needs the light only you can carry.",
@@ -16,24 +17,43 @@ const DAILY_GRACE_QUOTES = [
   "You are stronger than you know, braver than you believe.",
 ];
 
-const COACHES = [
-  { name: "Coach Sarah", specialty: "Life & Wellness Coach" },
-  { name: "Coach Mark", specialty: "Mindfulness Guide" },
-];
-
 export default function WebRightPanel() {
-  const { username } = useUser();
-  const { colors: themeColors } = useThemeStore();
+  const { username, userId } = useUser();
+  const navigation = useNavigation<any>();
+  const colors = useThemeStore((s) => s.colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [stats, setStats] = useState<DashboardStats>({
     totalMembers: 0, dailyStories: 0, onlineCount: 0,
     trendingTags: [], dailyReflection: null,
   });
+  const [coaches, setCoaches] = useState<CoachProfile[]>([]);
+  const [messagingCoachId, setMessagingCoachId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      apiGetDashboardStats().then(setStats);
-    }, []),
+      apiGetDashboardStats(userId ?? undefined).then(setStats);
+      apiFetchCoaches()
+        .then((res) => setCoaches(res.coaches))
+        .catch(() => {});
+    }, [userId]),
   );
+
+  const handleMessageCoach = async (coachId: string) => {
+    if (!userId || messagingCoachId) return;
+    setMessagingCoachId(coachId);
+    try {
+      const res = await apiGetOrCreateConversation({ userId, coachId });
+      const coach = coaches.find((c) => c.id === coachId);
+      navigation.navigate("Chat", {
+        conversationId: res.conversation.id,
+        coachName: coach ? `Coach ${coach.displayName}` : undefined,
+      });
+    } catch {
+      // silent — user can retry
+    } finally {
+      setMessagingCoachId(null);
+    }
+  };
 
   const displayName = username ?? "friend";
   const graceQuote = DAILY_GRACE_QUOTES[new Date().getDate() % DAILY_GRACE_QUOTES.length];
@@ -84,35 +104,53 @@ export default function WebRightPanel() {
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Message a Coach</Text>
         </View>
-        {COACHES.map((coach) => {
-          const initial = coach.name.split(" ").pop()?.charAt(0) ?? "C";
-          return (
-            <View key={coach.name} style={styles.coachRow}>
-              <LinearGradient
-                colors={[colors.secondary, colors.primaryContainer]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.coachAvatar}
-              >
-                <Text style={styles.coachAvatarText}>{initial}</Text>
-              </LinearGradient>
-              <View style={styles.coachInfo}>
-                <Text style={styles.coachName}>{coach.name}</Text>
-                <Text style={styles.coachSpecialty}>{coach.specialty}</Text>
+        {coaches.length > 0 ? (
+          coaches.map((coach) => {
+            const initial = coach.displayName.charAt(0).toUpperCase();
+            return (
+              <View key={coach.id} style={styles.coachRow}>
+                {coach.avatarUrl ? (
+                  <Image
+                    source={{ uri: `${getBaseUrl()}${coach.avatarUrl}` }}
+                    style={styles.coachAvatar}
+                  />
+                ) : (
+                <LinearGradient
+                  colors={[colors.secondary, colors.primaryContainer]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.coachAvatar}
+                >
+                  <Text style={styles.coachAvatarText}>{initial}</Text>
+                </LinearGradient>
+                )}
+                <View style={styles.coachInfo}>
+                  <Text style={styles.coachName}>{coach.displayName}</Text>
+                  <Text style={styles.coachSpecialty}>Spaze Coach</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.messageBtn}
+                  activeOpacity={0.7}
+                  onPress={() => handleMessageCoach(coach.id)}
+                  disabled={messagingCoachId === coach.id}
+                >
+                  <Ionicons name="chatbubble" size={12} color={colors.primary} />
+                  <Text style={styles.messageBtnText}>
+                    {messagingCoachId === coach.id ? 'Opening...' : 'Message'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.messageBtn} activeOpacity={0.7}>
-                <Ionicons name="chatbubble" size={12} color={colors.primary} />
-                <Text style={styles.messageBtnText}>Message</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
+            );
+          })
+        ) : (
+          <Text style={styles.emptyText}>No coaches available yet</Text>
+        )}
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   container: {
     maxWidth: 400,
     paddingTop: 24,

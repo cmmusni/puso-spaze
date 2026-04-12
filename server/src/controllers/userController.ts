@@ -112,7 +112,8 @@ export async function checkUsername(req: Request, res: Response): Promise<void> 
  *    (no need for a new invite code). Their COACH role is retained.
  */
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { displayName, deviceId } = req.body as { displayName: string; deviceId?: string };
+  const { displayName, deviceId, platform } = req.body as { displayName: string; deviceId?: string; platform?: string };
+  const isWeb = platform === 'web';
 
   try {
     const existingUser = await prisma.user.findUnique({
@@ -125,7 +126,9 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       // QUALITY.md Scenario 5: If the existing user has a deviceId,
       // the request MUST also provide one — otherwise anyone can
       // claim the username by simply omitting deviceId.
-      if (existingUser.deviceId && !deviceId) {
+      // Exception: web clients legitimately have no persistent device ID,
+      // so we allow them through (weaker auth is accepted on web).
+      if (existingUser.deviceId && !deviceId && !isWeb) {
         res.status(409).json({ error: 'Username is already taken.' });
         return;
       }
@@ -148,6 +151,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         userId: user.id,
         displayName: user.displayName,
         role: user.role,
+        avatarUrl: user.avatarUrl,
       });
       return;
     }
@@ -171,6 +175,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       userId: user.id,
       displayName: user.displayName,
       role: user.role,
+      avatarUrl: user.avatarUrl,
     });
   } catch (err) {
     console.error('[UserController] createUser error:', err);
@@ -195,6 +200,7 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
         role: true,
         isAnonymous: true,
         notificationsEnabled: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });

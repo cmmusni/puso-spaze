@@ -5,7 +5,7 @@
 // On web: adds bottom tab bar for quick navigation
 // ─────────────────────────────────────────────
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -37,13 +37,15 @@ import ChatScreen from "../screens/ChatScreen";
 import BottomTabBar from "../components/BottomTabBar";
 import WebSidebar from "../components/WebSidebar";
 import { useUserStore } from "../context/UserContext";
+import { useNotifications } from "../hooks/useNotifications";
+import { apiGetReviewQueue } from "../services/api";
 import { colors, fonts, radii } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import type { Post } from "../../../packages/types";
 
 // ── Param list ────────────────────────────────
 export type MainDrawerParamList = {
-  Home: undefined;
+  Home: { highlightPostId?: string } | undefined;
   Profile: undefined;
   ReviewQueue: undefined;
   SendInvite: undefined;
@@ -158,9 +160,26 @@ function ScreenWithTabs({
   navigation: any;
 }) {
   const role = useUserStore((s) => s.role);
+  const userId = useUserStore((s) => s.userId);
   const isCoach = role === "COACH" || role === "ADMIN";
+  const { unreadCount } = useNotifications(userId);
+  const [reviewCount, setReviewCount] = useState(0);
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
+
+  // Fetch review queue count for coaches
+  useEffect(() => {
+    if (!isCoach || !userId) return;
+    let active = true;
+    const fetchCount = () => {
+      apiGetReviewQueue(userId)
+        .then((res) => { if (active) setReviewCount(res.posts.length + res.comments.length); })
+        .catch(() => {});
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30_000);
+    return () => { active = false; clearInterval(interval); };
+  }, [isCoach, userId]);
 
   if (isWide) {
     return (
@@ -181,6 +200,8 @@ function ScreenWithTabs({
         currentRoute={currentRoute}
         onNavigate={(route) => navigation.navigate(route)}
         isCoach={isCoach}
+        unreadCount={unreadCount}
+        reviewCount={reviewCount}
       />
     </View>
   );

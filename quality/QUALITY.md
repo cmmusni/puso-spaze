@@ -90,13 +90,17 @@ test("FLAGGED content is saved but excluded from feed", async () => {
 
 ## 4. Fitness-to-Purpose Scenarios
 
-### Scenario 1: Unicode Homoglyphs and Novel Obfuscations Bypass Local Keyword Filter
+### Scenario 1: Unicode Homoglyphs and Novel Obfuscations ~~Bypass~~ → Now Caught by Local Keyword Filter
 
-**What happened:** `normalizeObfuscation()` (line ~185) handles a finite set of ASCII-symbol substitutions (f\*ck, sh\*t, g\*go, etc.) and common leet-speak variants like `b0b0`, `8080`, and `B0BO` are present in `BLOCKED_TERMS` (lines 82–86). However, the system does NOT handle Unicode homoglyphs — Cyrillic `а` (U+0430) looks identical to Latin `a`, Greek `ο` (U+03BF) looks like Latin `o`, and mathematical alphanumeric symbols (𝓯𝓾𝓬𝓴) bypass all pattern matching entirely. A user posting `gаgо` (with Cyrillic substitutions) bypasses both `normalizeObfuscation` and `BLOCKED_TERMS_PATTERN`. The post then goes to OpenAI moderation, which may not flag Tagalog profanity in mixed-script form — resulting in a `SAFE` verdict. Additionally, obfuscations not covered by existing regex rules (e.g., `B@B@`, `p.u.t.a`) slip through because `normalizeObfuscation` only handles specific punctuation-in-word patterns.
+**Status: MITIGATED (April 2026)** — Unicode homoglyph normalization, zero-width character stripping, and expanded BLOCKED_TERMS (97 terms + 10 contextual phrase patterns) were added to `normalizeObfuscation()`. Cyrillic, Greek, and Fullwidth Latin characters are now mapped to ASCII equivalents before keyword matching.
 
-**Where in code:** `moderationService.ts` line ~185 (`normalizeObfuscation`): 23 regex replacement rules cover ASCII-punctuation obfuscations but not Unicode script mixing. `BLOCKED_TERMS` (lines 17–140) includes digit-letter variants (`b0b0`, `8080`, `B0B0`, `B0BO`, `BOB0`) but not homoglyph variants.
+**What was fixed:** `normalizeObfuscation()` now includes three new preprocessing steps: (1) Strip zero-width characters (U+200B, U+200C, U+200D, U+FEFF), (2) Map Unicode homoglyphs (Cyrillic а→a, Greek ο→o, Fullwidth ａ→a, etc.) to ASCII, (3) Expanded BLOCKED_TERMS from 36 to 97 entries covering discrimination vocabulary (racial, gender, religious, disability, class, Filipino-specific). Added 10 contextual phrase patterns for ableist, racist, and Filipino-specific hostile constructions.
 
-**How to verify:** Test `localKeywordCheck` with: (1) Cyrillic-substituted words like `gаgо`, (2) mathematical alphanumerics like `𝗴𝗮𝗴𝗼`, (3) zero-width characters inserted into blocked terms, (4) novel separator obfuscations like `p.u.t.a`. Expected: all bypass detection (current behavior). These demonstrate the gaps that need Unicode normalization (NFKD + script stripping) to close.
+**Remaining gap:** Mathematical alphanumeric symbols (𝓯𝓾𝓬𝓴) and novel separator obfuscations not covered by existing regex rules (e.g., `p.u.t.a` with periods) still bypass detection. The OpenAI moderation API serves as a secondary defense for these cases.
+
+**Where in code:** `moderationService.ts` lines ~201–278: `HOMOGLYPH_MAP` with Cyrillic, Greek, and Fullwidth Latin mappings. Zero-width stripping at line ~201. BLOCKED_TERMS at lines 16–162 (97 entries). BLOCKED_PHRASE_PATTERNS at lines 168–177 (10 patterns).
+
+**How to verify:** Test `localKeywordCheck` with: (1) Cyrillic-substituted words like `gаgо` → should be FLAGGED (verified by FS-1h). (2) Zero-width characters inserted into blocked terms → should be FLAGGED (verified by FS-1i). (3) Contextual phrase patterns like "so autistic" → should be FLAGGED (verified by FS-1j). (4) Mathematical alphanumerics like `𝗴𝗮𝗴𝗼` → still bypass (remaining gap).
 
 **Requirement tag:** [Req: inferred — from normalizeObfuscation() patterns and BLOCKED_TERMS list]
 

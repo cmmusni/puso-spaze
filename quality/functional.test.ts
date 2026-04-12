@@ -135,10 +135,38 @@ describe('Fitness Scenarios', () => {
   // These tests replicate the moderation logic from moderationService.ts
   // without importing it (to avoid DATABASE_URL requirement).
   // The logic is extracted directly from the source code.
+  // SYNCED: April 12, 2026 — includes Unicode homoglyph normalization,
+  // zero-width stripping, full BLOCKED_TERMS (97 terms), and all 10 phrase patterns.
 
-  // Replicate normalizeObfuscation from moderationService.ts
+  // Unicode homoglyph map (Cyrillic, Greek, Fullwidth Latin → ASCII)
+  const HOMOGLYPH_MAP: Record<string, string> = {
+    '\u0430': 'a', '\u0410': 'A',
+    '\u0435': 'e', '\u0415': 'E',
+    '\u043E': 'o', '\u041E': 'O',
+    '\u0440': 'p', '\u0420': 'P',
+    '\u0441': 'c', '\u0421': 'C',
+    '\u0443': 'y', '\u0423': 'Y',
+    '\u0445': 'x', '\u0425': 'X',
+    '\u0456': 'i', '\u0406': 'I',
+    '\u03B1': 'a', '\u0391': 'A',
+    '\u03B5': 'e', '\u0395': 'E',
+    '\u03BF': 'o', '\u039F': 'O',
+    '\u03B9': 'i', '\u0399': 'I',
+    '\uFF41': 'a', '\uFF42': 'b', '\uFF43': 'c', '\uFF44': 'd', '\uFF45': 'e',
+    '\uFF46': 'f', '\uFF47': 'g', '\uFF48': 'h', '\uFF49': 'i', '\uFF4A': 'j',
+    '\uFF4B': 'k', '\uFF4C': 'l', '\uFF4D': 'm', '\uFF4E': 'n', '\uFF4F': 'o',
+    '\uFF50': 'p', '\uFF51': 'q', '\uFF52': 'r', '\uFF53': 's', '\uFF54': 't',
+    '\uFF55': 'u', '\uFF56': 'v', '\uFF57': 'w', '\uFF58': 'x', '\uFF59': 'y',
+    '\uFF5A': 'z',
+  };
+
+  // Replicate normalizeObfuscation from moderationService.ts (synced April 12, 2026)
   function normalizeObfuscation(text: string): string {
-    return text
+    // Step 0: Strip zero-width characters
+    let normalized = text.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    // Step 1: Unicode homoglyph → Latin ASCII
+    normalized = [...normalized].map((ch) => HOMOGLYPH_MAP[ch] ?? ch).join('');
+    return normalized
       .replace(/\bf[\*\.\-\_@!]ck\b/gi, "fuck")
       .replace(/\bsh[\*\.\_@!-]t\b/gi, "shit")
       .replace(/\bb[\*\.\_@!-]tch\b/gi, "bitch")
@@ -163,14 +191,40 @@ describe('Fitness Scenarios', () => {
       .replace(/\bf\s+a\s+g\b/gi, "fag");
   }
 
-  // Replicate BLOCKED_TERMS_PATTERN (subset sufficient for testing)
+  // Full BLOCKED_TERMS list from moderationService.ts (synced April 12, 2026)
   const BLOCKED_TERMS = [
-    "fuck", "shit", "bitch", "asshole", "cunt", "dick", "pussy", "whore", "slut",
-    "faggot", "nigger", "nigga", "retard", "kys", "kill yourself",
-    "putangina", "puta", "putang ina", "tangina", "gago", "gaga", "ulol", "tanga",
-    "bobo", "b0b0", "8080", "B0B0", "B0BO", "BOB0",
-    "kms", "unalive", "unaliving", "off yourself",
-    "dtf", "gyatt", "gyat", "incel",
+    // English profanity
+    "fuck", "shit", "bitch", "asshole", "bastard", "cunt", "dick", "piss", "cock",
+    "pussy", "whore", "slut", "faggot", "nigger", "nigga", "retard", "kys", "kill yourself",
+    // Filipino / Tagalog profanity & insults
+    "putangina", "puta", "putang ina", "putang ina mo", "tangina", "tang ina",
+    "pakyu", "pak yu", "pakyo", "gago", "gaga", "gagong", "ulol", "ulul",
+    "tarantado", "tarantadong", "punyeta", "punyetang", "bwisit", "bwisitin",
+    "leche", "letse", "hunghang", "inutil", "hayop", "hayup", "peste", "lintik",
+    "kingina", "kin*na", "kupal", "kupaling", "tanga", "tangahan", "bobo", "bobong",
+    "tongo", "siraulo", "sira ulo", "walang hiya", "walang-hiya", "demonyo",
+    "b0b0", "8080", "B0B0", "B0BO", "BOB0",
+    // Gen Z self-harm / suicidal slang
+    "kms", "khs", "unalive", "unaliving", "off yourself",
+    // Gen Z sexual slang
+    "dtf", "thirst trap", "gyatt", "gyat",
+    // Gen Z bullying / dehumanizing slang
+    "incel", "copium", "l + ratio",
+    // Discrimination — racial/ethnic
+    "chink", "gook", "spic", "wetback", "beaner", "towelhead", "sandnigger",
+    "raghead", "paki", "jungle bunny", "coon", "jigaboo", "kike", "hymie", "kyke",
+    // Gender discrimination
+    "feminazi", "femoid", "roastie", "becky",
+    // Religious discrimination
+    "kafir",
+    // Sexual orientation discrimination
+    "dyke", "fag", "homo", "sodomite", "tranny", "shemale", "heshe",
+    // Disability discrimination
+    "spaz", "cripple", "gimp", "mongoloid", "autist",
+    // Class/socioeconomic discrimination
+    "trailer trash", "white trash", "welfare queen",
+    // Filipino discrimination terms
+    "indio", "intsik", "bumbay", "negro", "moro", "bakla",
   ];
 
   const BLOCKED_TERMS_PATTERN = new RegExp(
@@ -180,8 +234,18 @@ describe('Fitness Scenarios', () => {
     "i",
   );
 
+  // Full BLOCKED_PHRASE_PATTERNS from moderationService.ts (synced April 12, 2026)
   const BLOCKED_PHRASE_PATTERNS: RegExp[] = [
     /\bl\s*\+\s*ratio\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+(?:such\s+a\s+)?karen\b/i,
+    /\b(?:so|too)\s+autistic\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+autistic\b/i,
+    /\bautistic\s+(?:idiot|moron|retard|loser)\b/i,
+    /\bghetto\s+(?:trash|rat|bitch|ass)\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+(?:a\s+)?peasant\b/i,
+    /\binfidel\s+(?:dog|pig|scum)\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+tomboy\b/i,
+    /\btomboy\s+ka\b/i,
   ];
 
   function localKeywordCheck(text: string): 'FLAGGED' | null {
@@ -228,13 +292,39 @@ describe('Fitness Scenarios', () => {
     assert.equal(localKeywordCheck('8080 talaga'), 'FLAGGED', '8080 should be in BLOCKED_TERMS');
   });
 
-  test('FS-1h: Unicode homoglyphs bypass local keyword check (known gap)', () => {
-    // Cyrillic а (U+0430) looks like Latin a, Cyrillic о (U+03BF) looks like Latin o
-    // normalizeObfuscation does not strip or normalize Unicode scripts
+  test('FS-1h: Unicode homoglyphs are caught by normalizeObfuscation', () => {
+    // Cyrillic а (U+0430) looks like Latin a, Cyrillic о (U+043E) looks like Latin o
+    // normalizeObfuscation NOW handles Unicode homoglyph → ASCII mapping (fixed April 2026)
     const cyrillicGago = 'g\u0430g\u043E'; // gаgо with Cyrillic а and о
     const result = localKeywordCheck(cyrillicGago);
-    assert.equal(result, null,
-      'Cyrillic homoglyph bypass is a known gap — normalizeObfuscation does not handle Unicode');
+    assert.equal(result, 'FLAGGED',
+      'Cyrillic homoglyph evasion should NOW be caught by Unicode normalization');
+  });
+
+  test('FS-1i: zero-width characters in blocked terms are stripped', () => {
+    // Zero-width joiner/non-joiner inserted into "gago"
+    const zwGago = 'g\u200Ba\u200Cg\u200Do'; // g​a‌g‍o
+    const result = localKeywordCheck(zwGago);
+    assert.equal(result, 'FLAGGED',
+      'Zero-width characters should be stripped before keyword matching');
+  });
+
+  test('FS-1j: contextual phrase patterns catch ableist attacks', () => {
+    assert.equal(localKeywordCheck('you are so autistic'), 'FLAGGED',
+      '"so autistic" phrase should be flagged');
+    assert.equal(localKeywordCheck("you're autistic"), 'FLAGGED',
+      '"you\'re autistic" phrase should be flagged');
+  });
+
+  test('FS-1k: contextual phrase patterns catch Filipino-specific slurs', () => {
+    assert.equal(localKeywordCheck('tomboy ka'), 'FLAGGED',
+      '"tomboy ka" should be flagged');
+  });
+
+  test('FS-1l: newly added discrimination terms are flagged', () => {
+    assert.equal(localKeywordCheck('you are a kafir'), 'FLAGGED', '"kafir" should be flagged');
+    assert.equal(localKeywordCheck('trailer trash'), 'FLAGGED', '"trailer trash" should be flagged');
+    assert.equal(localKeywordCheck('indio ka'), 'FLAGGED', '"indio" should be flagged');
   });
 
   // ── Scenario 2: OpenAI API Failure Defaults ──
@@ -427,10 +517,34 @@ describe('Fitness Scenarios', () => {
 describe('Boundaries and Edge Cases', () => {
 
   // ── Moderation Service Boundaries ──
-  // Replicated from moderationService.ts (same logic as Fitness Scenarios above)
+  // Replicated from moderationService.ts (synced April 12, 2026)
+  // Includes Unicode homoglyph normalization + zero-width stripping
+
+  const HOMOGLYPH_MAP_BE: Record<string, string> = {
+    '\u0430': 'a', '\u0410': 'A',
+    '\u0435': 'e', '\u0415': 'E',
+    '\u043E': 'o', '\u041E': 'O',
+    '\u0440': 'p', '\u0420': 'P',
+    '\u0441': 'c', '\u0421': 'C',
+    '\u0443': 'y', '\u0423': 'Y',
+    '\u0445': 'x', '\u0425': 'X',
+    '\u0456': 'i', '\u0406': 'I',
+    '\u03B1': 'a', '\u0391': 'A',
+    '\u03B5': 'e', '\u0395': 'E',
+    '\u03BF': 'o', '\u039F': 'O',
+    '\u03B9': 'i', '\u0399': 'I',
+    '\uFF41': 'a', '\uFF42': 'b', '\uFF43': 'c', '\uFF44': 'd', '\uFF45': 'e',
+    '\uFF46': 'f', '\uFF47': 'g', '\uFF48': 'h', '\uFF49': 'i', '\uFF4A': 'j',
+    '\uFF4B': 'k', '\uFF4C': 'l', '\uFF4D': 'm', '\uFF4E': 'n', '\uFF4F': 'o',
+    '\uFF50': 'p', '\uFF51': 'q', '\uFF52': 'r', '\uFF53': 's', '\uFF54': 't',
+    '\uFF55': 'u', '\uFF56': 'v', '\uFF57': 'w', '\uFF58': 'x', '\uFF59': 'y',
+    '\uFF5A': 'z',
+  };
 
   function normalizeObfuscation(text: string): string {
-    return text
+    let normalized = text.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    normalized = [...normalized].map((ch) => HOMOGLYPH_MAP_BE[ch] ?? ch).join('');
+    return normalized
       .replace(/\bf[\*\.\-\_@!]ck\b/gi, "fuck")
       .replace(/\bsh[\*\.\_@!-]t\b/gi, "shit")
       .replace(/\bb[\*\.\_@!-]tch\b/gi, "bitch")
@@ -456,10 +570,26 @@ describe('Boundaries and Edge Cases', () => {
   }
 
   const BT = [
-    "fuck", "shit", "bitch", "asshole", "cunt", "dick", "pussy", "whore", "slut",
-    "faggot", "nigger", "nigga", "retard", "kys", "kill yourself",
-    "putangina", "puta", "gago", "tanga", "bobo", "b0b0", "8080",
-    "kms", "unalive", "unaliving",
+    "fuck", "shit", "bitch", "asshole", "bastard", "cunt", "dick", "piss", "cock",
+    "pussy", "whore", "slut", "faggot", "nigger", "nigga", "retard", "kys", "kill yourself",
+    "putangina", "puta", "putang ina", "putang ina mo", "tangina", "tang ina",
+    "pakyu", "pak yu", "pakyo", "gago", "gaga", "gagong", "ulol", "ulul",
+    "tarantado", "tarantadong", "punyeta", "punyetang", "bwisit", "bwisitin",
+    "leche", "letse", "hunghang", "inutil", "hayop", "hayup", "peste", "lintik",
+    "kingina", "kin*na", "kupal", "kupaling", "tanga", "tangahan", "bobo", "bobong",
+    "tongo", "siraulo", "sira ulo", "walang hiya", "walang-hiya", "demonyo",
+    "b0b0", "8080", "B0B0", "B0BO", "BOB0",
+    "kms", "khs", "unalive", "unaliving", "off yourself",
+    "dtf", "thirst trap", "gyatt", "gyat",
+    "incel", "copium", "l + ratio",
+    "chink", "gook", "spic", "wetback", "beaner", "towelhead", "sandnigger",
+    "raghead", "paki", "jungle bunny", "coon", "jigaboo", "kike", "hymie", "kyke",
+    "feminazi", "femoid", "roastie", "becky",
+    "kafir",
+    "dyke", "fag", "homo", "sodomite", "tranny", "shemale", "heshe",
+    "spaz", "cripple", "gimp", "mongoloid", "autist",
+    "trailer trash", "white trash", "welfare queen",
+    "indio", "intsik", "bumbay", "negro", "moro", "bakla",
   ];
 
   const BT_PATTERN = new RegExp(
@@ -467,7 +597,18 @@ describe('Boundaries and Edge Cases', () => {
     "i",
   );
 
-  const PHRASE_PATTERNS: RegExp[] = [/\bl\s*\+\s*ratio\b/i];
+  const PHRASE_PATTERNS: RegExp[] = [
+    /\bl\s*\+\s*ratio\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+(?:such\s+a\s+)?karen\b/i,
+    /\b(?:so|too)\s+autistic\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+autistic\b/i,
+    /\bautistic\s+(?:idiot|moron|retard|loser)\b/i,
+    /\bghetto\s+(?:trash|rat|bitch|ass)\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+(?:a\s+)?peasant\b/i,
+    /\binfidel\s+(?:dog|pig|scum)\b/i,
+    /\b(?:you\s+are|you're|u\s+r)\s+tomboy\b/i,
+    /\btomboy\s+ka\b/i,
+  ];
 
   function checkKeyword(text: string): 'FLAGGED' | null {
     const n = normalizeObfuscation(text);

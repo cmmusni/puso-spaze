@@ -170,11 +170,12 @@ export default function PostDetailScreen() {
       navigation.navigate("Notifications" as never);
       return;
     }
-    navigation.goBack();
+    // Navigate to Home with the post ID so it highlights/scrolls to it
+    (navigation as any).navigate("Home", { highlightPostId: routePostId });
   };
 
-  const { userId, username, role } = useUser();
-  const userAvatarUrl: string | null = null; // TODO: add avatarUrl to user store
+  const { userId, username, role, avatarUrl } = useUser();
+  const userAvatarUrl = avatarUrl;
   const isCoach = role === "COACH" || role === "ADMIN";
   const { width: screenWidth } = useWindowDimensions();
   const isWide = Platform.OS === "web" && screenWidth >= 900;
@@ -199,6 +200,7 @@ export default function PostDetailScreen() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
+  const [isCommentMultiline, setIsCommentMultiline] = useState(false);
 
   // ── Reply state ───────────────────────────────
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
@@ -443,6 +445,7 @@ export default function PostDetailScreen() {
         setMentionQuery(null);
         setMentionUsers([]);
         setCommentError(null);
+        setIsCommentMultiline(false);
         if (underReview) {
           setCommentReview(
             "Your comment is under review and will appear once approved.",
@@ -755,7 +758,7 @@ export default function PostDetailScreen() {
           </View>
           {canDeleteComment ? (
             <TouchableOpacity
-              onPress={() => openCommentMenu(item)}
+              onLongPress={() => openCommentMenu(item)}
               disabled={isDeletingThisComment}
               activeOpacity={0.8}
               style={[
@@ -969,18 +972,16 @@ export default function PostDetailScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={styles.postNameRow}>
                       <Text style={styles.postAuthorName}>{displayName}</Text>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.postMenuBtn}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        onPress={() => {
-                          if (post.userId === userId || role === "ADMIN") {
-                            setPostMenuVisible(true);
-                          }
-                        }}
-                      >
-                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.muted5} />
-                      </TouchableOpacity>
+                      {(post.userId === userId || role === "ADMIN") && (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          style={styles.postMenuBtn}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          onPress={() => setPostMenuVisible(true)}
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={18} color={colors.muted5} />
+                        </TouchableOpacity>
+                      )}
                     </View>
                     <Text style={styles.postSubtitle}>
                       {roleBadgeText} {"\u2022"} {formatRelativeTime(post.createdAt)}
@@ -1201,9 +1202,25 @@ export default function PostDetailScreen() {
             placeholderTextColor={colors.muted4}
             value={commentText}
             onChangeText={handleCommentInputChange}
-            multiline
+            multiline={isCommentMultiline}
             maxLength={500}
             editable={!submitting}
+            onSubmitEditing={() => {
+              if (!isCommentMultiline) handleComment();
+            }}
+            blurOnSubmit={false}
+            {...(Platform.OS === 'web' ? {
+              onKeyPress: (e: any) => {
+                const nativeEvent = e.nativeEvent;
+                if (nativeEvent.key === 'Enter' && (nativeEvent.metaKey || nativeEvent.ctrlKey)) {
+                  e.preventDefault();
+                  handleComment();
+                } else if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey && !isCommentMultiline) {
+                  e.preventDefault();
+                  setIsCommentMultiline(true);
+                }
+              },
+            } : {})}
           />
           <TouchableOpacity
             onPress={handleComment}
@@ -1867,12 +1884,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodyRegular,
   },
   commentBubble: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: radii.lg,
     padding: 14,
   },
   commentBubbleOwn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerHigh,
   },
   commentActions: {
     flexDirection: "row",
@@ -2035,6 +2052,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurface,
+    minHeight: 38,
     maxHeight: 100,
     ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },

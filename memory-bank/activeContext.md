@@ -1,14 +1,20 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 11, 2026
+**Last Updated:** April 12, 2026
 
 ## Current Work Focus
+- Quality playbook full retest and update
 - Android build & testing (Expo prebuild → Android Studio)
-- Responsive UI refinements (Journal screen action buttons layout)
-- Device identity improvements (skip device ID enforcement on web)
-- Login UX: prefill username from device storage on LoginScreen load
 
 ## Recent Changes
+
+### Quality Playbook Retest (April 12, 2026)
+- **Functional tests**: Synced replicated moderation logic with production `moderationService.ts` — was 61% incomplete (missing Unicode normalization, 61 blocked terms, 9 phrase patterns)
+- **Test FS-1h**: Changed from asserting Cyrillic bypass (known gap) to asserting FLAGGED (gap now fixed in production code)
+- **4 new tests added**: FS-1i (zero-width stripping), FS-1j (ableist phrase patterns), FS-1k (Filipino-specific slurs), FS-1l (discrimination terms) — total now 56 tests, all passing
+- **TC-11 Playwright fix**: Changed `btn.click(); btn.click()` to `btn.dblclick()` — button disappears after first click (loading state), causing timeout. Now 20/20 Playwright tests pass
+- **QUALITY.md Scenario 1**: Updated to reflect Unicode homoglyph normalization is now MITIGATED, with remaining gap documented (mathematical alphanumerics)
+- **Server unit tests**: 2/2 passing (commentController.test.ts)
 
 ### Device ID (April 11, 2026)
 - Removed device ID enforcement for web clients — web no longer sends `deviceId` to server

@@ -4,7 +4,7 @@
 // Polls for new messages every 5 seconds
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
 import { apiFetchMessages, apiSendMessage, apiSetTyping, apiGetTyping } from "../services/api";
-import { colors, fonts, radii, spacing } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, spacing } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
 import type { Message } from "../../../packages/types";
@@ -33,15 +33,18 @@ const TYPING_POLL_INTERVAL = 2000;
 const TYPING_DEBOUNCE_MS = 800;
 
 export default function ChatScreen({ navigation, route }: any) {
-  const { conversationId } = route.params as { conversationId: string };
+  const { conversationId, coachName } = route.params as { conversationId: string; coachName?: string };
   const { userId, role } = useUserStore();
-  const { colors: themeColors, isDark } = useThemeStore();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isCoach = role === "COACH" || role === "ADMIN";
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [isMultiline, setIsMultiline] = useState(false);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +135,7 @@ export default function ChatScreen({ navigation, route }: any) {
       });
       setMessages((prev) => [...prev, res.message]);
       setText("");
+      setIsMultiline(false);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -144,12 +148,12 @@ export default function ChatScreen({ navigation, route }: any) {
 
   // ── Get header label from first message ───
   const getHeaderLabel = () => {
-    if (messages.length === 0) return "Chat";
+    if (messages.length === 0) return coachName ?? "Chat";
     // Find the other participant
     const otherMsg = messages.find((m) => m.senderId !== userId);
     if (otherMsg?.sender?.displayName) return otherMsg.sender.displayName;
-    // Fallback: show first message sender
-    return messages[0]?.sender?.displayName ?? "Chat";
+    // Fallback: show first message sender, then route param, then generic
+    return messages[0]?.sender?.displayName ?? coachName ?? "Chat";
   };
 
   const getInitial = (name?: string) => {
@@ -232,12 +236,12 @@ export default function ChatScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "light-content"} />
 
       {/* ── Top bar ── */}
       <LinearGradient
-        colors={[themeColors.primaryContainer, themeColors.secondary]}
+        colors={[colors.primaryContainer, colors.secondary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.topBar}
@@ -326,9 +330,24 @@ export default function ChatScreen({ navigation, route }: any) {
                   value={text}
                   onChangeText={handleTextChange}
                   maxLength={2000}
-                  multiline
-                  onSubmitEditing={handleSend}
+                  multiline={isMultiline}
+                  onSubmitEditing={() => {
+                    if (!isMultiline) handleSend();
+                  }}
                   blurOnSubmit={false}
+                  {...(Platform.OS === 'web' ? {
+                    onKeyPress: (e: any) => {
+                      const nativeEvent = e.nativeEvent;
+                      if (nativeEvent.key === 'Enter' && (nativeEvent.metaKey || nativeEvent.ctrlKey)) {
+                        e.preventDefault();
+                        handleSend();
+                      } else if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey && !isMultiline) {
+                        // Plain Enter in single-line mode switches to multiline
+                        e.preventDefault();
+                        setIsMultiline(true);
+                      }
+                    },
+                  } : {})}
                 />
               </View>
               <TouchableOpacity
@@ -355,7 +374,7 @@ export default function ChatScreen({ navigation, route }: any) {
 }
 
 // ── Styles ────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -564,9 +583,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerLowest,
     borderTopWidth: 1,
     borderTopColor: colors.muted1,
-    ...(Platform.OS === "web"
-      ? { maxWidth: 680, alignSelf: "center" as any, width: "100%" as any }
-      : {}),
   },
   inputWrap: {
     flex: 1,
@@ -575,7 +591,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === "ios" ? 10 : 6,
     marginRight: 8,
+    minHeight: 42,
     maxHeight: 120,
+    justifyContent: "center",
   },
   textInput: {
     fontSize: 15,

@@ -4,7 +4,7 @@
 // Full-width bar with centered tab items
 // ─────────────────────────────────────────────
 
-import React from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../constants/theme";
+import { colors as defaultColors } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 
 interface Tab {
@@ -40,10 +40,13 @@ interface Props {
   currentRoute: string;
   onNavigate: (route: string) => void;
   isCoach?: boolean;
+  unreadCount?: number;
+  reviewCount?: number;
 }
 
-export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Props) {
-  const { colors: themeColors } = useThemeStore();
+export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unreadCount = 0, reviewCount = 0 }: Props) {
+  const colors = useThemeStore((s) => s.colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (Platform.OS !== "web") return null;
 
   const visibleTabs = TABS.filter((tab) => {
@@ -53,7 +56,7 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Prop
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.card, borderTopColor: themeColors.muted3 }]}>
+    <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.muted3 }]}>
       <View style={styles.inner}>
         {visibleTabs.map((tab) => {
           const active = currentRoute === tab.route;
@@ -64,15 +67,31 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Prop
               activeOpacity={0.7}
               style={styles.tab}
             >
-              <Ionicons
-                name={active ? tab.iconActive : tab.icon}
-                size={22}
-                color={active ? themeColors.primary : themeColors.muted5}
-              />
-              <Text style={[styles.label, { color: themeColors.muted5 }, active && { color: themeColors.primary, fontWeight: "700" }]}>
+              <View style={{ position: 'relative' }}>
+                <Ionicons
+                  name={active ? tab.iconActive : tab.icon}
+                  size={22}
+                  color={active ? colors.primary : colors.muted5}
+                />
+                {tab.key === 'notifications' && unreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+                {tab.key === 'review' && reviewCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {reviewCount > 99 ? '99+' : reviewCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.label, { color: colors.muted5 }, active && { color: colors.primary, fontWeight: "700" }]}>
                 {tab.label}
               </Text>
-              {active && <View style={[styles.activeDot, { backgroundColor: themeColors.primary }]} />}
+              {active && <View style={[styles.activeDot, { backgroundColor: colors.primary }]} />}
             </TouchableOpacity>
           );
         })}
@@ -81,7 +100,7 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach }: Prop
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   container: {
     backgroundColor: colors.card,
     borderTopWidth: 1,
@@ -119,5 +138,23 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.primary,
     marginTop: 3,
+  },
+  badge: {
+    position: 'absolute' as const,
+    top: -6,
+    right: -10,
+    backgroundColor: colors.danger,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700' as const,
+    textAlign: 'center' as const,
   },
 });

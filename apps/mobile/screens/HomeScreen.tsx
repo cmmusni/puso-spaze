@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -21,14 +21,14 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, fonts, radii, ambientShadow } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, useRoute, type RouteProp } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
 import { useNotifications } from "../hooks/useNotifications";
-import { apiGetDashboardStats, type DashboardStats } from "../services/api";
+import { apiGetDashboardStats, getBaseUrl, type DashboardStats } from "../services/api";
 import { validatePostContent } from "../utils/validators";
 import { showAlert } from "../utils/alertPlatform";
 import PostCard from "../components/PostCard";
@@ -57,8 +57,9 @@ function getGreeting(): string {
 }
 
 /** Brief highlight pulse for a newly created post */
-function HighlightWrap({ children }: { children: React.ReactNode }) {
+function HighlightWrap({ children, flatListRef }: { children: React.ReactNode; flatListRef: React.RefObject<FlatList<any> | null> }) {
   const anim = useRef(new Animated.Value(1)).current;
+  const viewRef = useRef<View>(null);
 
   useEffect(() => {
     Animated.sequence([
@@ -67,13 +68,46 @@ function HighlightWrap({ children }: { children: React.ReactNode }) {
     ]).start();
   }, []);
 
+  // Scroll the highlighted post into view
+  useEffect(() => {
+    const doScroll = () => {
+      if (Platform.OS === 'web') {
+        // On web, use native scrollIntoView — works with any layout
+        const node = viewRef.current as any;
+        if (node?.scrollIntoView) {
+          node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (node && typeof node.measure === 'undefined') {
+          // react-native-web: the underlying DOM node
+          try {
+            const el = (node as any)._nativeTag ?? (node as any).getNode?.() ?? node;
+            if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } catch {}
+        }
+      } else {
+        // On native, measure position relative to the FlatList and scrollToOffset
+        viewRef.current?.measureLayout(
+          flatListRef.current?.getScrollableNode?.() as any,
+          (_x, y) => {
+            flatListRef.current?.scrollToOffset({ offset: Math.max(0, y - 100), animated: true });
+          },
+          () => {},
+        );
+      }
+    };
+    // Delay to ensure layout is complete
+    const t1 = setTimeout(doScroll, 300);
+    const t2 = setTimeout(doScroll, 800);
+    const t3 = setTimeout(doScroll, 1500);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
   const bgColor = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["transparent", colors.primaryContainer + "50"],
+    outputRange: ["transparent", defaultColors.primaryContainer + "50"],
   });
 
   return (
-    <Animated.View style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -4, paddingHorizontal: 4 }}>
+    <Animated.View ref={viewRef as any} style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -4, paddingHorizontal: 4 }}>
       {children}
     </Animated.View>
   );
@@ -81,8 +115,11 @@ function HighlightWrap({ children }: { children: React.ReactNode }) {
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
-  const { colors: themeColors, isDark } = useThemeStore();
-  const { username, role, userId } = useUser();
+  const route = useRoute<RouteProp<MainDrawerParamList, "Home">>();
+  const colors = useThemeStore((s) => s.colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { username, role, userId, avatarUrl } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
   const { posts, loading, error, fetchPosts, submitPost } = usePosts();
   const { unreadCount, refreshUnreadCount } = useNotifications(userId);
@@ -94,8 +131,9 @@ export default function HomeScreen() {
 
   // ── Highlight newly posted item ──
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
-  const pendingHighlight = useRef(false);
-  const pendingHighlightId = useRef<string | null>(null);
+  const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
+  const processedParamId = useRef<string | null>(null);
+  const lastViewedPostId = useRef<string | null>(null);
 
   // ── FAB visibility — hide while composer is on screen ──
   const [showFab, setShowFab] = useState(false);
@@ -147,9 +185,29 @@ export default function HomeScreen() {
   const [reflectionExpanded, setReflectionExpanded] = useState(false);
 
   const loadStats = useCallback(async () => {
-    const d = await apiGetDashboardStats();
+    const d = await apiGetDashboardStats(userId ?? undefined);
     setStats(d);
-  }, []);
+  }, [userId]);
+
+  // Pick up highlight request from PostScreen navigation
+  useEffect(() => {
+    const id = route.params?.highlightPostId;
+    if (id && id !== processedParamId.current) {
+      processedParamId.current = id;
+      setScrollTargetId(id);
+    }
+  }, [route.params?.highlightPostId]);
+
+  // Clear the highlight param when leaving the screen so it doesn't retrigger on back-navigation
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      if (route.params?.highlightPostId) {
+        navigation.setParams({ highlightPostId: undefined });
+        processedParamId.current = null;
+      }
+    });
+    return unsubscribe;
+  }, [navigation, route.params?.highlightPostId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -158,6 +216,17 @@ export default function HomeScreen() {
       loadStats();
     }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats]),
   );
+
+  // Highlight last-viewed post when returning from PostDetailScreen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (lastViewedPostId.current) {
+        setScrollTargetId(lastViewedPostId.current);
+        lastViewedPostId.current = null;
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([
@@ -197,7 +266,7 @@ export default function HomeScreen() {
     setComposing(true);
     try {
       const tags = selectedFeeling ? [selectedFeeling] : undefined;
-      const { flagged, underReview } = await submitPost({
+      const { flagged, underReview, postId: newPostId } = await submitPost({
         userId,
         content: trimmed,
         imageUri: composeImage ?? undefined,
@@ -220,7 +289,7 @@ export default function HomeScreen() {
         setComposeText("");
         setComposeImage(null);
         setSelectedFeeling(null);
-        pendingHighlight.current = true;
+        if (newPostId) setScrollTargetId(newPostId);
       }
     } catch (err: unknown) {
       showAlert(
@@ -232,50 +301,56 @@ export default function HomeScreen() {
     }
   };
 
-  // Scroll to & highlight new post once the list updates
+  // Scroll to & highlight new post once it appears in the list.
+  // Timers are stored in refs so they survive effect re-runs caused by
+  // concurrent fetchPosts calls updating `posts`.
+  const scrollTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
   useEffect(() => {
-    if (pendingHighlight.current && posts.length > 0) {
-      pendingHighlight.current = false;
-      const newId = posts[0].id;
-      setHighlightPostId(newId);
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: 0, animated: true, viewOffset: 10 });
-      }, 100);
-      setTimeout(() => setHighlightPostId(null), 2000);
-    } else if (pendingHighlightId.current && posts.length > 0) {
-      const targetId = pendingHighlightId.current;
-      pendingHighlightId.current = null;
-      const idx = posts.findIndex((p) => p.id === targetId);
-      if (idx >= 0) {
-        setHighlightPostId(targetId);
-        setTimeout(() => {
-          flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewOffset: 10 });
-        }, 100);
-        setTimeout(() => setHighlightPostId(null), 2000);
-      }
-    }
-  }, [posts]);
+    if (!scrollTargetId || posts.length === 0) return;
+
+    let idx = posts.findIndex((p) => p.id === scrollTargetId);
+    if (idx < 0) return; // post not in list yet — effect will re-run when posts updates
+
+    // Found it — clear the target and start highlighting
+    setScrollTargetId(null);
+
+    // Clear any previous highlight timers
+    scrollTimers.current.forEach(clearTimeout);
+    scrollTimers.current = [];
+
+    setHighlightPostId(posts[idx].id);
+
+    // HighlightWrap handles scrolling itself via scrollIntoView/measureLayout.
+    // Just clear highlight after animation settles.
+    const t = setTimeout(() => setHighlightPostId(null), 3500);
+    scrollTimers.current = [t];
+  }, [posts, scrollTargetId]);
 
   const handlePinPost = useCallback(
     (postId: string) => {
-      pendingHighlightId.current = postId;
+      setScrollTargetId(postId);
       fetchPosts();
     },
     [fetchPosts],
   );
 
+  const handlePostPress = useCallback((postId: string) => {
+    lastViewedPostId.current = postId;
+  }, []);
+
   const renderItem: ListRenderItem<Post> = useCallback(
     ({ item }) => {
       if (item.id === highlightPostId) {
         return (
-          <HighlightWrap>
-            <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} />
+          <HighlightWrap flatListRef={flatListRef}>
+            <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} onPostPress={handlePostPress} />
           </HighlightWrap>
         );
       }
-      return <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} />;
+      return <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} onPostPress={handlePostPress} />;
     },
-    [handleDeletePost, handlePinPost, highlightPostId],
+    [handleDeletePost, handlePinPost, handlePostPress, highlightPostId],
   );
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
@@ -303,6 +378,14 @@ export default function HomeScreen() {
       {stats.dailyReflection && (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>DAILY REFLECTION</Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              if (stats.dailyReflection && stats.dailyReflection.content.length > 100) {
+                setReflectionExpanded((prev) => !prev);
+              }
+            }}
+          >
           <LinearGradient
             colors={[colors.surfaceContainerLow, colors.surfaceVariant]}
             start={{ x: 0, y: 0 }}
@@ -318,17 +401,14 @@ export default function HomeScreen() {
                 : stats.dailyReflection.content}
             </Text>
             {stats.dailyReflection.content.length > 100 && (
-              <TouchableOpacity
-                onPress={() => setReflectionExpanded((prev) => !prev)}
-                activeOpacity={0.7}
-                style={styles.seeMoreBtn}
-              >
+              <View style={styles.seeMoreBtn}>
                 <Text style={styles.seeMoreText}>
                   {reflectionExpanded ? 'See less' : 'See more...'}
                 </Text>
-              </TouchableOpacity>
+              </View>
             )}
           </LinearGradient>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -524,18 +604,18 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.screen, { backgroundColor: themeColors.background }]}
+      style={[styles.screen, { backgroundColor: colors.background }]}
     >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={themeColors.gradientStart}
+        backgroundColor={colors.gradientStart}
       />
 
       {/* ── Top bar ── */}
       <View
         style={[
           styles.topBar,
-          { backgroundColor: themeColors.surfaceContainerLowest },
+          { backgroundColor: colors.surfaceContainerLowest },
         ]}
       >
         <View style={styles.topBarLeft}>
@@ -620,6 +700,12 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+            {avatarUrl ? (
+              <Image
+                source={{ uri: `${getBaseUrl()}${avatarUrl}` }}
+                style={styles.topBarAvatar}
+              />
+            ) : (
             <LinearGradient
               colors={[colors.primaryContainer, colors.secondary]}
               start={{ x: 0, y: 0 }}
@@ -628,6 +714,7 @@ export default function HomeScreen() {
             >
               <Text style={styles.topBarAvatarText}>{initial}</Text>
             </LinearGradient>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -773,7 +860,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
 
   // ── Content row — feed + right panel on wide screens ──

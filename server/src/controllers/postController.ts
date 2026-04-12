@@ -115,7 +115,7 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
 
   const posts = await prisma.post.findMany({
     where: {
-      moderationStatus: { in: ['SAFE', 'REVIEW'] },
+      moderationStatus: 'SAFE',
       ...(searchQuery
         ? {
             OR: [
@@ -131,7 +131,7 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
       _count: { select: { reactions: true, comments: true } },
       comments: {
         where: {
-          moderationStatus: { in: ['SAFE', 'REVIEW'] },
+          moderationStatus: 'SAFE',
         },
         select: {
           id: true,
@@ -210,8 +210,8 @@ export async function getPostById(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Only return SAFE or REVIEW posts (not FLAGGED)
-  if (post.moderationStatus === 'FLAGGED') {
+  // Only return SAFE posts (not REVIEW or FLAGGED)
+  if (post.moderationStatus !== 'SAFE') {
     res.status(404).json({ error: 'Post not found.' });
     return;
   }
