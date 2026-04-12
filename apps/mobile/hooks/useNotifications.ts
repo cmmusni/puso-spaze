@@ -50,7 +50,10 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [webPushSubscribed, setWebPushSubscribed] = useState<boolean>(false);
+  const [webPushSubscribed, setWebPushSubscribed] = useState<boolean>(
+    // Synchronously check if permission was already granted to avoid banner flash on refresh
+    Platform.OS === 'web' && typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  );
 
   const notificationListener = useRef<any>();
   const responseListener = useRef<any>();
