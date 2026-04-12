@@ -1,9 +1,28 @@
 // ─────────────────────────────────────────────
 // src/services/notificationService.ts
 // Notification creation and push notification delivery
+// Supports both Expo Push (native) and Web Push (browser)
 // ─────────────────────────────────────────────
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/db';
+import { env } from '../config/env';
+import webpush from 'web-push';
+
+// ── Web Push setup ────────────────────────────
+let webPushReady = false;
+
+if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    env.VAPID_SUBJECT,
+    env.VAPID_PUBLIC_KEY,
+    env.VAPID_PRIVATE_KEY
+  );
+  webPushReady = true;
+  console.log('[WebPush] VAPID keys configured — web push enabled');
+} else {
+  console.warn('⚠️  [WebPush] VAPID keys not set — web push notifications disabled');
+}
 
 // Lazy-load Expo SDK (it's an ES Module)
 let Expo: any;
@@ -16,6 +35,30 @@ async function getExpoClient() {
     expo = new Expo();
   }
   return { Expo, expo };
+}
+
+/**
+ * Sends a Web Push notification to a single subscription.
+ * Silently catches errors (fire-and-forget) and clears invalid subscriptions.
+ */
+async function sendWebPush(
+  subscription: webpush.PushSubscription,
+  payload: { title: string; body: string; data?: any }
+): Promise<void> {
+  try {
+    await webpush.sendNotification(subscription, JSON.stringify(payload));
+  } catch (error: any) {
+    // 410 Gone or 404 = subscription expired/invalid — clear it
+    if (error.statusCode === 410 || error.statusCode === 404) {
+      console.warn('[WebPush] Subscription expired, clearing:', subscription.endpoint.substring(0, 60));
+      await prisma.user.updateMany({
+        where: { webPushSubscription: { equals: subscription as unknown as Prisma.InputJsonValue } },
+        data: { webPushSubscription: Prisma.DbNull },
+      }).catch(() => {});
+    } else {
+      console.error('❌ Web push send failed:', error.statusCode || error.message);
+    }
+  }
 }
 
 export interface NotificationData {
@@ -42,13 +85,13 @@ export async function createNotification(notif: NotificationData): Promise<void>
       },
     });
 
-    // Get user's push token
+    // Get user's push token and web push subscription
     const user = await prisma.user.findUnique({
       where: { id: notif.userId },
-      select: { expoPushToken: true },
+      select: { expoPushToken: true, webPushSubscription: true },
     });
 
-    // Send push notification if token exists
+    // Send Expo push notification if token exists (native)
     if (user?.expoPushToken) {
       const { Expo, expo } = await getExpoClient();
       
@@ -70,6 +113,14 @@ export async function createNotification(notif: NotificationData): Promise<void>
           }
         }
       }
+    }
+
+    // Send Web Push notification if subscription exists (browser)
+    if (user?.webPushSubscription && webPushReady) {
+      await sendWebPush(
+        user.webPushSubscription as unknown as webpush.PushSubscription,
+        { title: notif.title, body: notif.body, data: notif.data ?? {} }
+      );
     }
   } catch (error) {
     console.error('❌ Failed to create notification:', error);
@@ -143,49 +194,64 @@ export async function notifyNewEncouragement(params: {
   preview: string;
 }): Promise<void> {
   try {
-    // Get all users with push tokens (excluding system bot)
+    // Get all users with push tokens or web push subscriptions (excluding system bot)
     const users = await prisma.user.findMany({
       where: {
-        expoPushToken: { not: null },
         id: { not: 'system-encouragement-bot' },
+        OR: [
+          { expoPushToken: { not: null } },
+          { webPushSubscription: { not: Prisma.DbNull } },
+        ],
       },
-      select: { id: true, expoPushToken: true },
+      select: { id: true, expoPushToken: true, webPushSubscription: true },
     });
 
     if (users.length === 0) return;
+
+    const title = '🕊️ New Encouragement';
+    const body = params.preview.substring(0, 100) + (params.preview.length > 100 ? '...' : '');
+    const data = { postId: params.postId };
 
     // Create notifications in database for all users
     await prisma.notification.createMany({
       data: users.map((user) => ({
         userId: user.id,
         type: 'ENCOURAGEMENT' as any,
-        title: '🕊️ New Encouragement',
-        body: params.preview.substring(0, 100) + (params.preview.length > 100 ? '...' : ''),
-        data: { postId: params.postId },
+        title,
+        body,
+        data,
       })),
     });
 
+    // Send Expo push notifications
     const { Expo, expo } = await getExpoClient();
 
-    // Send push notifications
-    const messages: any[] = users
+    const expoMessages: any[] = users
       .filter((u) => u.expoPushToken && Expo.isExpoPushToken(u.expoPushToken))
       .map((u) => ({
         to: u.expoPushToken!,
         sound: 'default',
-        title: '🕊️ New Encouragement',
-        body: params.preview.substring(0, 100) + (params.preview.length > 100 ? '...' : ''),
-        data: { postId: params.postId },
+        title,
+        body,
+        data,
       }));
 
-    if (messages.length > 0) {
-      const chunks = expo.chunkPushNotifications(messages);
+    if (expoMessages.length > 0) {
+      const chunks = expo.chunkPushNotifications(expoMessages);
       for (const chunk of chunks) {
         try {
           await expo.sendPushNotificationsAsync(chunk);
         } catch (error) {
           console.error('❌ Failed to send encouragement notifications:', error);
         }
+      }
+    }
+
+    // Send Web Push notifications
+    if (webPushReady) {
+      const webPushUsers = users.filter((u) => u.webPushSubscription);
+      for (const u of webPushUsers) {
+        sendWebPush(u.webPushSubscription as unknown as webpush.PushSubscription, { title, body, data }).catch(() => {});
       }
     }
   } catch (error) {
@@ -214,20 +280,24 @@ export async function notifySystem(params: {
       })),
     });
 
-    // Get users with push tokens
+    // Get users with push tokens or web push subscriptions
     const users = await prisma.user.findMany({
       where: {
         id: { in: params.userIds },
-        expoPushToken: { not: null },
+        OR: [
+          { expoPushToken: { not: null } },
+          { webPushSubscription: { not: Prisma.DbNull } },
+        ],
       },
-      select: { expoPushToken: true },
+      select: { expoPushToken: true, webPushSubscription: true },
     });
 
     if (users.length === 0) return;
 
+    // Send Expo push notifications
     const { Expo, expo } = await getExpoClient();
 
-    const messages: any[] = users
+    const expoMessages: any[] = users
       .filter((u) => u.expoPushToken && Expo.isExpoPushToken(u.expoPushToken))
       .map((u) => ({
         to: u.expoPushToken!,
@@ -237,14 +307,25 @@ export async function notifySystem(params: {
         data: params.data ?? {},
       }));
 
-    if (messages.length > 0) {
-      const chunks = expo.chunkPushNotifications(messages);
+    if (expoMessages.length > 0) {
+      const chunks = expo.chunkPushNotifications(expoMessages);
       for (const chunk of chunks) {
         try {
           await expo.sendPushNotificationsAsync(chunk);
         } catch (error) {
           console.error('❌ Failed to send system notifications:', error);
         }
+      }
+    }
+
+    // Send Web Push notifications
+    if (webPushReady) {
+      const webPushUsers = users.filter((u) => u.webPushSubscription);
+      for (const u of webPushUsers) {
+        sendWebPush(
+          u.webPushSubscription as unknown as webpush.PushSubscription,
+          { title: params.title, body: params.body, data: params.data ?? {} }
+        ).catch(() => {});
       }
     }
   } catch (error) {

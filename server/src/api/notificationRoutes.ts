@@ -10,10 +10,15 @@ import {
   markAllNotificationsRead,
   getUnreadCount,
   registerPushToken,
+  registerWebPushSubscription,
+  getVapidPublicKey,
 } from '../controllers/notificationController';
 import { requireAuth } from '../middlewares/requireAuth';
 
 const router = Router();
+
+// GET /api/notifications/vapid-public-key (public — needed before auth for subscription)
+router.get('/vapid-public-key', getVapidPublicKey);
 
 // GET /api/notifications?userId=xxx
 router.get('/', requireAuth, getNotifications);
@@ -23,6 +28,9 @@ router.get('/unread-count', requireAuth, getUnreadCount);
 
 // POST /api/notifications/register-token
 router.post('/register-token', requireAuth, registerPushToken);
+
+// POST /api/notifications/register-web-push
+router.post('/register-web-push', requireAuth, registerWebPushSubscription);
 
 // PATCH /api/notifications/:id/read
 router.patch('/:id/read', requireAuth, markNotificationRead);

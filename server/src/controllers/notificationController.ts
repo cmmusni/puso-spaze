@@ -151,3 +151,44 @@ export async function registerPushToken(req: Request, res: Response): Promise<vo
     res.status(500).json({ error: 'Failed to register push token' });
   }
 }
+
+/**
+ * POST /api/notifications/register-web-push
+ * Register or update a user's Web Push subscription
+ */
+export async function registerWebPushSubscription(req: Request, res: Response): Promise<void> {
+  const { userId, subscription } = req.body as {
+    userId: string;
+    subscription: { endpoint: string; keys: { p256dh: string; auth: string } };
+  };
+
+  if (!userId || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    res.status(400).json({ error: 'userId and valid subscription object required' });
+    return;
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { webPushSubscription: subscription as any },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error registering web push subscription:', error);
+    res.status(500).json({ error: 'Failed to register web push subscription' });
+  }
+}
+
+/**
+ * GET /api/notifications/vapid-public-key
+ * Returns the VAPID public key for the client to use when subscribing
+ */
+export async function getVapidPublicKey(_req: Request, res: Response): Promise<void> {
+  const { env } = await import('../config/env');
+  if (!env.VAPID_PUBLIC_KEY) {
+    res.status(503).json({ error: 'Web push not configured' });
+    return;
+  }
+  res.json({ publicKey: env.VAPID_PUBLIC_KEY });
+}

@@ -646,6 +646,32 @@ export async function apiRegisterPushToken(
 }
 
 /**
+ * GET /api/notifications/vapid-public-key
+ * Get the VAPID public key for Web Push subscription
+ */
+export async function apiGetVapidPublicKey(): Promise<{ publicKey: string }> {
+  const { data } = await client.get<{ publicKey: string }>(
+    '/api/notifications/vapid-public-key'
+  );
+  return data;
+}
+
+/**
+ * POST /api/notifications/register-web-push
+ * Register a Web Push subscription for the current user
+ */
+export async function apiRegisterWebPushSubscription(body: {
+  userId: string;
+  subscription: PushSubscriptionJSON;
+}): Promise<{ success: boolean }> {
+  const { data } = await client.post<{ success: boolean }>(
+    '/api/notifications/register-web-push',
+    body
+  );
+  return data;
+}
+
+/**
  * PATCH /api/notifications/:id/read
  * Mark a notification as read
  */

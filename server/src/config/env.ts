@@ -43,6 +43,13 @@ export const env = {
     .filter(Boolean),
   /** Sender used for new-user alert emails */
   NEW_USER_ALERT_FROM: optional('NEW_USER_ALERT_FROM', 'PUSO Spaze <noreply@puso-spaze.org>'),
+  // ── Web Push (VAPID) ──────────────────────────────────────────────
+  /** VAPID public key for Web Push API — generate with: npx web-push generate-vapid-keys */
+  VAPID_PUBLIC_KEY: optional('VAPID_PUBLIC_KEY', ''),
+  /** VAPID private key for Web Push API */
+  VAPID_PRIVATE_KEY: optional('VAPID_PRIVATE_KEY', ''),
+  /** VAPID subject (mailto: or https: URL) */
+  VAPID_SUBJECT: optional('VAPID_SUBJECT', 'mailto:admin@puso-spaze.org'),
 } as const;
 
 // ── Startup security warnings ────────────────

@@ -29,6 +29,7 @@ model User {
   role          UserRole @default(USER)
   isAnonymous          Boolean  @default(false) // Hide identity from community
   expoPushToken        String?  // For mobile push notifications
+  webPushSubscription  Json?    // Web Push API subscription object (endpoint, keys)
   avatarUrl            String?  // Profile picture URL
   notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
   createdAt            DateTime @default(now())

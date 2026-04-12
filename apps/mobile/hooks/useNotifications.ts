@@ -1,40 +1,54 @@
 // ─────────────────────────────────────────────
 // hooks/useNotifications.ts
-// Expo push notifications setup and management
+// Push notifications — Expo (native) + Web Push (browser)
 // ─────────────────────────────────────────────
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { apiRegisterPushToken, apiGetUnreadCount } from '../services/api';
+import {
+  apiRegisterPushToken,
+  apiGetUnreadCount,
+  apiGetVapidPublicKey,
+  apiRegisterWebPushSubscription,
+} from '../services/api';
 
-// Configure how notifications are handled when app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// ── Expo notifications (only imported on native) ──
+let Notifications: typeof import('expo-notifications') | null = null;
+let Device: typeof import('expo-device') | null = null;
+
+if (Platform.OS !== 'web') {
+  // Dynamic require so the web bundle never pulls in native modules
+  Notifications = require('expo-notifications');
+  Device = require('expo-device');
+
+  Notifications!.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export interface UseNotificationsResult {
   expoPushToken: string | null;
-  notification: Notifications.Notification | null;
+  notification: any | null;
   unreadCount: number;
   refreshUnreadCount: () => Promise<void>;
 }
 
 /**
- * Hook to manage push notifications: permissions, token registration, and unread count
+ * Hook to manage push notifications: permissions, token registration, and unread count.
+ * On web → registers a service worker + Web Push subscription.
+ * On native → registers an Expo push token.
  */
 export function useNotifications(userId: string | null): UseNotificationsResult {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const [notification, setNotification] = useState<any | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+
+  const notificationListener = useRef<any>();
+  const responseListener = useRef<any>();
 
   // Fetch unread count
   const refreshUnreadCount = useCallback(async () => {
@@ -50,35 +64,40 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
   useEffect(() => {
     if (!userId) return;
 
-    // Register for push notifications
-    registerForPushNotificationsAsync(userId).then((token) => {
-      if (token) {
-        setExpoPushToken(token);
+    if (Platform.OS === 'web') {
+      // ── Web Push registration ──
+      registerForWebPushAsync(userId).catch((err) =>
+        console.error('Web push registration failed:', err)
+      );
+    } else {
+      // ── Expo Push registration (native) ──
+      registerForPushNotificationsAsync(userId).then((token) => {
+        if (token) setExpoPushToken(token);
+      });
+
+      if (Notifications) {
+        notificationListener.current =
+          Notifications.addNotificationReceivedListener((n) => {
+            setNotification(n);
+            refreshUnreadCount();
+          });
+
+        responseListener.current =
+          Notifications.addNotificationResponseReceivedListener((response) => {
+            const data = response.notification.request.content.data;
+            console.log('Notification tapped:', data);
+          });
       }
-    });
+    }
 
     // Fetch initial unread count
     refreshUnreadCount();
 
-    // Listen for notifications received while app is foregrounded
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      setNotification(notification);
-      // Refresh unread count when new notification arrives
-      refreshUnreadCount();
-    });
-
-    // Listen for user interactions with notifications
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      // You can navigate to specific screens based on notification data
-      console.log('Notification tapped:', data);
-    });
-
     return () => {
-      if (notificationListener.current) {
+      if (notificationListener.current && Notifications) {
         Notifications.removeNotificationSubscription(notificationListener.current);
       }
-      if (responseListener.current) {
+      if (responseListener.current && Notifications) {
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
@@ -92,22 +111,88 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
   };
 }
 
+// ─────────────────────────────────────────────
+// Web Push registration (browser only)
+// ─────────────────────────────────────────────
+
 /**
- * Registers the device for push notifications and sends token to backend
+ * Converts a base64-encoded VAPID public key to a Uint8Array for
+ * the Web Push applicationServerKey option.
  */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function registerForWebPushAsync(userId: string): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[WebPush] This browser does not support web push notifications');
+    return;
+  }
+
+  // 1. Register service worker
+  const registration = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+
+  // 2. Get VAPID public key from server
+  let vapidPublicKey: string;
+  try {
+    const { publicKey } = await apiGetVapidPublicKey();
+    vapidPublicKey = publicKey;
+  } catch {
+    console.warn('[WebPush] Server does not have VAPID keys configured');
+    return;
+  }
+
+  // 3. Subscribe to push (or get existing subscription)
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (!subscription) {
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('[WebPush] Notification permission denied');
+      return;
+    }
+
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+  }
+
+  // 4. Send subscription to backend
+  const subscriptionJSON = subscription.toJSON();
+  await apiRegisterWebPushSubscription({
+    userId,
+    subscription: subscriptionJSON,
+  });
+
+  console.log('[WebPush] Subscription registered successfully');
+}
+
+// ─────────────────────────────────────────────
+// Expo Push registration (native only)
+// ─────────────────────────────────────────────
+
 async function registerForPushNotificationsAsync(userId: string): Promise<string | null> {
-  // Push notifications only work on physical devices
-  if (!Device.isDevice) {
+  if (!Device?.isDevice) {
     console.warn('Push notifications require a physical device');
     return null;
   }
 
+  if (!Notifications) return null;
+
   try {
-    // Check existing permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
-    // Request permissions if not granted
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
@@ -118,16 +203,13 @@ async function registerForPushNotificationsAsync(userId: string): Promise<string
       return null;
     }
 
-    // Get the Expo push token
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: '7abfd1c5-c91a-4aa6-9f10-01d57f24e5e3', // Replace with your Expo project ID
+      projectId: '7abfd1c5-c91a-4aa6-9f10-01d57f24e5e3',
     });
     const token = tokenData.data;
 
-    // Register token with backend
     await apiRegisterPushToken({ userId, expoPushToken: token });
 
-    // Configure notification channel for Android
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Default',
