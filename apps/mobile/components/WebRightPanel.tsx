@@ -8,8 +8,23 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useUser } from "../hooks/useUser";
-import { apiGetDashboardStats, apiFetchCoaches, apiGetOrCreateConversation, getBaseUrl, type DashboardStats } from "../services/api";
-import type { CoachProfile } from "../../../packages/types";
+import { apiGetDashboardStats, apiFetchCoaches, apiFetchConversations, apiGetOrCreateConversation, getBaseUrl, type DashboardStats } from "../services/api";
+import type { CoachProfile, Conversation } from "../../../packages/types";
+
+function formatTimeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
+}
 
 const DAILY_GRACE_QUOTES = [
   "The world needs the light only you can carry.",
@@ -18,7 +33,8 @@ const DAILY_GRACE_QUOTES = [
 ];
 
 export default function WebRightPanel() {
-  const { username, userId } = useUser();
+  const { username, userId, role } = useUser();
+  const isCoach = role === 'COACH' || role === 'ADMIN';
   const navigation = useNavigation<any>();
   const colors = useThemeStore((s) => s.colors);
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -27,15 +43,22 @@ export default function WebRightPanel() {
     trendingTags: [], dailyReflection: null,
   });
   const [coaches, setCoaches] = useState<CoachProfile[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messagingCoachId, setMessagingCoachId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       apiGetDashboardStats(userId ?? undefined).then(setStats);
-      apiFetchCoaches()
-        .then((res) => setCoaches(res.coaches))
-        .catch(() => {});
-    }, [userId]),
+      if (isCoach && userId) {
+        apiFetchConversations(userId)
+          .then((res) => setConversations(res.conversations))
+          .catch(() => {});
+      } else {
+        apiFetchCoaches()
+          .then((res) => setCoaches(res.coaches))
+          .catch(() => {});
+      }
+    }, [userId, isCoach]),
   );
 
   const handleMessageCoach = async (coachId: string) => {
@@ -99,7 +122,75 @@ export default function WebRightPanel() {
         <Text style={styles.graceLabel}>DAILY GRACE</Text>
       </LinearGradient>
 
-      {/* Message a Coach */}
+      {/* Message a Coach (members) / Support Chats (coaches) */}
+      {isCoach ? (
+        <View style={styles.panelCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Support Chats</Text>
+          </View>
+          {conversations.length > 0 ? (
+            <>
+              {conversations.map((conv) => {
+                const other = conv.user;
+                const name = other?.displayName ?? 'Unknown';
+                const initial = name.charAt(0).toUpperCase();
+                const preview = conv.lastMessage?.content ?? '';
+                const truncated = preview.length > 28 ? preview.slice(0, 28) + '...' : preview;
+                const timeAgo = conv.lastMessage ? formatTimeAgo(conv.lastMessage.createdAt) : '';
+                return (
+                  <TouchableOpacity
+                    key={conv.id}
+                    style={styles.coachRow}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      navigation.navigate('Chat', {
+                        conversationId: conv.id,
+                        coachName: name,
+                      })
+                    }
+                  >
+                    {other?.avatarUrl ? (
+                      <Image
+                        source={{ uri: `${getBaseUrl()}${other.avatarUrl}` }}
+                        style={styles.coachAvatar}
+                      />
+                    ) : (
+                      <LinearGradient
+                        colors={[colors.secondary, colors.primaryContainer]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.coachAvatar}
+                      >
+                        <Text style={styles.coachAvatarText}>{initial}</Text>
+                      </LinearGradient>
+                    )}
+                    <View style={styles.coachInfo}>
+                      <Text style={styles.coachName}>{name}</Text>
+                      {truncated ? (
+                        <Text style={styles.coachSpecialty} numberOfLines={1}>
+                          &ldquo;{truncated}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {timeAgo ? (
+                      <Text style={styles.convTimeAgo}>{timeAgo}</Text>
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={styles.goToMessagesBtn}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('SpazeConversations')}
+              >
+                <Text style={styles.goToMessagesBtnText}>GO TO MESSAGES</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.emptyText}>No conversations yet</Text>
+          )}
+        </View>
+      ) : (
       <View style={styles.panelCard}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Message a Coach</Text>
@@ -146,6 +237,7 @@ export default function WebRightPanel() {
           <Text style={styles.emptyText}>No coaches available yet</Text>
         )}
       </View>
+      )}
     </ScrollView>
   );
 }
@@ -274,5 +366,24 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.bodySemiBold,
     color: colors.primary,
+  },
+  convTimeAgo: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+  },
+  goToMessagesBtn: {
+    borderWidth: 1,
+    borderColor: colors.outline,
+    borderRadius: radii.full,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  goToMessagesBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+    letterSpacing: 1,
   },
 });

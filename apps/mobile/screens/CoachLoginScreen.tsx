@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors } from '../constants/theme';
+import { colors, fonts, spacing, radii } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { showAlert } from '../utils/alertPlatform';
@@ -279,30 +279,28 @@ const styles = StyleSheet.create({
   logoRing: {
     width: 110,
     height: 110,
-    borderRadius: 55,
-    borderWidth: 3,
-    borderColor: 'rgba(129,73,166,0.3)',
+    borderRadius: 24,
     overflow: 'hidden',
     shadowColor: colors.fuchsia,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    elevation: 14,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
   },
-  logo: { width: 104, height: 104, borderRadius: 52 },
+  logo: { width: 110, height: 110 },
 
   // ── Title ───────────────────────────────────
   title: {
+    fontFamily: fonts.displayExtraBold,
     fontSize: 30,
-    fontWeight: '900',
     color: colors.heading,
     marginBottom: 4,
     textAlign: 'center',
   },
   tagline: {
+    fontFamily: fonts.displayBold,
     fontSize: 16,
     color: colors.fuchsia,
-    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 28,
   },
@@ -339,11 +337,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
+    fontFamily: fonts.displayBold,
     fontSize: 20,
-    fontWeight: '800',
     color: colors.heading,
   },
   cardSubtitle: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 14,
     color: colors.subtle,
     lineHeight: 21,
@@ -368,14 +367,15 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
+    fontFamily: fonts.bodyRegular,
     fontSize: 15,
     color: colors.text,
     paddingVertical: 14,
   },
   codeInput: {
+    fontFamily: fonts.displayBold,
     letterSpacing: 4,
     fontVariant: ['tabular-nums'],
-    fontWeight: '700',
   },
 
   // ── Hint ────────────────────────────────────
@@ -393,6 +393,7 @@ const styles = StyleSheet.create({
   },
   hintText: {
     flex: 1,
+    fontFamily: fonts.bodyRegular,
     fontSize: 12,
     color: colors.subtle,
     lineHeight: 17,
@@ -409,9 +410,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   ctaText: {
+    fontFamily: fonts.displayBold,
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '800',
   },
   ctaTextDisabled: {
     color: colors.muted4,
@@ -426,6 +427,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backLinkText: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 14,
     color: colors.subtle,
   },

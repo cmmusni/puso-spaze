@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors } from '../constants/theme';
+import { colors, fonts, spacing, radii } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
@@ -792,31 +792,29 @@ const styles = StyleSheet.create({
   logoRing: {
     width: 130,
     height: 130,
-    borderRadius: 65,
-    borderWidth: 3,
-    borderColor: 'rgba(129,73,166,0.3)',
+    borderRadius: 29,
     overflow: 'hidden',
     shadowColor: colors.fuchsia,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    elevation: 14,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
   },
   logo: {
-    width: 124,
-    height: 124,
-    borderRadius: 62,
+    width: 130,
+    height: 130,
   },
 
   // ── Title & Tagline ─────────────────────────
   title: {
+    fontFamily: fonts.displayExtraBold,
     fontSize: 34,
-    fontWeight: '900',
     color: colors.heading,
     marginBottom: 8,
     textAlign: 'center',
   },
   tagline: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 16,
     color: colors.subtle,
     lineHeight: 24,
@@ -842,8 +840,8 @@ const styles = StyleSheet.create({
         : { elevation: 8 }),
   },
   cardLabel: {
+    fontFamily: fonts.displayBold,
     fontSize: 12,
-    fontWeight: '800',
     color: colors.heading,
     letterSpacing: 2,
     marginBottom: 16,
@@ -871,11 +869,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   anonName: {
+    fontFamily: fonts.displayBold,
     fontSize: 16,
-    fontWeight: '700',
     color: colors.heading,
   },
   anonHint: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 12,
     color: colors.subtle,
     marginTop: 2,
@@ -904,14 +903,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   input: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 15,
     color: colors.text,
     paddingVertical: 14,
   },
   codeInput: {
+    fontFamily: fonts.displayBold,
     letterSpacing: 4,
     fontVariant: ['tabular-nums'],
-    fontWeight: '700',
   },
 
   // ── CTA Button ──────────────────────────────
@@ -929,13 +929,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   ctaText: {
+    fontFamily: fonts.displayBold,
     color: '#ffffff',
     fontSize: 18,
-    fontWeight: '800',
   },
 
   // ── Legal / Footer ──────────────────────────
   legalText: {
+    fontFamily: fonts.bodyRegular,
     textAlign: 'center',
     fontSize: 13,
     color: colors.subtle,
@@ -943,8 +944,8 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   legalLink: {
+    fontFamily: fonts.bodySemiBold,
     color: colors.primary,
-    fontWeight: '700',
   },
   footerLinks: {
     flexDirection: 'row',
@@ -953,6 +954,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   footerLink: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 14,
     color: colors.subtle,
   },
@@ -969,8 +971,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.safe,
   },
   onlineText: {
+    fontFamily: fonts.displayBold,
     fontSize: 12,
-    fontWeight: '800',
     letterSpacing: 2,
     color: colors.heading,
   },
@@ -996,13 +998,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
+    fontFamily: fonts.displayExtraBold,
     fontSize: 22,
-    fontWeight: '900',
     color: colors.heading,
     marginTop: 12,
     textAlign: 'center',
   },
   modalSubtitle: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 14,
     color: colors.subtle,
     textAlign: 'center',
@@ -1027,17 +1030,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   guidelineTitle: {
+    fontFamily: fonts.displayBold,
     fontSize: 15,
-    fontWeight: '700',
     color: colors.heading,
     marginBottom: 4,
   },
   guidelineBody: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 13,
     color: colors.subtle,
     lineHeight: 19,
   },
   guidelineFooter: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 13,
     color: colors.subtle,
     textAlign: 'center',
@@ -1054,9 +1059,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalCloseBtnText: {
+    fontFamily: fonts.displayBold,
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '800',
   },
 
   // ── PIN modal ──────────────────────────────
@@ -1075,13 +1080,14 @@ const styles = StyleSheet.create({
     maxWidth: 380,
   },
   pinTitle: {
+    fontFamily: fonts.displayBold,
     fontSize: 20,
-    fontWeight: '800',
     color: colors.primary,
     textAlign: 'center',
     marginBottom: 8,
   },
   pinSubtitle: {
+    fontFamily: fonts.bodyRegular,
     fontSize: 14,
     color: colors.muted5,
     textAlign: 'center',
@@ -1089,12 +1095,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   pinInput: {
+    fontFamily: fonts.displayBold,
     backgroundColor: colors.muted1,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 22,
-    fontWeight: '700',
     textAlign: 'center',
     letterSpacing: 8,
     color: colors.text,
@@ -1113,8 +1119,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pinCancelText: {
+    fontFamily: fonts.bodySemiBold,
     fontSize: 15,
-    fontWeight: '600',
     color: colors.muted5,
   },
   pinSubmitBtn: {
@@ -1125,8 +1131,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pinSubmitText: {
+    fontFamily: fonts.bodySemiBold,
     fontSize: 15,
-    fontWeight: '700',
     color: '#ffffff',
   },
   recoveryLink: {

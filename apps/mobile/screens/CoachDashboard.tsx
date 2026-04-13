@@ -479,7 +479,7 @@ export default function CoachDashboard() {
         )}
         <TouchableOpacity
           style={s.goToMsgsBtn}
-          onPress={() => (navigation as any).navigate('Messages')}
+          onPress={() => (navigation as any).navigate('SpazeConversations')}
           activeOpacity={0.7}
         >
           <Text style={s.goToMsgsText}>GO TO MESSAGES</Text>
