@@ -557,6 +557,8 @@ export default function HomeScreen() {
               onPress={handlePostReflection}
               activeOpacity={0.85}
               disabled={composing || composeText.trim().length < 3}
+              accessibilityRole="button"
+              accessibilityLabel="Post"
               style={[
                 styles.composerSubmitBtn,
                 (composing || composeText.trim().length < 3) &&
@@ -672,10 +674,12 @@ export default function HomeScreen() {
         ]}
       >
         <View style={styles.topBarLeft}>
-          {!isWide && (
+          {!isWide && Platform.OS !== 'web' && (
             <TouchableOpacity
               onPress={() => navigation.openDrawer()}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Open menu"
               style={styles.hamburger}
             >
               <Ionicons name="menu-outline" size={24} color={colors.heading} />

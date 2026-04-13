@@ -374,6 +374,8 @@ export default function LoginScreen() {
                 onPress={handleEnterSpaze}
                 disabled={loading}
                 activeOpacity={0.87}
+                accessibilityRole="button"
+                accessibilityLabel="Enter Spaze"
                 style={styles.ctaWrap}
               >
                 <LinearGradient

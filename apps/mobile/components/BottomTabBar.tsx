@@ -107,6 +107,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderTopColor: colors.muted3,
     paddingBottom: 8,
     paddingTop: 8,
+    ...(Platform.OS === "web" ? { position: "sticky" as any, bottom: 0, left: 0, right: 0, zIndex: 100 } : {}),
   },
   inner: {
     flexDirection: "row",

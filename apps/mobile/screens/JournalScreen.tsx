@@ -1156,7 +1156,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   actionChipEmoji: { fontSize: 14 },
   actionChipText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.displaySemiBold,
     color: colors.onSurfaceVariant,
     letterSpacing: 0.5,
