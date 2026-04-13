@@ -39,6 +39,8 @@ export interface UseNotificationsResult {
   requestWebPushPermission: () => Promise<void>;
   /** Whether web push is already subscribed */
   webPushSubscribed: boolean;
+  /** Whether the browser + server support web push */
+  webPushSupported: boolean;
 }
 
 /**
@@ -54,6 +56,7 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     // Synchronously check if permission was already granted to avoid banner flash on refresh
     Platform.OS === 'web' && typeof Notification !== 'undefined' && Notification.permission === 'granted'
   );
+  const [webPushSupported, setWebPushSupported] = useState<boolean>(false);
 
   const notificationListener = useRef<any>();
   const responseListener = useRef<any>();
@@ -89,6 +92,20 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     if (Platform.OS === 'web') {
       // Inject manifest link for PWA support (needed for iOS web push)
       injectManifestLink();
+
+      // Check if browser APIs + server VAPID key are available
+      const browserSupports =
+        typeof window !== 'undefined' &&
+        'serviceWorker' in navigator &&
+        'PushManager' in window &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission !== 'denied';
+
+      if (browserSupports) {
+        apiGetVapidPublicKey()
+          .then(() => setWebPushSupported(true))
+          .catch(() => setWebPushSupported(false));
+      }
 
       // Only auto-subscribe if permission was already granted previously
       // (avoids auto-prompting which iOS blocks)
@@ -138,6 +155,7 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     refreshUnreadCount,
     requestWebPushPermission,
     webPushSubscribed,
+    webPushSupported,
   };
 }
 

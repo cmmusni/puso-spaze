@@ -35,6 +35,7 @@ import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
 import { useUserStore } from "../context/UserContext";
 import { validatePostContent } from "../utils/validators";
+import { POST_MAX_LENGTH } from "../../../packages/core/constants";
 import { apiSearchUsers, getBaseUrl } from "../services/api";
 import {
   extractTrailingMentionQuery,
@@ -106,7 +107,6 @@ export default function PostScreen() {
   );
   const [visibilityMenuVisible, setVisibilityMenuVisible] = useState(false);
 
-  const MAX_CHARS = 500;
   const canSubmit = !loading && content.trim().length >= 3;
 
   const userInitial = (username ?? "A").charAt(0).toUpperCase();
@@ -319,7 +319,7 @@ export default function PostScreen() {
                   value={content}
                   onChangeText={handleContentChange}
                   multiline
-                  maxLength={MAX_CHARS}
+                  maxLength={POST_MAX_LENGTH}
                   editable={!loading}
                 />
               </View>

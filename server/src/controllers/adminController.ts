@@ -285,3 +285,47 @@ export async function resetUserDevice(req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to reset device binding.' });
   }
 }
+
+// ─────────────────────────────────────────────
+// JWT-authenticated admin endpoints
+// These use req.user from requireAuth middleware
+// instead of the ADMIN_SECRET header.
+// ─────────────────────────────────────────────
+
+/**
+ * POST /api/admin/my/invite-codes
+ * JWT Auth — requires ADMIN role
+ * Body: { count?: number }
+ */
+export async function generateInviteCodeJwt(req: Request, res: Response): Promise<void> {
+  if (!(await verifyAdmin(req.user?.userId ?? ''))) {
+    res.status(403).json({ error: 'Admin access required.' });
+    return;
+  }
+  return generateInviteCodes(req, res);
+}
+
+/**
+ * GET /api/admin/my/invite-codes
+ * JWT Auth — requires ADMIN role
+ */
+export async function listInviteCodesJwt(req: Request, res: Response): Promise<void> {
+  if (!(await verifyAdmin(req.user?.userId ?? ''))) {
+    res.status(403).json({ error: 'Admin access required.' });
+    return;
+  }
+  return listInviteCodes(req, res);
+}
+
+/**
+ * POST /api/admin/my/invite-codes/send-email
+ * JWT Auth — requires ADMIN role
+ * Body: { email: string }
+ */
+export async function sendInviteCodeByEmailJwt(req: Request, res: Response): Promise<void> {
+  if (!(await verifyAdmin(req.user?.userId ?? ''))) {
+    res.status(403).json({ error: 'Admin access required.' });
+    return;
+  }
+  return sendInviteCodeByEmail(req, res);
+}

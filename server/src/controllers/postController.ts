@@ -113,6 +113,9 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
   const limitRaw = parseInt(req.query.limit as string, 10);
   const take = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 50;
 
+  // Cursor-based pagination: pass ?cursor=<postId> to get the next page
+  const cursorId = typeof req.query.cursor === 'string' ? req.query.cursor.trim() : '';
+
   const posts = await prisma.post.findMany({
     where: {
       moderationStatus: 'SAFE',
@@ -144,10 +147,18 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
         take: 1,
       },
     },
-    take,
+    orderBy: { createdAt: 'desc' },
+    // Fetch one extra to determine if there's a next page
+    take: take + 1,
+    ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
   });
 
-  const sorted = posts.sort((a, b) => {
+  // Determine if there's a next page
+  const hasMore = posts.length > take;
+  const paginatedPosts = hasMore ? posts.slice(0, take) : posts;
+  const nextCursor = hasMore ? paginatedPosts[paginatedPosts.length - 1].id : null;
+
+  const sorted = paginatedPosts.sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
 
     const aLatestCommentAt = a.comments[0]?.createdAt ?? a.createdAt;
@@ -157,6 +168,7 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
   });
 
   res.json({
+    nextCursor,
     posts: sorted.map((p) => {
       const latestComment = p.comments[0];
 

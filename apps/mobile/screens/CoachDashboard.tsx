@@ -17,6 +17,7 @@ import {
   useWindowDimensions,
   SafeAreaView,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,11 +37,14 @@ import {
   apiFetchConversations,
   apiGetRecoveryRequests,
   apiReviewRecovery,
+  apiAdminGenerateInviteCodes,
+  apiAdminListInviteCodes,
+  apiAdminSendInviteByEmail,
   getBaseUrl,
 } from '../services/api';
 import type { DashboardStats } from '../services/api';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
-import type { Post, Comment, Conversation, RecoveryRequest } from '../../../packages/types';
+import type { Post, Comment, Conversation, RecoveryRequest, InviteCode } from '../../../packages/types';
 import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
 
 type Nav = DrawerNavigationProp<MainDrawerParamList>;
@@ -106,6 +110,13 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
+  const isAdmin = role === 'ADMIN';
+
+  // ── Invite state (admin only) ─────────────
+  const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [showInviteCodes, setShowInviteCodes] = useState(false);
 
   // ── Fetch data ────────────────────────────
 
@@ -124,6 +135,14 @@ export default function CoachDashboard() {
       setStats(dashStats);
       setConversations(convos.conversations.slice(0, 3));
       setRecoveryRequests(recoveryRes.requests);
+
+      // Fetch invite codes for admin
+      if (role === 'ADMIN') {
+        try {
+          const invRes = await apiAdminListInviteCodes();
+          setInviteCodes(invRes.codes);
+        } catch { /* non-critical */ }
+      }
     } catch {
       if (!silent) showAlert('Error', 'Could not load dashboard.');
     } finally {
@@ -209,9 +228,45 @@ export default function CoachDashboard() {
     } finally { setActing(null); }
   };
 
+  // ── Invite actions (admin only) ───────────
+
+  const handleGenerateCode = async () => {
+    setInviteLoading(true);
+    try {
+      const res = await apiAdminGenerateInviteCodes(1);
+      showAlert('Invite Code Generated', `Code: ${res.codes[0]}`);
+      const invRes = await apiAdminListInviteCodes();
+      setInviteCodes(invRes.codes);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? 'Failed to generate invite code.';
+      showAlert('Error', msg);
+    } finally { setInviteLoading(false); }
+  };
+
+  const handleSendInviteEmail = async () => {
+    const email = inviteEmail.trim();
+    if (!email) {
+      showAlert('Error', 'Please enter an email address.');
+      return;
+    }
+    setInviteLoading(true);
+    try {
+      const res = await apiAdminSendInviteByEmail(email);
+      showAlert('Invite Sent', `Invite code sent to ${res.email}`);
+      setInviteEmail('');
+      const invRes = await apiAdminListInviteCodes();
+      setInviteCodes(invRes.codes);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? 'Failed to send invite.';
+      showAlert('Error', msg);
+    } finally { setInviteLoading(false); }
+  };
+
   // ── Derived data ──────────────────────────
   const pendingCount = posts.length + comments.length;
   const flaggedCount = posts.filter(p => p.moderationStatus === 'FLAGGED').length;
+  const unusedCodes = inviteCodes.filter((c) => !c.used);
+  const usedCodes = inviteCodes.filter((c) => c.used);
 
   // ── Renders ───────────────────────────────
 
@@ -642,6 +697,139 @@ export default function CoachDashboard() {
                   </View>
                 );
               })}
+            </>
+          )}
+
+          {/* ── Invite Coaches (Admin only) ── */}
+          {isAdmin && (
+            <>
+              <View style={s.queueHeader}>
+                <View style={s.queueTitleRow}>
+                  <Text style={[s.queueTitle, isNarrow && s.queueTitleNarrow]}>Invite Coaches</Text>
+                  <View style={[s.queueBadge, { backgroundColor: colors.secondaryFixed }]}>
+                    <Text style={[s.queueBadgeText, { color: colors.onSecondaryFixed }]}>
+                      {unusedCodes.length} available
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Send invite by email */}
+              <View style={s.inviteCard}>
+                <View style={s.inviteCardHeader}>
+                  <View style={[s.inviteIconWrap, { backgroundColor: colors.primary + '18' }]}>
+                    <Ionicons name="mail-outline" size={20} color={colors.primary} />
+                  </View>
+                  <Text style={s.inviteCardTitle}>Send Invite by Email</Text>
+                </View>
+                <View style={s.inviteEmailRow}>
+                  <TextInput
+                    style={[s.inviteEmailInput, { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurface }]}
+                    placeholder="coach@example.com"
+                    placeholderTextColor={colors.muted4}
+                    value={inviteEmail}
+                    onChangeText={setInviteEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!inviteLoading}
+                  />
+                  <TouchableOpacity
+                    style={[s.inviteSendBtn, { backgroundColor: colors.primary }]}
+                    onPress={handleSendInviteEmail}
+                    disabled={inviteLoading}
+                    activeOpacity={0.8}
+                  >
+                    {inviteLoading ? (
+                      <ActivityIndicator size="small" color={colors.onPrimary} />
+                    ) : (
+                      <>
+                        <Ionicons name="send" size={14} color={colors.onPrimary} />
+                        <Text style={[s.inviteSendBtnText, { color: colors.onPrimary }]}>Send</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Generate code */}
+              <View style={s.inviteCard}>
+                <View style={s.inviteCardHeader}>
+                  <View style={[s.inviteIconWrap, { backgroundColor: colors.secondary + '18' }]}>
+                    <Ionicons name="key-outline" size={20} color={colors.secondary} />
+                  </View>
+                  <Text style={s.inviteCardTitle}>Generate Invite Code</Text>
+                </View>
+                <Text style={s.inviteHint}>
+                  Generate a code to share manually with a new coach.
+                </Text>
+                <TouchableOpacity
+                  style={[s.inviteGenerateBtn, { borderColor: colors.primary }]}
+                  onPress={handleGenerateCode}
+                  disabled={inviteLoading}
+                  activeOpacity={0.8}
+                >
+                  {inviteLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
+                      <Text style={[s.inviteGenerateBtnText, { color: colors.primary }]}>Generate Code</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Code list toggle */}
+              {inviteCodes.length > 0 && (
+                <TouchableOpacity
+                  style={s.inviteToggle}
+                  onPress={() => setShowInviteCodes((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showInviteCodes ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={[s.inviteToggleText, { color: colors.primary }]}>
+                    {showInviteCodes ? 'Hide' : 'Show'} all codes ({inviteCodes.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {showInviteCodes && inviteCodes.length > 0 && (
+                <View style={s.inviteCodeList}>
+                  {inviteCodes.map((code) => (
+                    <View
+                      key={code.id}
+                      style={[
+                        s.inviteCodeRow,
+                        { backgroundColor: code.used ? colors.surfaceContainerHigh : colors.surface },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.inviteCodeText,
+                          { color: code.used ? colors.muted4 : colors.onSurface },
+                          code.used && s.inviteCodeUsed,
+                        ]}
+                      >
+                        {code.code}
+                      </Text>
+                      {code.used ? (
+                        <View style={[s.inviteStatusBadge, { backgroundColor: colors.surfaceVariant }]}>
+                          <Text style={[s.inviteStatusText, { color: colors.muted5 }]}>Used</Text>
+                        </View>
+                      ) : (
+                        <View style={[s.inviteStatusBadge, { backgroundColor: colors.safe + '20' }]}>
+                          <Text style={[s.inviteStatusText, { color: colors.safe }]}>Available</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
             </>
           )}
         </ScrollView>
@@ -1139,5 +1327,117 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     color: colors.onSurfaceVariant,
     lineHeight: 16,
     marginLeft: 4,
+  },
+
+  // ── Invite Coaches (admin) ────────────────
+  inviteCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: 18,
+    marginBottom: 12,
+    ...ambientShadow,
+  },
+  inviteCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  inviteIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteCardTitle: {
+    fontSize: 15,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+  },
+  inviteEmailRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  inviteEmailInput: {
+    flex: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+  },
+  inviteSendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+  },
+  inviteSendBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+  },
+  inviteHint: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    marginBottom: 12,
+    lineHeight: 19,
+  },
+  inviteGenerateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: 1,
+  },
+  inviteGenerateBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+  },
+  inviteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  inviteToggleText: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+  },
+  inviteCodeList: {
+    gap: 6,
+    marginBottom: 16,
+  },
+  inviteCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  inviteCodeText: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 1,
+  },
+  inviteCodeUsed: {
+    textDecorationLine: 'line-through',
+  },
+  inviteStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  inviteStatusText: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
   },
 });

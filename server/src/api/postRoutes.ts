@@ -8,6 +8,7 @@
 // GET    /api/posts/:id/comments   — get comments
 // POST   /api/posts/:id/comments   — add comment
 // DELETE /api/posts/:id/comments/:commentId — delete own comment (or any comment if admin)
+import { POST_MIN_LENGTH, POST_MAX_LENGTH } from '../config/postLimits';
 // ─────────────────────────────────────────────
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -91,8 +92,8 @@ router.post(
       .withMessage('userId must be a valid UUID'),
     body('content')
       .trim()
-      .isLength({ min: 3, max: 500 })
-      .withMessage('content must be 3–500 characters'),
+      .isLength({ min: POST_MIN_LENGTH, max: POST_MAX_LENGTH })
+      .withMessage(`content must be ${POST_MIN_LENGTH}–${POST_MAX_LENGTH} characters`),
     body('tags')
       .optional()
       .customSanitizer((value) => {
@@ -128,8 +129,8 @@ router.patch(
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('content')
       .trim()
-      .isLength({ min: 3, max: 500 })
-      .withMessage('content must be 3–500 characters'),
+      .isLength({ min: POST_MIN_LENGTH, max: POST_MAX_LENGTH })
+      .withMessage(`content must be ${POST_MIN_LENGTH}–${POST_MAX_LENGTH} characters`),
     body('tags')
       .optional()
       .isArray({ max: 5 })

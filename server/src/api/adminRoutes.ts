@@ -13,7 +13,11 @@ import {
   pinPost,
   unpinPost,
   resetUserDevice,
+  generateInviteCodeJwt,
+  listInviteCodesJwt,
+  sendInviteCodeByEmailJwt,
 } from '../controllers/adminController';
+import { requireAuth } from '../middlewares/requireAuth';
 import { env } from '../config/env';
 
 const router = Router();
@@ -70,6 +74,32 @@ router.post(
   '/users/:userId/reset-device',
   requireAdmin,
   resetUserDevice
+);
+
+// ── JWT-authenticated admin routes ───────────
+// These allow the in-app admin user (role ADMIN) to manage invites
+// without needing the ADMIN_SECRET.
+
+// GET  /api/admin/my/invite-codes
+router.get('/my/invite-codes', requireAuth, listInviteCodesJwt);
+
+// POST /api/admin/my/invite-codes
+router.post(
+  '/my/invite-codes',
+  requireAuth,
+  [body('count').optional().isInt({ min: 1, max: 20 }), validate],
+  generateInviteCodeJwt
+);
+
+// POST /api/admin/my/invite-codes/send-email
+router.post(
+  '/my/invite-codes/send-email',
+  requireAuth,
+  [
+    body('email').isEmail().withMessage('A valid email address is required.'),
+    validate,
+  ],
+  sendInviteCodeByEmailJwt
 );
 
 export default router;

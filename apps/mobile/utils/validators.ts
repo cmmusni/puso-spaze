@@ -3,9 +3,8 @@
 // Input validation helpers for PUSO Spaze
 // ─────────────────────────────────────────────
 
-/** Minimum and maximum post content length */
-export const POST_MIN_LENGTH = 3;
-export const POST_MAX_LENGTH = 500;
+import { POST_MIN_LENGTH, POST_MAX_LENGTH } from '../../../packages/core/constants';
+export { POST_MIN_LENGTH, POST_MAX_LENGTH };
 
 /** Minimum username length (non-anonymous) */
 export const USERNAME_MIN_LENGTH = 2;

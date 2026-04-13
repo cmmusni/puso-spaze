@@ -57,8 +57,8 @@ export default function SpazeCoachScreen({ navigation }: any) {
         apiFetchCoaches(),
         apiFetchConversations(userId),
       ]);
-      setCoaches(coachRes.coaches.filter((c) => c.id !== userId));
-      setConversations(convRes.conversations);
+      setCoaches(coachRes.coaches.filter((c) => c.id !== userId && c.id !== 'system-encouragement-bot'));
+      setConversations(convRes.conversations.filter((c) => c.userId !== 'system-encouragement-bot' && c.coachId !== 'system-encouragement-bot'));
     } catch (err) {
       console.error("Failed to fetch coach data:", err);
     } finally {

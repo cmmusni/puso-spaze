@@ -11,6 +11,33 @@ import { prisma } from '../config/db';
 import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 import { signToken } from '../utils/jwt';
 
+/** Username that auto-assigns ADMIN role on creation */
+export const ADMIN_USERNAME = 'admin';
+
+/** Usernames that cannot be registered by anyone */
+export const RESERVED_USERNAMES = [
+  'spaze-admin',
+  'admin',
+  'coach',
+  'moderator',
+  'system',
+  'support',
+  'puso',
+  'puso-spaze',
+  'hourly hope',
+  'hourly-hope',
+];
+
+/** Check if a displayName is reserved (case-insensitive) */
+export function isReservedUsername(name: string): boolean {
+  return RESERVED_USERNAMES.some((r) => r.toLowerCase() === name.toLowerCase());
+}
+
+/** Check if a displayName is the admin username (case-insensitive) */
+export function isAdminUsername(name: string): boolean {
+  return name.toLowerCase() === ADMIN_USERNAME.toLowerCase();
+}
+
 /**
  * Generate a unique 6-digit PIN code.
  * Retries up to 10 times if a collision occurs.
@@ -186,10 +213,21 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // ── Block reserved usernames for new registrations ──
+    if (isReservedUsername(displayName) && !isAdminUsername(displayName)) {
+      res.status(403).json({ error: 'This username is reserved and unavailable.' });
+      return;
+    }
+
     // ── New user: create with deviceId and generate PIN ──
     const pin = await generateUniquePin();
     const user = await prisma.user.create({
-      data: { displayName, pin, ...(deviceId ? { deviceId } : {}) },
+      data: {
+        displayName,
+        pin,
+        ...(deviceId ? { deviceId } : {}),
+        ...(isAdminUsername(displayName) ? { role: 'ADMIN' } : {}),
+      },
     });
 
     const context = extractNewUserAlertContext(req);

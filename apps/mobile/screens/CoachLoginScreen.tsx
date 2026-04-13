@@ -297,11 +297,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.heading,
     marginBottom: 4,
+    textAlign: 'center',
   },
   tagline: {
     fontSize: 16,
     color: colors.fuchsia,
     fontWeight: '700',
+    textAlign: 'center',
     marginBottom: 28,
   },
 

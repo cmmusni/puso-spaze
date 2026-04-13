@@ -120,7 +120,7 @@ export interface CreatePostRequest { userId: string; content: string; tags?: str
 export interface CreatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
 export interface UpdatePostRequest { userId: string; content: string; tags?: string[]; }
 export interface UpdatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
-export interface GetPostsResponse { posts: Post[]; }
+export interface GetPostsResponse { posts: Post[]; nextCursor: string | null; }
 
 export interface UpsertReactionRequest { userId: string; type: ReactionType; }
 export interface UpsertReactionResponse {

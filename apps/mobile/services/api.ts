@@ -32,6 +32,8 @@ import type {
   ModeratePostResponse,
   ModerateCommentResponse,
   SendInviteByEmailResponse,
+  GenerateInviteCodesResponse,
+  ListInviteCodesResponse,
   GetNotificationsResponse,
   GetUnreadCountResponse,
   RegisterPushTokenRequest,
@@ -249,9 +251,12 @@ export async function apiUpdatePin(
  * GET /api/posts
  * Returns all SAFE-moderated posts. Optional search query.
  */
-export async function apiFetchPosts(query?: string): Promise<GetPostsResponse> {
+export async function apiFetchPosts(query?: string, cursor?: string): Promise<GetPostsResponse> {
+  const params: Record<string, string> = {};
+  if (query) params.q = query;
+  if (cursor) params.cursor = cursor;
   const { data } = await client.get<GetPostsResponse>('/api/posts', {
-    params: query ? { q: query } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
   return data;
 }
@@ -569,6 +574,45 @@ export async function apiSendInviteByEmail(
     '/api/admin/invite-codes/send-email',
     { email },
     { headers: { Authorization: `Bearer ${adminSecret}` } }
+  );
+  return data;
+}
+
+// ── Admin invite management (JWT-authenticated) ──
+
+/**
+ * GET /api/admin/my/invite-codes
+ * Lists all invite codes. Requires ADMIN role (JWT auth).
+ */
+export async function apiAdminListInviteCodes(): Promise<ListInviteCodesResponse> {
+  const { data } = await client.get<ListInviteCodesResponse>('/api/admin/my/invite-codes');
+  return data;
+}
+
+/**
+ * POST /api/admin/my/invite-codes
+ * Generates new invite codes. Requires ADMIN role (JWT auth).
+ */
+export async function apiAdminGenerateInviteCodes(
+  count: number = 1
+): Promise<GenerateInviteCodesResponse> {
+  const { data } = await client.post<GenerateInviteCodesResponse>(
+    '/api/admin/my/invite-codes',
+    { count }
+  );
+  return data;
+}
+
+/**
+ * POST /api/admin/my/invite-codes/send-email
+ * Generates and emails an invite code. Requires ADMIN role (JWT auth).
+ */
+export async function apiAdminSendInviteByEmail(
+  email: string
+): Promise<SendInviteByEmailResponse> {
+  const { data } = await client.post<SendInviteByEmailResponse>(
+    '/api/admin/my/invite-codes/send-email',
+    { email }
   );
   return data;
 }

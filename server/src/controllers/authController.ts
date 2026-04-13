@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 import { signToken } from '../utils/jwt';
+import { isReservedUsername } from './userController';
 
 /**
  * POST /api/auth/redeem-invite
@@ -20,6 +21,12 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
   const { displayName, code, deviceId } = req.body as { displayName: string; code: string; deviceId?: string };
 
   try {
+    // 0. Block all reserved usernames from invite code flow
+    if (isReservedUsername(displayName)) {
+      res.status(403).json({ error: 'This username is reserved.' });
+      return;
+    }
+
     // 1. Find the invite code
     const invite = await prisma.inviteCode.findUnique({ where: { code: code.toUpperCase() } });
 

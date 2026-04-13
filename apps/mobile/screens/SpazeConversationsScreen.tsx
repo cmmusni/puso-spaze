@@ -43,7 +43,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
   const fetchData = useCallback(async () => {
     try {
       const res = await apiFetchAllConversations();
-      setConversations(res.conversations);
+      setConversations(res.conversations.filter((c) => c.userId !== 'system-encouragement-bot' && c.coachId !== 'system-encouragement-bot'));
     } catch (err) {
       console.error("Failed to fetch conversations:", err);
     } finally {

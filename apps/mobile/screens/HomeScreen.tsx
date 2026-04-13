@@ -30,6 +30,7 @@ import { useUser } from "../hooks/useUser";
 import { useNotifications } from "../hooks/useNotifications";
 import { apiGetDashboardStats, getBaseUrl, type DashboardStats } from "../services/api";
 import { validatePostContent } from "../utils/validators";
+import { POST_MAX_LENGTH } from "../../../packages/core/constants";
 import { showAlert } from "../utils/alertPlatform";
 import PostCard from "../components/PostCard";
 import type { Post } from "../../../packages/types";
@@ -121,10 +122,10 @@ export default function HomeScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { username, role, userId, avatarUrl } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
-  const { posts, loading, error, fetchPosts, submitPost } = usePosts();
-  const { unreadCount, refreshUnreadCount, requestWebPushPermission, webPushSubscribed } = useNotifications(userId);
+  const { posts, loading, loadingMore, hasMore, error, fetchPosts, loadMore, submitPost } = usePosts();
+  const { unreadCount, refreshUnreadCount, requestWebPushPermission, webPushSubscribed, webPushSupported } = useNotifications(userId);
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
-  const showPushBanner = Platform.OS === 'web' && !webPushSubscribed && !pushBannerDismissed;
+  const showPushBanner = Platform.OS === 'web' && webPushSupported && !webPushSubscribed && !pushBannerDismissed;
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
 
@@ -471,7 +472,7 @@ export default function HomeScreen() {
               value={composeText}
               onChangeText={setComposeText}
               multiline
-              maxLength={500}
+              maxLength={POST_MAX_LENGTH}
               editable={!composing}
             />
           </View>
@@ -614,6 +615,23 @@ export default function HomeScreen() {
       <View style={styles.feedHeaderSpacer} />
     </View>
   );
+
+  const handleLoadMore = useCallback(() => {
+    if (hasMore && !loadingMore) {
+      loadMore(searchQuery || undefined);
+    }
+  }, [hasMore, loadingMore, loadMore, searchQuery]);
+
+  const listFooter = useMemo(() => {
+    if (loadingMore) {
+      return (
+        <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      );
+    }
+    return null;
+  }, [loadingMore, colors.primary]);
 
   const listEmpty = (
     <View style={styles.emptyWrap}>
@@ -775,9 +793,12 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={!loading ? listEmpty : null}
+            ListFooterComponent={listFooter}
             onScroll={handleScroll}
             scrollEventThrottle={16}
             onScrollToIndexFailed={() => {}}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
             refreshControl={
               <RefreshControl
                 refreshing={loading}

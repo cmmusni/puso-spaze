@@ -958,7 +958,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   roleBadgeAdmin: {
-    backgroundColor: colors.safe,
+    backgroundColor: colors.darkest,
   },
   roleBadgeMember: {
     backgroundColor: colors.surfaceVariant,
