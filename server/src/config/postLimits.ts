@@ -7,4 +7,4 @@
 export const POST_MIN_LENGTH = 3;
 
 /** Maximum post content length */
-export const POST_MAX_LENGTH = 1000;
+export const POST_MAX_LENGTH = 500;

@@ -16,7 +16,7 @@ import { body, param } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import { createPost, getPosts, getPostById, deletePost, updatePost } from '../controllers/postController';
+import { createPost, getPosts, getPostById, deletePost, updatePost, reportPost } from '../controllers/postController';
 import { upsertReaction, getReactions } from '../controllers/reactionController';
 import { createComment, getComments, deleteComment, updateComment, upsertCommentReaction } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
@@ -144,6 +144,18 @@ router.patch(
 router.get('/:postId/reactions', getReactions);
 router.post('/:postId/reactions', requireAuth, upsertReaction);
 
+// ── Report (user-facing flag) ──────────────
+router.post(
+  '/:postId/report',
+  requireAuth,
+  [
+    param('postId').isUUID().withMessage('postId must be a valid UUID'),
+    body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  reportPost
+);
+
 // ── Comments ───────────────────────────────
 router.get('/:postId/comments', getComments);
 router.post(
@@ -153,8 +165,8 @@ router.post(
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('content')
       .trim()
-      .isLength({ min: 1, max: 500 })
-      .withMessage('content must be 1–500 characters'),
+      .isLength({ min: 3, max: 500 })
+      .withMessage('content must be 3–500 characters'),
     validate,
   ],
   createComment
@@ -180,8 +192,8 @@ router.patch(
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('content')
       .trim()
-      .isLength({ min: 1, max: 500 })
-      .withMessage('content must be 1–500 characters'),
+      .isLength({ min: 3, max: 500 })
+      .withMessage('content must be 3–500 characters'),
     validate,
   ],
   updateComment

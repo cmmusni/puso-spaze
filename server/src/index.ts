@@ -20,6 +20,7 @@ import conversationRoutes from './api/conversationRoutes';
 import recoveryRoutes from './api/recoveryRoutes';
 import { startReflectionReminderScheduler } from './services/reflectionReminderScheduler';
 import { getDailyReflection, getPersonalisedDailyReflection } from './services/dailyReflectionService';
+import { deepStripNullBytes, stripNullBytes } from './utils/sanitize';
 
 // ── App ───────────────────────────────────────
 const app = express();
@@ -35,8 +36,58 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+// BUG-001 fix: Strip null bytes from all request bodies, query params,
+// and URL params globally. PostgreSQL text columns cannot store \u0000.
+app.use((req, _res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    req.body = deepStripNullBytes(req.body);
+  }
+  // Also strip from query string values
+  if (req.query && typeof req.query === 'object') {
+    for (const key of Object.keys(req.query)) {
+      const val = req.query[key];
+      if (typeof val === 'string') {
+        req.query[key] = stripNullBytes(val);
+      }
+    }
+  }
+  next();
+});
+
+// BUG-007 fix: Reject excessively nested JSON payloads.
+// Deeply nested objects (20+ levels) can cause stack overflows or
+// unhandled errors in route handlers. Limit nesting to 10 levels.
+function getJsonDepth(value: unknown, current = 0): number {
+  if (current > 10) return current;
+  if (Array.isArray(value)) {
+    let max = current;
+    for (const item of value) {
+      max = Math.max(max, getJsonDepth(item, current + 1));
+      if (max > 10) return max;
+    }
+    return max;
+  }
+  if (value !== null && typeof value === 'object') {
+    let max = current;
+    for (const v of Object.values(value)) {
+      max = Math.max(max, getJsonDepth(v, current + 1));
+      if (max > 10) return max;
+    }
+    return max;
+  }
+  return current;
+}
+
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object' && getJsonDepth(req.body) > 10) {
+    res.status(400).json({ error: 'Request body is too deeply nested.' });
+    return;
+  }
+  next();
+});
 
 // ── Serve uploaded images with security headers ──
 // QUALITY.md Scenario 8: Prevent uploaded files from executing scripts
@@ -130,11 +181,17 @@ app.use((_req, res) => {
 // ── Global error handler ──────────────────────
 app.use(
   (
-    err: Error,
+    err: Error & { type?: string; status?: number },
     _req: express.Request,
     res: express.Response,
     _next: express.NextFunction
   ) => {
+    // Catch body-parser errors (malformed JSON, payload too large, etc.)
+    // body-parser always sets err.status to 400 or 413 for client errors.
+    if (err.status && err.status >= 400 && err.status < 500) {
+      res.status(err.status).json({ error: err.message || 'Bad request.' });
+      return;
+    }
     console.error('[Server Error]', err.message);
     res.status(500).json({ error: 'Internal server error.' });
   }

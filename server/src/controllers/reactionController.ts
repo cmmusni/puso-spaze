@@ -31,34 +31,48 @@ export async function upsertReaction(req: Request, res: Response): Promise<void>
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) { res.status(404).json({ error: 'User not found.' }); return; }
 
-  // Check if user already reacted
-  const existing = await prisma.reaction.findUnique({
-    where: { postId_userId: { postId, userId } },
-  });
+  // BUG-001 fix: Wrap in try/catch to handle race conditions from concurrent
+  // reactions by the same user. Prisma unique constraint errors (P2002) and
+  // record-not-found errors (P2025) are caught gracefully instead of crashing.
+  try {
+    // Check if user already reacted
+    const existing = await prisma.reaction.findUnique({
+      where: { postId_userId: { postId, userId } },
+    });
 
-  // Toggle: same type → remove; different type → update
-  if (existing?.type === (type as ReactionType)) {
-    await prisma.reaction.delete({ where: { postId_userId: { postId, userId } } });
-    res.json({ removed: true, type });
-    return;
+    // Toggle: same type → remove; different type → update
+    if (existing?.type === (type as ReactionType)) {
+      await prisma.reaction.delete({ where: { postId_userId: { postId, userId } } });
+      res.json({ removed: true, type });
+      return;
+    }
+
+    const reaction = await prisma.reaction.upsert({
+      where: { postId_userId: { postId, userId } },
+      update: { type: type as ReactionType },
+      create: { postId, userId, type: type as ReactionType },
+    });
+
+    // Send notification to post author (async, don't await)
+    notifyReaction({
+      postId,
+      postAuthorId: post.userId,
+      reactorId: userId,
+      reactorName: user.displayName,
+      reactionType: type,
+    }).catch((err) => console.error('Failed to send reaction notification:', err));
+
+    res.status(201).json({ removed: false, reaction: { id: reaction.id, type: reaction.type } });
+  } catch (error: any) {
+    // P2002 = unique constraint violation (concurrent create race)
+    // P2025 = record not found (concurrent delete race)
+    if (error.code === 'P2002' || error.code === 'P2025') {
+      res.status(409).json({ error: 'Reaction conflict — please try again.' });
+      return;
+    }
+    console.error('Error upserting reaction:', error);
+    res.status(500).json({ error: 'Failed to react to post.' });
   }
-
-  const reaction = await prisma.reaction.upsert({
-    where: { postId_userId: { postId, userId } },
-    update: { type: type as ReactionType },
-    create: { postId, userId, type: type as ReactionType },
-  });
-
-  // Send notification to post author (async, don't await)
-  notifyReaction({
-    postId,
-    postAuthorId: post.userId,
-    reactorId: userId,
-    reactorName: user.displayName,
-    reactionType: type,
-  }).catch((err) => console.error('Failed to send reaction notification:', err));
-
-  res.status(201).json({ removed: false, reaction: { id: reaction.id, type: reaction.type } });
 }
 
 // ── GET /api/posts/:postId/reactions ──────────

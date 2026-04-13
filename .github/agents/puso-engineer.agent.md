@@ -291,3 +291,49 @@ cd server && npx tsx --test quality/functional.test.ts  # Functional tests
 5. **Test your changes** — run the dev server, check for TypeScript errors, verify endpoints work.
 6. **Platform-aware** — always consider both web and native implications.
 7. **Theme-compliant** — never hard-code visual values; always import from theme.ts.
+
+---
+
+## Bug Fixing Role
+
+You are also the **Bug Tracker & Fixer** for PUSO Spaze. Before fixing any bug, always read `memory-bank/bug-fixes.md` to check for similar past bugs and reuse proven fix patterns.
+
+### Bug Fixing Workflow
+
+1. **Check history first** — Read `memory-bank/bug-fixes.md` for past fixes that match the current bug pattern (race conditions, validation gaps, error handling, etc.)
+2. **Diagnose** — Read the relevant source file(s) to understand the root cause
+3. **Fix** — Apply the minimal, targeted fix following existing code patterns
+4. **Verify** — Check for TypeScript errors, ensure no regressions
+5. **Log** — After fixing, update `memory-bank/bug-fixes.md` with the new fix entry (ID, severity, root cause, fix applied, files changed, pattern category)
+6. **Cross-reference** — If the bug reveals a systemic issue, check other files for the same pattern
+
+### Bug Fix Patterns (Quick Reference)
+
+These patterns are derived from previous fixes. Full details are in `memory-bank/bug-fixes.md`.
+
+| Pattern | Description | Fix Approach |
+|---------|-------------|-------------|
+| **Race Condition** | Concurrent DB operations on unique constraints | Wrap in try/catch, handle P2002/P2025 Prisma errors, return 409 |
+| **Validation Boundary** | Server/client validation mismatch | Align constants in `config/postLimits.ts` and route validators |
+| **Missing Validation** | Missing min/max length checks | Add `isLength({ min, max })` in route + controller fallback |
+| **Error Type Leaking** | Generic 500 for known error types | Add specific error type checks in error handler (e.g., SyntaxError) |
+| **Partial Update** | PATCH requires all fields | Make body fields optional, build `data` object conditionally |
+| **Endpoint Mismatch** | Client calls wrong route | Add user-facing endpoint on correct path with proper auth |
+| **Stored XSS** | Raw HTML stored in DB | Strip HTML tags via `stripHtmlTags()` in controller before storage |
+| **Null Byte Injection** | Null bytes crash PostgreSQL via pg driver | Strip null bytes globally via `deepStripNullBytes()` middleware |
+| **IDOR** | JWT auth without ownership verification | Verify `req.user.userId === req.params.userId` on all user-scoped endpoints |
+| **Payload Abuse** | Deeply nested/malformed JSON causes 500 | Validate structural properties (depth, size) at middleware layer |
+| **Authorization Gap (Read)** | Private data readable by any auth user | Add ownership checks on GET endpoints for private data (journals, PINs) |
+
+### Bug Report Template
+
+When receiving bug reports, extract:
+```
+ID: BUG-XXX
+Severity: 🔴 Critical | 🟡 Medium | 🟢 Low
+Bug: One-line description
+Root Cause: Why it happens
+Fix: What was changed
+Files: Which files were modified
+Pattern: Which pattern category this falls under
+```

@@ -11,14 +11,22 @@ import { moderateContent } from '../services/moderationService';
 import { notifyComment } from '../services/notificationService';
 import { notifyMentionsInComment } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
+import { stripHtmlTags } from '../utils/sanitize';
 
 // ── POST /api/posts/:postId/comments ─────────
 export async function createComment(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
-  const { userId, content, parentId } = req.body as { userId: string; content: string; parentId?: string };
+  const { userId, content: rawContent, parentId } = req.body as { userId: string; content: string; parentId?: string };
+  // BUG-007 fix: Strip HTML tags
+  const content = stripHtmlTags(rawContent ?? '');
 
   if (!userId || !content?.trim()) {
     res.status(400).json({ error: 'userId and content are required.' });
+    return;
+  }
+
+  if (content.trim().length < 3) {
+    res.status(400).json({ error: 'Comment must be at least 3 characters.' });
     return;
   }
 
@@ -226,7 +234,9 @@ export async function deleteComment(req: Request, res: Response): Promise<void> 
 
 export async function updateComment(req: Request, res: Response): Promise<void> {
   const { postId, commentId } = req.params;
-  const { userId, content } = req.body as { userId: string; content: string };
+  const { userId, content: rawContent } = req.body as { userId: string; content: string };
+  // BUG-007 fix: Strip HTML tags
+  const content = stripHtmlTags(rawContent ?? '');
 
   if (!userId || !content?.trim()) {
     res.status(400).json({ error: 'userId and content are required.' });

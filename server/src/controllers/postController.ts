@@ -8,6 +8,7 @@ import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
 import { notifyMentionsInPost } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
+import { stripHtmlTags } from '../utils/sanitize';
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -15,11 +16,13 @@ import { generateAnonUsername } from '../utils/generateAnonUsername';
  * Runs AI moderation, saves post, returns { post, flagged }
  */
 export async function createPost(req: Request, res: Response): Promise<void> {
-  const { userId, content, tags } = req.body as {
+  const { userId, content: rawContent, tags } = req.body as {
     userId: string;
     content: string;
     tags?: string[];
   };
+  // BUG-007 fix: Strip HTML tags to prevent stored XSS
+  const content = stripHtmlTags(rawContent ?? '');
   const bodyIsAnonymous = req.body.isAnonymous;
 
   const imageFile = (req as any).file as Express.Multer.File | undefined;
@@ -305,11 +308,13 @@ export async function deletePost(req: Request, res: Response): Promise<void> {
 
 export async function updatePost(req: Request, res: Response): Promise<void> {
   const { postId } = req.params;
-  const { userId, content, tags } = req.body as {
+  const { userId, content: rawContent, tags } = req.body as {
     userId: string;
     content: string;
     tags?: string[];
   };
+  // BUG-007 fix: Strip HTML tags
+  const content = stripHtmlTags(rawContent ?? '');
 
   if (!userId || !content?.trim()) {
     res.status(400).json({ error: 'userId and content are required.' });
@@ -382,4 +387,38 @@ export async function updatePost(req: Request, res: Response): Promise<void> {
     flagged: false,
     underReview: moderationStatus === 'REVIEW',
   });
+}
+
+// ── POST /api/posts/:postId/report ────────────
+/**
+ * BUG-006 fix: User-facing report/flag endpoint.
+ * Moves a SAFE post to REVIEW so coaches can inspect it.
+ * Requires { userId } in body (the reporter).
+ */
+export async function reportPost(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+  const { userId } = req.body as { userId: string };
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required.' });
+    return;
+  }
+
+  const post = await prisma.post.findUnique({ where: { id: postId } });
+  if (!post) {
+    res.status(404).json({ error: 'Post not found.' });
+    return;
+  }
+
+  if (post.moderationStatus !== 'SAFE') {
+    res.json({ message: 'Post is already under review.' });
+    return;
+  }
+
+  await prisma.post.update({
+    where: { id: postId },
+    data: { moderationStatus: 'REVIEW' },
+  });
+
+  res.json({ message: 'Post reported and sent for review. Thank you.' });
 }

@@ -80,10 +80,12 @@ router.patch(
     param('journalId').isUUID().withMessage('journalId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('title')
+      .optional()
       .trim()
       .isLength({ min: 1, max: 200 })
       .withMessage('title must be 1–200 characters'),
     body('content')
+      .optional()
       .trim()
       .isLength({ min: 1, max: 5000 })
       .withMessage('content must be 1–5000 characters'),

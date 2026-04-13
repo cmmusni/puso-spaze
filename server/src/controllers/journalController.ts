@@ -5,12 +5,19 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { stripHtmlTags } from '../utils/sanitize';
 
 // ── GET /api/journals?userId=... ─────────────
 export async function getJournals(req: Request, res: Response): Promise<void> {
   const userId = req.query.userId as string;
   if (!userId) {
     res.status(400).json({ error: 'userId query param is required.' });
+    return;
+  }
+
+  // BUG-008 fix: Verify JWT userId matches query param — journals are private
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only view your own journal entries.' });
     return;
   }
 
@@ -28,6 +35,12 @@ export async function getJournals(req: Request, res: Response): Promise<void> {
 export async function getJournalById(req: Request, res: Response): Promise<void> {
   const { journalId } = req.params;
   const userId = req.query.userId as string;
+
+  // BUG-008 fix: Verify JWT userId matches query param — journals are private
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only view your own journal entries.' });
+    return;
+  }
 
   const journal = await prisma.journal.findUnique({
     where: { id: journalId },
@@ -49,13 +62,16 @@ export async function getJournalById(req: Request, res: Response): Promise<void>
 
 // ── POST /api/journals ───────────────────────
 export async function createJournal(req: Request, res: Response): Promise<void> {
-  const { userId, title, content, mood, tags } = req.body as {
+  const { userId, title: rawTitle, content: rawContent, mood, tags } = req.body as {
     userId: string;
     title: string;
     content: string;
     mood?: string;
     tags?: string[];
   };
+  // BUG-006 fix: Strip HTML tags from journal title and content
+  const title = stripHtmlTags(rawTitle ?? '');
+  const content = stripHtmlTags(rawContent ?? '');
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
@@ -82,8 +98,8 @@ export async function updateJournal(req: Request, res: Response): Promise<void> 
   const { journalId } = req.params;
   const { userId, title, content, mood, tags } = req.body as {
     userId: string;
-    title: string;
-    content: string;
+    title?: string;
+    content?: string;
     mood?: string;
     tags?: string[];
   };
@@ -98,9 +114,17 @@ export async function updateJournal(req: Request, res: Response): Promise<void> 
     return;
   }
 
+  // BUG-005 fix: Only update provided fields (partial update)
+  // BUG-006 fix: Strip HTML tags from journal title and content
+  const data: Record<string, any> = {};
+  if (title !== undefined) data.title = stripHtmlTags(title);
+  if (content !== undefined) data.content = stripHtmlTags(content);
+  if (mood !== undefined) data.mood = mood ?? null;
+  if (tags !== undefined) data.tags = tags ?? [];
+
   const journal = await prisma.journal.update({
     where: { id: journalId },
-    data: { title, content, mood: mood ?? null, tags: tags ?? [] },
+    data,
     include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 

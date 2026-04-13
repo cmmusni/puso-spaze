@@ -298,6 +298,12 @@ export async function updateUsername(req: Request, res: Response): Promise<void>
   const { userId } = req.params;
   const { displayName } = req.body as { displayName: string };
 
+  // BUG-004 fix: Verify JWT userId matches the URL param to prevent IDOR
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only update your own username.' });
+    return;
+  }
+
   try {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -330,6 +336,12 @@ export async function toggleAnonymous(req: Request, res: Response): Promise<void
   const { userId } = req.params;
   const { isAnonymous } = req.body as { isAnonymous: boolean };
 
+  // BUG-005 fix: Verify JWT userId matches the URL param to prevent IDOR
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only change your own anonymous mode.' });
+    return;
+  }
+
   if (typeof isAnonymous !== 'boolean') {
     res.status(400).json({ error: 'isAnonymous must be a boolean.' });
     return;
@@ -361,6 +373,12 @@ export async function toggleNotifications(req: Request, res: Response): Promise<
   const { userId } = req.params;
   const { enabled } = req.body as { enabled: boolean };
 
+  // IDOR fix: Verify JWT userId matches the URL param
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only change your own notification settings.' });
+    return;
+  }
+
   if (typeof enabled !== 'boolean') {
     res.status(400).json({ error: 'enabled must be a boolean.' });
     return;
@@ -390,6 +408,13 @@ export async function toggleNotifications(req: Request, res: Response): Promise<
  */
 export async function uploadAvatar(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
+
+  // IDOR fix: Verify JWT userId matches the URL param
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only update your own avatar.' });
+    return;
+  }
+
   const imageFile = (req as any).file as Express.Multer.File | undefined;
 
   if (!imageFile) {
@@ -423,6 +448,12 @@ export async function uploadAvatar(req: Request, res: Response): Promise<void> {
 export async function getPin(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
 
+  // BUG-002 fix: Verify JWT userId matches the URL param to prevent IDOR
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only view your own PIN.' });
+    return;
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -449,6 +480,12 @@ export async function getPin(req: Request, res: Response): Promise<void> {
 export async function updatePin(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
   const { pin } = req.body as { pin: string };
+
+  // BUG-003 fix: Verify JWT userId matches the URL param to prevent IDOR
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only change your own PIN.' });
+    return;
+  }
 
   try {
     const user = await prisma.user.update({
