@@ -490,6 +490,20 @@ export async function apiUpsertCommentReaction(
 // ── Coach / Auth endpoints ───────────────────
 
 /**
+ * GET /api/auth/invite-email?code=...
+ * Returns the email associated with an unused invite code.
+ */
+export async function apiGetInviteEmail(
+  code: string
+): Promise<{ email: string | null }> {
+  const { data } = await client.get<{ email: string | null }>(
+    '/api/auth/invite-email',
+    { params: { code } }
+  );
+  return data;
+}
+
+/**
  * POST /api/auth/redeem-invite
  * Validates an invite code and creates a COACH account.
  */

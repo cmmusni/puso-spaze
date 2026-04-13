@@ -6,9 +6,12 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middlewares/validate';
-import { redeemInvite } from '../controllers/authController';
+import { redeemInvite, getInviteEmail } from '../controllers/authController';
 
 const router = Router();
+
+// Look up email associated with an invite code (for prefilling the coach signup form)
+router.get('/invite-email', getInviteEmail);
 
 router.post(
   '/redeem-invite',

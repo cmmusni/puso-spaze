@@ -28,6 +28,7 @@ import { colors, fonts, spacing, radii } from '../constants/theme';
 import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { showAlert } from '../utils/alertPlatform';
+import { apiGetInviteEmail } from '../services/api';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type CoachLoginRouteProp = RouteProp<RootStackParamList, 'CoachLogin'>;
@@ -40,9 +41,12 @@ export default function CoachLoginScreen() {
 
   const [coachName, setCoachName] = useState('');
   const [coachCode, setCoachCode] = useState('');
+  const [coachEmail, setCoachEmail] = useState('');
+  const [emailPrefilled, setEmailPrefilled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [nameFocused, setNameFocused] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
 
   const { width } = useWindowDimensions();
   const isWide = width >= 600;
@@ -63,6 +67,24 @@ export default function CoachLoginScreen() {
       }
     }
   }, [route.params?.code]);
+
+  // ── Fetch email when code is complete ──────
+  useEffect(() => {
+    const trimmed = coachCode.trim().toUpperCase();
+    if (trimmed.length !== 11) return;
+
+    let cancelled = false;
+    apiGetInviteEmail(trimmed)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.email) {
+          setCoachEmail(res.email);
+          setEmailPrefilled(true);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [coachCode]);
 
   // ── Handlers ──────────────────────────────
   const canSubmit = !loading && coachName.trim().length >= 2 && coachCode.trim().length >= 11;
@@ -182,7 +204,14 @@ export default function CoachLoginScreen() {
                   placeholder="XXXXX-XXXXX"
                   placeholderTextColor={colors.muted4}
                   value={coachCode}
-                  onChangeText={(t) => setCoachCode(t.toUpperCase())}
+                  onChangeText={(t) => {
+                    setCoachCode(t.toUpperCase());
+                    // Reset email if code changes
+                    if (t.toUpperCase() !== coachCode) {
+                      setCoachEmail('');
+                      setEmailPrefilled(false);
+                    }
+                  }}
                   onFocus={() => setCodeFocused(true)}
                   onBlur={() => setCodeFocused(false)}
                   autoCapitalize="characters"
@@ -191,6 +220,45 @@ export default function CoachLoginScreen() {
                   editable={!loading}
                 />
               </View>
+
+              {/* Email (prefilled from invite or editable) */}
+              {coachCode.trim().length === 11 && (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    emailFocused && styles.inputFocused,
+                    emailPrefilled && styles.inputPrefilled,
+                  ]}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={16}
+                    color={emailPrefilled ? colors.fuchsia : colors.muted4}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, emailPrefilled && styles.prefilledText]}
+                    placeholder="coach@email.com"
+                    placeholderTextColor={colors.muted4}
+                    value={coachEmail}
+                    onChangeText={setCoachEmail}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+                  {emailPrefilled && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={colors.fuchsia}
+                      style={{ marginLeft: 4 }}
+                    />
+                  )}
+                </View>
+              )}
 
               {/* Hint */}
               <View style={styles.hintRow}>
@@ -376,6 +444,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
     letterSpacing: 4,
     fontVariant: ['tabular-nums'],
+  },
+  inputPrefilled: {
+    backgroundColor: '#FDF2F8',
+    borderColor: colors.fuchsia,
+    borderWidth: 1,
+  },
+  prefilledText: {
+    color: colors.fuchsia,
   },
 
   // ── Hint ────────────────────────────────────

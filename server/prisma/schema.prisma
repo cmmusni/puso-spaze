@@ -30,6 +30,7 @@ model User {
   isAnonymous          Boolean  @default(false) // Hide identity from community
   expoPushToken        String?  // For mobile push notifications
   webPushSubscription  Json?    // Web Push API subscription object (endpoint, keys)
+  email                String?  // Coach email address (from invite code)
   avatarUrl            String?  // Profile picture URL
   notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
   createdAt            DateTime @default(now())
@@ -52,6 +53,7 @@ model User {
 model InviteCode {
   id        String    @id @default(uuid())
   code      String    @unique
+  email     String?   // Email of the invited coach
   used      Boolean   @default(false)
   usedBy    String?
   createdAt DateTime  @default(now())

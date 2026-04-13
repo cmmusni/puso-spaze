@@ -106,7 +106,7 @@ export async function sendInviteCodeByEmail(req: Request, res: Response): Promis
       const exists = await prisma.inviteCode.findUnique({ where: { code } });
       if (!exists) break;
     }
-    const record = await prisma.inviteCode.create({ data: { code } });
+    const record = await prisma.inviteCode.create({ data: { code, email } });
 
     // ── Send email via Resend ────────────────────────────
     const resend = getResend();

@@ -10,6 +10,31 @@ import { signToken } from '../utils/jwt';
 import { isReservedUsername } from './userController';
 
 /**
+ * GET /api/auth/invite-email?code=XXXXX-XXXXX
+ * Returns the email associated with an unused invite code.
+ * Public endpoint — no auth required (code itself is the secret).
+ */
+export async function getInviteEmail(req: Request, res: Response): Promise<void> {
+  const code = (req.query.code as string)?.trim().toUpperCase();
+  if (!code) {
+    res.status(400).json({ error: 'code query param is required.' });
+    return;
+  }
+
+  const invite = await prisma.inviteCode.findUnique({
+    where: { code },
+    select: { email: true, used: true },
+  });
+
+  if (!invite || invite.used) {
+    res.json({ email: null });
+    return;
+  }
+
+  res.json({ email: invite.email ?? null });
+}
+
+/**
  * POST /api/auth/redeem-invite
  * Body: { displayName: string; code: string; deviceId?: string }
  *
@@ -58,13 +83,20 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
     }
 
     // 3. Upsert the user — keep existing role on re-login, default to COACH on first login
+    //    Copy email from invite code to user record
     const user = await prisma.user.upsert({
       where: { displayName },
       update: {
         lastActiveAt: new Date(),
         ...(deviceId && !existingUser?.deviceId ? { deviceId } : {}),
+        ...(invite.email ? { email: invite.email } : {}),
       },
-      create: { displayName, role: 'COACH', ...(deviceId ? { deviceId } : {}) },
+      create: {
+        displayName,
+        role: 'COACH',
+        ...(deviceId ? { deviceId } : {}),
+        ...(invite.email ? { email: invite.email } : {}),
+      },
     });
 
     if (!existingUser) {
