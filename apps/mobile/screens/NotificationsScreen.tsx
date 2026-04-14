@@ -390,20 +390,13 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: spacing.md,
-    paddingBottom: 80,
   },
 
   // Header
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: 16,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radii.xl,
-    ...ambientShadow,
+    paddingBottom: spacing.md,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -525,8 +518,9 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // List
   list: {
-    paddingTop: 32,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: 80,
     ...(Platform.OS === 'web' ? { maxWidth: 900, alignSelf: 'center' as any, width: '100%' as any } : {}),
   },
 
