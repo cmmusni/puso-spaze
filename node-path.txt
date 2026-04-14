@@ -1,1 +1,0 @@
-/Users/CliffordMark.Musni/.nvm/versions/node/v20.20.2/bin/node

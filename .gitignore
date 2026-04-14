@@ -57,3 +57,10 @@ logs/
 # IDE
 .vscode/
 .idea/
+
+# Build logs (temp files from native builds)
+gradle-*.txt
+gradle-errors.txt
+node-path.txt
+worklets-install.txt
+test-results/

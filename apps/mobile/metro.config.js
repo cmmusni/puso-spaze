@@ -24,10 +24,25 @@ config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs', 'cjs'];
 config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
 // Force axios to use browser build instead of Node.js build
+// Force zustand to use CJS build — ESM build uses import.meta which breaks Metro web bundles
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'axios') {
     return {
       filePath: path.resolve(__dirname, 'node_modules/axios/dist/browser/axios.cjs'),
+      type: 'sourceFile',
+    };
+  }
+  // Zustand's ESM entry uses import.meta.env which isn't supported in non-module scripts.
+  // Force CJS entry points which use process.env.NODE_ENV instead.
+  if (platform === 'web' && moduleName === 'zustand') {
+    return {
+      filePath: path.resolve(__dirname, 'node_modules/zustand/index.js'),
+      type: 'sourceFile',
+    };
+  }
+  if (platform === 'web' && moduleName === 'zustand/vanilla') {
+    return {
+      filePath: path.resolve(__dirname, 'node_modules/zustand/vanilla.js'),
       type: 'sourceFile',
     };
   }
