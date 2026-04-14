@@ -3,6 +3,6 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     // react-native-reanimated plugin MUST be last
-    plugins: ['nativewind/babel', 'react-native-reanimated/plugin'],
+    plugins: ['react-native-reanimated/plugin'],
   };
 };

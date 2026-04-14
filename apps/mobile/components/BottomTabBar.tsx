@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors as defaultColors } from "../constants/theme";
@@ -46,8 +47,9 @@ interface Props {
 
 export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unreadCount = 0, reviewCount = 0 }: Props) {
   const colors = useThemeStore((s) => s.colors);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 600;
   const styles = useMemo(() => createStyles(colors), [colors]);
-  if (Platform.OS !== "web") return null;
 
   const visibleTabs = TABS.filter((tab) => {
     if (tab.coachOnly && !isCoach) return false;
@@ -56,8 +58,8 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.muted3 }]}>
-      <View style={styles.inner}>
+    <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.muted3 }, isTablet && styles.containerTablet]}>
+      <View style={[styles.inner, isTablet && styles.innerTablet]}>
         {visibleTabs.map((tab) => {
           const active = currentRoute === tab.route;
           return (
@@ -109,11 +111,19 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     paddingTop: 8,
     ...(Platform.OS === "web" ? { position: "sticky" as any, bottom: 0, left: 0, right: 0, zIndex: 100 } : {}),
   },
+  containerTablet: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    paddingTop: 10,
+  },
   inner: {
     flexDirection: "row",
     maxWidth: 680,
     width: "100%" as any,
     alignSelf: "center" as any,
+  },
+  innerTablet: {
+    maxWidth: 560,
   },
   tab: {
     flex: 1,

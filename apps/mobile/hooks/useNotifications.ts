@@ -139,11 +139,11 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     refreshUnreadCount();
 
     return () => {
-      if (notificationListener.current && Notifications) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+      if (notificationListener.current) {
+        notificationListener.current.remove();
       }
-      if (responseListener.current && Notifications) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+      if (responseListener.current) {
+        responseListener.current.remove();
       }
     };
   }, [userId]);

@@ -15,12 +15,12 @@ import {
   Platform,
   Image,
   useWindowDimensions,
-  SafeAreaView,
   StatusBar,
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 
@@ -914,12 +914,14 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   statCard: {
-    minWidth: 140,
+    minWidth: 160,
     backgroundColor: colors.surface,
     borderRadius: radii.xl,
-    padding: 16,
+    padding: 18,
     ...ambientShadow,
   },
   statTop: {

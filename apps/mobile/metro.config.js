@@ -1,4 +1,4 @@
-// metro.config.js — Expo + NativeWind v2 Metro configuration
+// metro.config.js — Expo SDK 55 Metro configuration
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
@@ -17,7 +17,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
-// NativeWind v2: ensure CSS/PostCSS transforms don't run through Babel on web
+// Ensure mjs/cjs extensions are resolved
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs', 'cjs'];
 
 // Prioritize React Native and browser versions over Node.js versions

@@ -10,7 +10,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import {
   useWindowDimensions,
   TextInput,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
@@ -273,17 +273,6 @@ export default function SpazeConversationsScreen({ navigation }: any) {
                 end={{ x: 1, y: 1 }}
                 style={s.heroBg}
               >
-                <View style={s.heroTopRow}>
-                  {Platform.OS !== "web" && (
-                    <TouchableOpacity
-                      onPress={() => navigation.openDrawer?.() ?? navigation.goBack()}
-                      style={s.heroBackBtn}
-                    >
-                      <Ionicons name="menu" size={22} color={colors.onPrimary} />
-                    </TouchableOpacity>
-                  )}
-                  <View style={{ flex: 1 }} />
-                </View>
                 <View style={s.heroContent}>
                   <View style={s.heroIconWrap}>
                     <Ionicons name="people-circle" size={38} color="rgba(255,255,255,0.9)" />

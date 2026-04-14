@@ -1,0 +1,6 @@
+81:FAILURE: Build failed with an exception.
+381:Caused by: com.android.builder.errors.EvalIssueException: [CXX1101] NDK at /Users/CliffordMark.Musni/Library/Android/sdk/ndk/27.1.12297006 did not have a source.properties file
+382:	at com.android.builder.errors.IssueReporter.reportError(IssueReporter.kt:119)
+383:	at com.android.builder.errors.IssueReporter.reportError$default(IssueReporter.kt:114)
+386:	at com.android.build.gradle.internal.cxx.logging.LoggingEnvironmentKt.errorln(LoggingEnvironment.kt:62)
+443:BUILD FAILED in 8s

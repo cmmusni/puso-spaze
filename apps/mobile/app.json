@@ -29,7 +29,12 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FCF8FF"
       },
-      "package": "com.pusospaze.app"
+      "package": "com.pusospaze.app",
+      "versionCode": 2,
+      "permissions": [
+        "INTERNET",
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

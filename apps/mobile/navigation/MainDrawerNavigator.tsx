@@ -209,7 +209,6 @@ function ScreenWithTabs({
 
 function withTabs(Screen: React.ComponentType<any>, routeName: string) {
   return function TabWrappedScreen(props: any) {
-    if (Platform.OS !== "web") return <Screen {...props} />;
     return (
       <ScreenWithTabs currentRoute={routeName} navigation={props.navigation}>
         <Screen {...props} />
@@ -244,7 +243,7 @@ export default function MainDrawerNavigator() {
       screenOptions={{
         headerShown: false,
         drawerStyle: isWideWeb
-          ? { display: "none" as any, width: 0 }
+          ? { width: 0 }
           : { width: 280, backgroundColor: "transparent" },
         overlayColor: "rgba(0,0,0,0.55)",
         drawerType: "slide",

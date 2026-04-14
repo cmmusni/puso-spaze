@@ -23,6 +23,7 @@ import {
   BeVietnamPro_600SemiBold,
   BeVietnamPro_700Bold,
 } from '@expo-google-fonts/be-vietnam-pro';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import { useUserStore } from './context/UserContext';
 import { colors } from './constants/theme';
@@ -66,11 +67,13 @@ export default function App() {
   // ── Main app ──────────────────────────────────
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: themeColors.background }}>
-      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={themeColors.gradientStart} />
-      <WebShell>
-        <AppNavigator />
-      </WebShell>
-      <CustomAlertModal />
+      <SafeAreaProvider>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <WebShell>
+          <AppNavigator />
+        </WebShell>
+        <CustomAlertModal />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

@@ -315,7 +315,7 @@ export default function LoginScreen() {
                 <Image
                   source={require('../assets/logo.png')}
                   style={styles.logo}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
               </View>
             </View>
@@ -792,10 +792,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logoRing: {
-    width: 130,
-    height: 130,
-    borderRadius: 29,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     overflow: 'hidden',
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
     shadowColor: colors.fuchsia,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
@@ -803,8 +807,8 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   logo: {
-    width: 130,
-    height: 130,
+    width: 44,
+    height: 44,
   },
 
   // ── Title & Tagline ─────────────────────────

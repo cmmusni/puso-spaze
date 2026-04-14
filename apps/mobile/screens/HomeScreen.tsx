@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   ListRenderItem,
   StatusBar,
   StyleSheet,
@@ -27,6 +26,7 @@ import { useNavigation, useFocusEffect, useRoute, type RouteProp } from "@react-
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNotifications } from "../hooks/useNotifications";
 import { apiGetDashboardStats, getBaseUrl, type DashboardStats } from "../services/api";
 import { validatePostContent } from "../utils/validators";
@@ -128,6 +128,7 @@ export default function HomeScreen() {
   const showPushBanner = Platform.OS === 'web' && webPushSupported && !webPushSubscribed && !pushBannerDismissed;
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
+  const showRightPanel = width >= 1200;
 
   // ── FlatList ref for scrolling ──
   const flatListRef = useRef<FlatList<Post>>(null);
@@ -151,6 +152,7 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const SHORT_DAILY_REFLECTION_LENGTH = 80;
 
   // Debounce search input → 400ms
   useEffect(() => {
@@ -432,11 +434,11 @@ export default function HomeScreen() {
               <Ionicons name="sparkles" size={24} color={colors.secondary} />
             </View>
             <Text style={styles.reflectionQuote}>
-              {!reflectionExpanded && stats.dailyReflection.content.length > 100
-                ? stats.dailyReflection.content.slice(0, 100) + '...'
+              {!reflectionExpanded && stats.dailyReflection.content.length > SHORT_DAILY_REFLECTION_LENGTH
+                ? stats.dailyReflection.content.slice(0, SHORT_DAILY_REFLECTION_LENGTH) + '...'
                 : stats.dailyReflection.content}
             </Text>
-            {stats.dailyReflection.content.length > 100 && (
+            {stats.dailyReflection.content.length > SHORT_DAILY_REFLECTION_LENGTH && (
               <View style={styles.seeMoreBtn}>
                 <Text style={styles.seeMoreText}>
                   {reflectionExpanded ? 'See less' : 'See more...'}
@@ -582,8 +584,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ── Spaze Stats & trending (hidden on wide - in right panel) ── */}
-      {!isWide && (
+      {/* ── Spaze Stats & trending (hidden when right panel visible) ── */}
+      {!showRightPanel && (
         <>
           {/* ── Spaze Stats (collapsed) ── */}
           <View style={styles.section}>
@@ -654,8 +656,6 @@ export default function HomeScreen() {
       </Text>
     </View>
   );
-
-  const showRightPanel = isWide && width >= 1200;
 
   return (
     <SafeAreaView
@@ -792,7 +792,7 @@ export default function HomeScreen() {
             renderItem={renderItem}
             contentContainerStyle={[
               styles.listContent,
-              { paddingHorizontal: isWide ? 36 : 20 },
+              { paddingHorizontal: isWide || showRightPanel ? 36 : 20 },
             ]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={listHeader}

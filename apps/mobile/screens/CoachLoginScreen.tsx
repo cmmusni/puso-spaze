@@ -142,7 +142,7 @@ export default function CoachLoginScreen() {
                 <Image
                   source={require('../assets/logo.png')}
                   style={styles.logo}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
               </View>
             </View>
@@ -345,17 +345,21 @@ const styles = StyleSheet.create({
   // ── Logo ────────────────────────────────────
   logoContainer: { alignItems: 'center', marginBottom: 24 },
   logoRing: {
-    width: 110,
-    height: 110,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     overflow: 'hidden',
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
     shadowColor: colors.fuchsia,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 12,
   },
-  logo: { width: 110, height: 110 },
+  logo: { width: 44, height: 44 },
 
   // ── Title ───────────────────────────────────
   title: {
