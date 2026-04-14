@@ -158,8 +158,8 @@ export default function JournalScreen({ navigation }: any) {
   const isDark = useThemeStore((s) => s.isDark);
   const st = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
-  const isWide = Platform.OS === "web" && width >= 900;
-  const showSidePanel = Platform.OS === "web" && width >= 1100;
+  const isWide = width >= 900;
+  const showSidePanel = width >= 1100;
 
   // ── Highlight state ───────────────────────
   const [highlightedId, setHighlightedId] = useState<string | null>(null);

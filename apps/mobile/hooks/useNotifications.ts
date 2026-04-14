@@ -316,7 +316,7 @@ async function registerForPushNotificationsAsync(userId: string): Promise<string
     }
 
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: '7abfd1c5-c91a-4aa6-9f10-01d57f24e5e3',
+      projectId: '353a10cc-0fe0-467d-9d70-6161ffa2f637',
     });
     const token = tokenData.data;
 

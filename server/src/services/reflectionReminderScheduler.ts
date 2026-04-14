@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────
 
 import cron from 'node-cron';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/db';
 import { createNotification } from './notificationService';
 
@@ -27,12 +28,15 @@ function getRandomPrompt(): string {
  */
 async function sendReflectionReminders(): Promise<void> {
   try {
-    // Get all users who have notifications enabled and a push token
+    // Get all users who have notifications enabled and a push token (native or web)
     const users = await prisma.user.findMany({
       where: {
         notificationsEnabled: true,
-        expoPushToken: { not: null },
         id: { not: 'system-encouragement-bot' },
+        OR: [
+          { expoPushToken: { not: null } },
+          { webPushSubscription: { not: Prisma.DbNull } },
+        ],
       },
       select: { id: true },
     });

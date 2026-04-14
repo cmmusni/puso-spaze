@@ -17,6 +17,7 @@ import {
   Alert,
   ScrollView,
   Image,
+  ImageBackground,
   StyleSheet,
   useWindowDimensions,
   Modal,
@@ -294,11 +295,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.kav}
     >
-      <LinearGradient
-        colors={[colors.canvas, colors.surface, colors.muted1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+      <ImageBackground
+        source={require('../assets/background-image.png')}
         style={styles.gradient}
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.45 }}
       >
         <ScrollView
           contentContainerStyle={[
@@ -311,13 +312,11 @@ export default function LoginScreen() {
           <View style={isWide ? { width: containerMaxW } : undefined}>
             {/* ── Logo ── */}
             <View style={styles.logoContainer}>
-              <View style={styles.logoRing}>
                 <Image
                   source={require('../assets/logo.png')}
                   style={styles.logo}
                   resizeMode="contain"
                 />
-              </View>
             </View>
 
             {/* ── Title & Tagline ── */}
@@ -666,7 +665,7 @@ export default function LoginScreen() {
             )}
           </View>
         </ScrollView>
-      </LinearGradient>
+      </ImageBackground>
 
       {/* ── PIN Login Modal ── */}
       <Modal
@@ -777,6 +776,8 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
   scroll: {
     flexGrow: 1,
@@ -791,24 +792,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  logoRing: {
+  logo: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    shadowColor: colors.fuchsia,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  logo: {
-    width: 44,
-    height: 44,
   },
 
   // ── Title & Tagline ─────────────────────────
@@ -818,6 +804,9 @@ const styles = StyleSheet.create({
     color: colors.heading,
     marginBottom: 8,
     textAlign: 'center',
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
   tagline: {
     fontFamily: fonts.bodyRegular,
@@ -826,6 +815,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
     textAlign: 'center',
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
 
   // ── Card ────────────────────────────────────
@@ -948,6 +940,9 @@ const styles = StyleSheet.create({
     color: colors.subtle,
     lineHeight: 20,
     marginBottom: 28,
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   legalLink: {
     fontFamily: fonts.bodySemiBold,
@@ -963,6 +958,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 14,
     color: colors.subtle,
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   onlineRow: {
     flexDirection: 'row',
@@ -981,6 +979,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 2,
     color: colors.heading,
+    textShadowColor: 'rgba(255,255,255,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
 
   // ── Guidelines Modal ────────────────────────

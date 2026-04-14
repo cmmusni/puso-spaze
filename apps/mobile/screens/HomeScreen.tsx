@@ -127,7 +127,7 @@ export default function HomeScreen() {
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
   const showPushBanner = Platform.OS === 'web' && webPushSupported && !webPushSubscribed && !pushBannerDismissed;
   const { width } = useWindowDimensions();
-  const isWide = Platform.OS === "web" && width >= 900;
+  const isWide = width >= 900;
   const showRightPanel = width >= 1200;
 
   // ── FlatList ref for scrolling ──

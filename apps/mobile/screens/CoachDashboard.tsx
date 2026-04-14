@@ -99,7 +99,7 @@ export default function CoachDashboard() {
   const isDark = useThemeStore((s) => s.isDark);
   const s = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
-  const isWide = Platform.OS === 'web' && width >= 1000;
+  const isWide = width >= 900;
   const isNarrow = width < 500;
 
   const [posts, setPosts] = useState<Post[]>([]);

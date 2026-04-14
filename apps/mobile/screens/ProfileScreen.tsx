@@ -53,7 +53,7 @@ export default function ProfileScreen() {
   const s = useMemo(() => createStyles(colors), [colors]);
   const { posts, fetchPosts } = usePosts();
   const { width } = useWindowDimensions();
-  const isWide = Platform.OS === "web" && width >= 900;
+  const isWide = width >= 900;;
   const isMedium = width >= 600;
   const twoCol = width >= 700;
 

@@ -15,6 +15,8 @@ import {
   Alert,
   TextInput,
   SectionList,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +30,7 @@ import {
   apiGetPostById,
 } from '../services/api';
 import type { Notification, Post } from '../../../packages/types';
-import { colors as defaultColors, fonts } from '../constants/theme';
+import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
 
 type NavigationType = DrawerNavigationProp<any>;
@@ -126,6 +128,8 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { width } = useWindowDimensions();
+  const isWide = Platform.OS === 'web' && width >= 900;
 
   const loadNotifications = useCallback(async () => {
     if (!userId) return;
@@ -282,8 +286,8 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        <View style={[styles.header, { backgroundColor: colors.surfaceContainerLowest }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, isWide && styles.centeredContent]}>
           <View style={styles.headerTitleRow}>
             <Text style={[styles.headerTitle, { color: colors.onSurface }]}>Notifications</Text>
           </View>
@@ -298,9 +302,9 @@ export default function NotificationsScreen() {
   // ── Main render ──────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surfaceContainerLowest }]}>
+      <View style={[styles.header, isWide && styles.centeredContent]}>
         <View style={styles.headerTitleRow}>
           <Text style={[styles.headerTitle, { color: colors.onSurface }]}>Notifications</Text>
           {unreadCount > 0 && (
@@ -386,14 +390,20 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    padding: spacing.md,
+    paddingBottom: 80,
   },
 
   // Header
   header: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: spacing.md,
     paddingBottom: 16,
-    backgroundColor: colors.background,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: radii.xl,
+    ...ambientShadow,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -506,10 +516,18 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     lineHeight: 20,
   },
 
+  // Centered content for wide web
+  centeredContent: {
+    maxWidth: 900,
+    alignSelf: 'center' as any,
+    width: '100%' as any,
+  },
+
   // List
   list: {
-    padding: 16,
+    paddingTop: 32,
     paddingBottom: 32,
+    ...(Platform.OS === 'web' ? { maxWidth: 900, alignSelf: 'center' as any, width: '100%' as any } : {}),
   },
 
   // Notification card

@@ -17,6 +17,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  ImageBackground,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
@@ -121,11 +122,11 @@ export default function CoachLoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.kav}
     >
-      <LinearGradient
-        colors={[colors.canvas, colors.surface, colors.muted1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+      <ImageBackground
+        source={require('../assets/background-image.png')}
         style={styles.gradient}
+        resizeMode="cover"
+        imageStyle={{ opacity: 0.45 }}
       >
         <ScrollView
           contentContainerStyle={[
@@ -138,13 +139,11 @@ export default function CoachLoginScreen() {
           <View style={isWide ? { width: containerMaxW } : undefined}>
             {/* ── Logo ── */}
             <View style={styles.logoContainer}>
-              <View style={styles.logoRing}>
                 <Image
                   source={require('../assets/logo.png')}
                   style={styles.logo}
                   resizeMode="contain"
                 />
-              </View>
             </View>
 
             {/* ── Title ── */}
@@ -325,7 +324,7 @@ export default function CoachLoginScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </LinearGradient>
+      </ImageBackground>
     </KeyboardAvoidingView>
   );
 }
@@ -333,7 +332,7 @@ export default function CoachLoginScreen() {
 // ── Styles ──────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   kav: { flex: 1 },
-  gradient: { flex: 1 },
+  gradient: { flex: 1, width: '100%' as any, height: '100%' as any },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -344,22 +343,7 @@ const styles = StyleSheet.create({
 
   // ── Logo ────────────────────────────────────
   logoContainer: { alignItems: 'center', marginBottom: 24 },
-  logoRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    shadowColor: colors.fuchsia,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  logo: { width: 44, height: 44 },
+  logo: { width: 64, height: 64 },
 
   // ── Title ───────────────────────────────────
   title: {
