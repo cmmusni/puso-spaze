@@ -80,4 +80,5 @@ apps/mobile/android/app/build/
 
 # Firebase
 google-services.json
+!apps/mobile/google-services.json
 GoogleService-Info.plist
