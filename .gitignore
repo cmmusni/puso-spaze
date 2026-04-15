@@ -76,3 +76,7 @@ apps/mobile/android/.gradle/
 apps/mobile/android/app/build/
 *.apk
 *.aab
+
+# Firebase
+google-services.json
+GoogleService-Info.plist

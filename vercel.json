@@ -14,15 +14,14 @@
       "dest": "/apps/mobile/overview/$1"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/apps/mobile/assets/$1"
-    },
-    {
       "handle": "filesystem"
     },
     {
-      "src": "/(.*)",
+      "src": "/((?!overview).*)",
       "dest": "/apps/mobile/index.html"
+    }
+  ]
+}
     }
   ]
 }

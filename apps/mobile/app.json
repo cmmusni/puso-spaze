@@ -29,6 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FCF8FF"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.pusospaze.app",
       "versionCode": 2,
       "permissions": [
