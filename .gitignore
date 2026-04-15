@@ -64,3 +64,15 @@ gradle-errors.txt
 node-path.txt
 worklets-install.txt
 test-results/
+
+# iOS build artifacts
+*.xcworkspace/
+Podfile.lock
+Pods/
+*.xcprivacy
+
+# Android build artifacts
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+*.apk
+*.aab

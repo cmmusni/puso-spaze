@@ -302,17 +302,6 @@ export default function SpazeCoachScreen({ navigation }: any) {
                 end={{ x: 1, y: 1 }}
                 style={s.heroBg}
               >
-                <View style={s.heroTopRow}>
-                  {Platform.OS !== "web" && (
-                    <TouchableOpacity
-                      onPress={() => navigation.openDrawer?.() ?? navigation.goBack()}
-                      style={s.heroBackBtn}
-                    >
-                      <Ionicons name="menu" size={22} color={colors.onPrimary} />
-                    </TouchableOpacity>
-                  )}
-                  <View style={{ flex: 1 }} />
-                </View>
                 <View style={s.heroContent}>
                   <View style={s.heroIconWrap}>
                     <Ionicons name="heart-circle" size={38} color="rgba(255,255,255,0.9)" />

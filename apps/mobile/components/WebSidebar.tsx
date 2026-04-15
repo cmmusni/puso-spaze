@@ -89,7 +89,7 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 250,
+    width: 280,
     height: "100%" as any,
     paddingTop: 28,
     paddingBottom: 24,

@@ -62,9 +62,13 @@ import type {
 } from '../../../packages/types';
 
 // ── Base URL ─────────────────────────────────
-// Override in app.json → extra.apiUrl for production
+// Reads from app.json → extra.apiUrl. In release builds (EAS preview/production)
+// falls back to the production URL. In dev builds falls back to localhost.
 const BASE_URL: string =
-  (Constants.expoConfig?.extra?.apiUrl as string) ?? 'http://localhost:4000';
+  (Constants.expoConfig?.extra?.apiUrl as string) ??
+  (__DEV__ ? 'http://localhost:4000' : 'https://api.puso-spaze.org');
+
+console.log('[API] Base URL:', BASE_URL);
 
 export function getBaseUrl(): string {
   return BASE_URL;
@@ -72,7 +76,7 @@ export function getBaseUrl(): string {
 
 const client = axios.create({
   baseURL: BASE_URL,
-  timeout: 10_000,
+  timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
 });
 

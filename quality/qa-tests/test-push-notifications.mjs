@@ -1,5 +1,4 @@
-const API="http://localhost:4000";
-const TS=Date.now();let P=0,F=0,W=0;const R=[],bugs=[];
+const API="http://localhost:4000";const TS=Date.now();let P=0,F=0,W=0;const R=[],bugs=[];
 function log(n,nm,ex,ac,st){R.push({n,nm,ex,ac,st});if(st=="PASS")P++;else if(st=="FAIL")F++;else W++;console.log((st=="PASS"?"[PASS]":st=="FAIL"?"[FAIL]":"[WARN]")+" #"+n+" "+nm);if(st=="FAIL")console.log("  Expected:",ex,"Actual:",ac);}
 async function api(m,p,b,t){const h={"Content-Type":"application/json"};if(t)h["Authorization"]="Bearer "+t;const o={method:m,headers:h};if(b)o.body=JSON.stringify(b);const r=await fetch(API+p,o);let d=null;try{d=await r.json();}catch{}return{s:r.status,d};}
 async function run(){
@@ -36,11 +35,11 @@ const pr=await api("POST","/api/posts",{content:"Push test "+TS,userId:A.id},A.t
 log(16,"Create post","201",pr.s+"",pr.s===201&&pid?"PASS":"FAIL");
 if(pid){
 await new Promise(w=>setTimeout(w,300));
-r=await api("POST","/api/posts/"+pid+"/reactions",{userId:B.id,type:"PRAY"},B.tk);log(17,"B reacts PRAY","201",r.s+"",r.s===201?"PASS":"FAIL");
+r=await api("POST","/api/posts/"+pid+"/reactions",{userId:B.id,type:"PRAY"},B.tk);log(17,"B reacts","201",r.s+"",r.s===201?"PASS":"FAIL");
 await new Promise(w=>setTimeout(w,500));
 let n=await api("GET","/api/notifications?userId="+A.id,null,A.tk);
 let rn=(n.d?.notifications||[]).find(x=>x.type==="REACTION"&&x.data?.postId===pid);
-log(18,"A reaction notif","exists",rn?"found":"MISSING",rn?"PASS":"FAIL");
+log(18,"A react notif","exists",rn?"found":"MISSING",rn?"PASS":"FAIL");
 log(19,"Has B name","in body",rn?((rn.body||"").includes(B.nm)?"yes":"no"):"n/a",rn&&(rn.body||"").includes(B.nm)?"PASS":rn?"FAIL":"WARN");
 r=await api("POST","/api/posts/"+pid+"/comments",{userId:B.id,content:"Comment "+TS},B.tk);log(20,"B comments","201",r.s+"",r.s===201?"PASS":"FAIL");
 await new Promise(w=>setTimeout(w,500));

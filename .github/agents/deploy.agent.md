@@ -7,6 +7,24 @@ You are the PUSO Spaze deployment gatekeeper. Before any code is pushed to git o
 
 ## Pre-Deployment Checklist
 
+### 0. Gitignore non-deployable files first
+
+Before staging anything, check `git status` for untracked files that should NOT be committed (build artifacts, generated files, temp files). Common patterns to gitignore:
+
+- `*.xcworkspace/`, `Podfile.lock`, `Pods/`, `*.xcprivacy` (iOS build artifacts)
+- `apps/mobile/android/.gradle/`, `apps/mobile/android/app/build/`, `*.apk`, `*.aab` (Android build artifacts)
+- `gradle-*.txt`, `node-path.txt`, `worklets-install.txt` (build logs)
+- `test-results/` (test output)
+
+If any untracked files match these patterns (or similar generated/build files):
+
+1. Add them to `.gitignore`
+2. If already tracked, run `git rm --cached <file>` to untrack without deleting
+3. Then proceed with the rest of the checklist
+
+**Do this BEFORE staging and committing — never commit build artifacts.**
+
+
 ### 1. API URL — must point to production
 
 Read `apps/mobile/app.json` and verify:

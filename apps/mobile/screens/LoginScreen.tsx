@@ -31,7 +31,7 @@ import { useUser } from '../hooks/useUser';
 import { validateUsername } from '../utils/validators';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
-import { apiGetOnlineCount, apiCheckUsername, apiSubmitRecoveryRequest } from '../services/api';
+import { apiGetOnlineCount, apiCheckUsername, apiSubmitRecoveryRequest, getBaseUrl } from '../services/api';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
@@ -136,7 +136,12 @@ export default function LoginScreen() {
       navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const serverError = err?.response?.data?.error;
-      const msg = serverError ?? err?.message ?? 'Could not connect to server. Please try again.';
+      // For network errors (no response at all), include the API URL for debugging
+      const isNetworkError = !err?.response && err?.message === 'Network Error';
+      const msg = serverError
+        ?? (isNetworkError
+          ? `Could not connect to server (${getBaseUrl()}). Check your internet connection.`
+          : err?.message ?? 'Could not connect to server. Please try again.');
 
       // Server-side: username owned by a different device — prompt for PIN
       if (serverError === 'Username is already taken.') {
