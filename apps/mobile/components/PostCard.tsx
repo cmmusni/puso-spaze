@@ -212,7 +212,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
   const handleViewComments = () => {
     closeMenu();
     onPostPress?.(post.id);
-    navigation.getParent()?.navigate("PostDetail", { postId: post.id });
+    navigation.navigate("PostDetail" as any, { postId: post.id });
   };
 
   const handleDeletePost = async () => {
@@ -370,7 +370,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
         activeOpacity={0.88}
         onPress={() => {
           onPostPress?.(post.id);
-          navigation.getParent()?.navigate("PostDetail", { postId: post.id });
+          navigation.navigate("PostDetail" as any, { postId: post.id });
         }}
         onLongPress={openPicker}
         delayLongPress={300}
@@ -515,7 +515,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
             <TouchableOpacity
               onPress={() => {
                 onPostPress?.(post.id);
-                navigation.getParent()?.navigate("PostDetail", { postId: post.id });
+                navigation.navigate("PostDetail" as any, { postId: post.id });
               }}
               activeOpacity={0.75}
               style={styles.countButton}

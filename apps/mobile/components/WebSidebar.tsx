@@ -36,6 +36,7 @@ export default function WebSidebar({ currentRoute, onNavigate }: Props) {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
+        pointerEvents="none"
       />
       <View style={styles.brandSection}>
         <View>

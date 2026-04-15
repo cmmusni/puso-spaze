@@ -95,6 +95,17 @@ export function getAuthToken(): string | null {
   return _authToken;
 }
 
+// ── Session invalidation callback ────────────
+// Called when the server returns 404 "User not found" — means the stored
+// userId no longer exists in the database (e.g. DB was reset). UserContext
+// registers this callback on load to trigger auto-logout.
+let _onSessionInvalid: (() => void) | null = null;
+
+/** Register a callback that fires when the server says the user no longer exists. */
+export function onSessionInvalid(cb: (() => void) | null): void {
+  _onSessionInvalid = cb;
+}
+
 // ── Interceptor: attach JWT to all requests ──
 client.interceptors.request.use((config) => {
   if (_authToken) {
@@ -103,7 +114,7 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Interceptor: log errors in dev, handle 401 ──
+// ── Interceptor: log errors in dev, handle 401/404 ──
 client.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -113,6 +124,17 @@ client.interceptors.response.use(
     if (error?.response?.status === 401) {
       // Token expired or invalid — clear it so the app can prompt re-login
       _authToken = null;
+    }
+    // Detect stale session: server says user no longer exists
+    if (
+      error?.response?.status === 404 &&
+      typeof error?.response?.data?.error === 'string' &&
+      error.response.data.error.toLowerCase().includes('user not found') &&
+      _authToken // Only trigger if we think we're logged in
+    ) {
+      console.warn('[API] Session invalid — user not found on server. Forcing logout.');
+      _authToken = null;
+      _onSessionInvalid?.();
     }
     return Promise.reject(error);
   }

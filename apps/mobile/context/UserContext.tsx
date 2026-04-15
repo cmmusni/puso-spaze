@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../../../packages/types';
-import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications, setAuthToken } from '../services/api';
+import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications, setAuthToken, onSessionInvalid } from '../services/api';
 
 // ── Storage keys ─────────────────────────────
 const USER_ID_KEY    = 'puso_user_id';
@@ -143,18 +143,33 @@ export const useUserStore = create<UserState>((set, get) => ({
         set({ userId, username, role: role ?? 'USER', avatarUrl, isAnonymous, notificationsEnabled, isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
 
-        // One-time deviceId sync for users who were already logged in before the update
-        const alreadySynced = await storage.getItem(DEVICE_SYNCED_KEY);
-        if (!alreadySynced) {
-          try {
-            const deviceId = await get().getDeviceId();
-            await apiCreateUser({ displayName: username, deviceId, platform: Platform.OS });
-            await storage.setItem(DEVICE_SYNCED_KEY, 'true');
-            console.log('[UserStore] deviceId synced to server');
-          } catch (syncErr) {
-            // Non-blocking — will retry on next app launch
-            console.warn('[UserStore] deviceId sync deferred:', syncErr);
+        // Register auto-logout callback for stale sessions (user deleted from DB)
+        onSessionInvalid(() => {
+          console.warn('[UserStore] Session invalidated — user no longer exists. Auto-logging out.');
+          get().logoutUser();
+        });
+
+        // Validate session: re-login to verify user still exists on server
+        // This also refreshes the JWT token and syncs deviceId
+        try {
+          const deviceId = await get().getDeviceId();
+          const res = await apiCreateUser({ displayName: username, deviceId, platform: Platform.OS });
+          // Update token if server returned a fresh one
+          if (res.token) {
+            await storage.setItem(JWT_TOKEN_KEY, res.token);
+            setAuthToken(res.token);
           }
+          await storage.setItem(DEVICE_SYNCED_KEY, 'true');
+          console.log('[UserStore] Session validated with server');
+        } catch (syncErr: any) {
+          // If server says username is taken by another device, session is stale
+          if (syncErr?.response?.status === 409 || syncErr?.response?.status === 404) {
+            console.warn('[UserStore] Session invalid — forcing logout:', syncErr?.response?.data?.error);
+            await get().logoutUser();
+            return;
+          }
+          // Network errors are non-blocking — will work offline with cached session
+          console.warn('[UserStore] Session validation deferred (offline?):', syncErr?.message);
         }
       } else {
         console.log('[UserStore] No saved session found');

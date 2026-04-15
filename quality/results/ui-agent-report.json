@@ -1,0 +1,730 @@
+{
+  "timestamp": "2026-04-15T13:38:09.159Z",
+  "durationSeconds": 152.5,
+  "total": 80,
+  "pass": 65,
+  "fail": 6,
+  "warn": 9,
+  "results": [
+    {
+      "id": 1,
+      "screen": "LoginScreen",
+      "test": "Navigate to /login",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 2,
+      "screen": "LoginScreen",
+      "test": "Mock data scan: Unresolved template variable",
+      "expected": "No mock/hardcoded data",
+      "actual": "Found: \"{{constructor.constructor(\"return this\")()}}\"",
+      "status": "WARN",
+      "details": "Possible hardcoded/mock data in rendered UI"
+    },
+    {
+      "id": 3,
+      "screen": "LoginScreen",
+      "test": "App branding visible",
+      "expected": "PUSO or Spaze text",
+      "actual": "Found",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 4,
+      "screen": "LoginScreen",
+      "test": "Input fields present",
+      "expected": "At least 1 input",
+      "actual": "Found 1",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 5,
+      "screen": "LoginScreen",
+      "test": "Buttons present",
+      "expected": "At least 1 button",
+      "actual": "Found 2",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 6,
+      "screen": "LoginScreen",
+      "test": "Type username",
+      "expected": "Input accepts text",
+      "actual": "Typed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 7,
+      "screen": "CoachLoginScreen",
+      "test": "Navigate to /signup",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 8,
+      "screen": "CoachLoginScreen",
+      "test": "Mock data scan",
+      "expected": "No mock data",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 9,
+      "screen": "CoachLoginScreen",
+      "test": "Username input",
+      "expected": "Accepts text",
+      "actual": "Typed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 10,
+      "screen": "CoachLoginScreen",
+      "test": "Redeem button present",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 11,
+      "screen": "HomeScreen",
+      "test": "Navigate to /",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 12,
+      "screen": "HomeScreen",
+      "test": "Mock data scan: Unresolved template variable",
+      "expected": "No mock/hardcoded data",
+      "actual": "Found: \"{{constructor.constructor(\"return this\")()}}\"",
+      "status": "WARN",
+      "details": "Possible hardcoded/mock data in rendered UI"
+    },
+    {
+      "id": 13,
+      "screen": "HomeScreen",
+      "test": "Feed content renders",
+      "expected": "Posts visible",
+      "actual": "Content present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 14,
+      "screen": "HomeScreen",
+      "test": "Time-based greeting",
+      "expected": "Dynamic greeting",
+      "actual": "Found",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 15,
+      "screen": "HomeScreen",
+      "test": "Search input functional",
+      "expected": "Accepts text",
+      "actual": "Typed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 16,
+      "screen": "HomeScreen",
+      "test": "Dashboard stats rendered",
+      "expected": "Stats visible",
+      "actual": "Found: Trending, TRENDING, TRENDING, TRENDING, TRENDING, TRENDING, TRENDING",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 17,
+      "screen": "HomeScreen",
+      "test": "Click: Compose FAB",
+      "expected": "No crash",
+      "actual": "Error: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[accessibilityLabel=\"",
+      "status": "FAIL",
+      "details": ""
+    },
+    {
+      "id": 18,
+      "screen": "HomeScreen",
+      "test": "Click: Anonymous toggle",
+      "expected": "No crash",
+      "actual": "Error: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/anonymous|public/i)",
+      "status": "FAIL",
+      "details": ""
+    },
+    {
+      "id": 19,
+      "screen": "HomeScreen",
+      "test": "Infinite scroll",
+      "expected": "No crash on scroll",
+      "actual": "Scrolled to bottom",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 20,
+      "screen": "PostScreen",
+      "test": "Navigate to /post",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 21,
+      "screen": "PostScreen",
+      "test": "Mock data scan",
+      "expected": "No mock data",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 22,
+      "screen": "PostScreen",
+      "test": "Submit button present",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 23,
+      "screen": "PostScreen",
+      "test": "Submit disabled when empty",
+      "expected": "Disabled",
+      "actual": "Still enabled (no validation?)",
+      "status": "WARN",
+      "details": ""
+    },
+    {
+      "id": 24,
+      "screen": "ProfileScreen",
+      "test": "Navigate to /profile",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 25,
+      "screen": "ProfileScreen",
+      "test": "Mock data scan",
+      "expected": "No mock data",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 26,
+      "screen": "ProfileScreen",
+      "test": "Profile info renders",
+      "expected": "User data visible",
+      "actual": "Content present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 27,
+      "screen": "ProfileScreen",
+      "test": "Default bio check",
+      "expected": "Custom bio or no bio",
+      "actual": "Default bio still showing",
+      "status": "WARN",
+      "details": "BIO_DEFAULT is hardcoded placeholder"
+    },
+    {
+      "id": 28,
+      "screen": "ProfileScreen",
+      "test": "Role label visible",
+      "expected": "Role displayed",
+      "actual": "Found",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 29,
+      "screen": "ProfileScreen",
+      "test": "Notification toggle present",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 30,
+      "screen": "ProfileScreen",
+      "test": "Anonymous toggle present",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 31,
+      "screen": "ProfileScreen",
+      "test": "PIN section visible",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 32,
+      "screen": "ProfileScreen",
+      "test": "Sign out button present",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 33,
+      "screen": "ProfileScreen",
+      "test": "Activity stats section",
+      "expected": "Stats visible",
+      "actual": "Found",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 34,
+      "screen": "JournalScreen",
+      "test": "Navigate to /journal",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 35,
+      "screen": "JournalScreen",
+      "test": "Mock data scan",
+      "expected": "No mock data",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 36,
+      "screen": "JournalScreen",
+      "test": "Mood selector options",
+      "expected": "8 moods available",
+      "actual": "Found 1",
+      "status": "WARN",
+      "details": ""
+    },
+    {
+      "id": 37,
+      "screen": "JournalScreen",
+      "test": "Click: Mood: What are you grateful for right now?",
+      "expected": "No crash",
+      "actual": "Clicked OK",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 38,
+      "screen": "JournalScreen",
+      "test": "Journal input",
+      "expected": "Accepts text",
+      "actual": "Typed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 39,
+      "screen": "JournalScreen",
+      "test": "Daily prompts visible",
+      "expected": "Prompts present",
+      "actual": "Found 1",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 40,
+      "screen": "JournalScreen",
+      "test": "Click: Select daily prompt",
+      "expected": "No crash",
+      "actual": "Clicked OK",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 41,
+      "screen": "JournalScreen",
+      "test": "Calendar header days",
+      "expected": "Days visible",
+      "actual": "Found 7",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 42,
+      "screen": "JournalScreen",
+      "test": "Prompt text: \"What are you grateful for...\"",
+      "expected": "Content-driven",
+      "actual": "Hardcoded prompt",
+      "status": "WARN",
+      "details": "Prompts are static, not dynamic — consider server-side prompts"
+    },
+    {
+      "id": 43,
+      "screen": "JournalScreen",
+      "test": "Save/Create button present",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 44,
+      "screen": "NotificationsScreen",
+      "test": "Navigate to /notifications",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 45,
+      "screen": "NotificationsScreen",
+      "test": "Mock data scan",
+      "expected": "No mock data",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 46,
+      "screen": "NotificationsScreen",
+      "test": "Search input",
+      "expected": "Accepts text",
+      "actual": "Typed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 47,
+      "screen": "NotificationsScreen",
+      "test": "Notification items",
+      "expected": "Items rendered",
+      "actual": "1 items",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 48,
+      "screen": "NotificationsScreen",
+      "test": "Empty state",
+      "expected": "Empty state shows",
+      "actual": "Empty state visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 49,
+      "screen": "SpazeCoachScreen",
+      "test": "Navigate to /spaze-coach",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 50,
+      "screen": "SpazeCoachScreen",
+      "test": "Mock data scan",
+      "expected": "No mock data",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 51,
+      "screen": "SpazeCoachScreen",
+      "test": "Coach cards visible",
+      "expected": "Coaches listed",
+      "actual": "12 elements",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 52,
+      "screen": "SpazeCoachScreen",
+      "test": "Coach specialties",
+      "expected": "Dynamic specialties",
+      "actual": "6 hardcoded specialty labels",
+      "status": "WARN",
+      "details": "DEFAULT_SPECIALTIES = [\"Wellness\", \"Support\"] applied to all coaches"
+    },
+    {
+      "id": 53,
+      "screen": "SpazeCoachScreen",
+      "test": "Message coach button",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 54,
+      "screen": "SpazeCoachScreen",
+      "test": "Conversation history section",
+      "expected": "Present",
+      "actual": "Visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 55,
+      "screen": "PostDetailScreen",
+      "test": "Navigate to /PostDetail/1e87133d-7832-4aa3-a041-5cdf5e0cd3cb",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 56,
+      "screen": "PostDetailScreen",
+      "test": "Mock data scan: Unresolved template variable",
+      "expected": "No mock/hardcoded data",
+      "actual": "Found: \"{{constructor.constructor(\"return this\")()}}\"",
+      "status": "WARN",
+      "details": "Possible hardcoded/mock data in rendered UI"
+    },
+    {
+      "id": 57,
+      "screen": "PostDetailScreen",
+      "test": "Post content renders",
+      "expected": "Post visible",
+      "actual": "Content present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 58,
+      "screen": "PostDetailScreen",
+      "test": "Comment input",
+      "expected": "Accepts text",
+      "actual": "Typed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 59,
+      "screen": "CoachDashboard",
+      "test": "Coach screens",
+      "expected": "Coach user available",
+      "actual": "Could not create coach — skipped",
+      "status": "WARN",
+      "details": ""
+    },
+    {
+      "id": 60,
+      "screen": "Navigation",
+      "test": "Navigate to /",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 61,
+      "screen": "Navigation",
+      "test": "Web sidebar nav links",
+      "expected": "Nav links visible",
+      "actual": "5 links",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 62,
+      "screen": "Navigation",
+      "test": "Click: Navigate to /",
+      "expected": "No crash",
+      "actual": "Error: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Feed', { exact: tru",
+      "status": "FAIL",
+      "details": ""
+    },
+    {
+      "id": 63,
+      "screen": "Navigation",
+      "test": "Click: Navigate to /journal",
+      "expected": "No crash",
+      "actual": "Error: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Journal', { exact: ",
+      "status": "FAIL",
+      "details": ""
+    },
+    {
+      "id": 64,
+      "screen": "Navigation",
+      "test": "Click: Navigate to /notifications",
+      "expected": "No crash",
+      "actual": "Error: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Notifications', { e",
+      "status": "FAIL",
+      "details": ""
+    },
+    {
+      "id": 65,
+      "screen": "Navigation",
+      "test": "Click: Navigate to /profile",
+      "expected": "No crash",
+      "actual": "Error: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Profile', { exact: ",
+      "status": "FAIL",
+      "details": ""
+    },
+    {
+      "id": 66,
+      "screen": "DataConsistency",
+      "test": "Navigate to /",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 67,
+      "screen": "DataConsistency",
+      "test": "Navigate to /profile",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 68,
+      "screen": "DataConsistency",
+      "test": "Username consistency",
+      "expected": "Same name across screens",
+      "actual": "Consistent",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 69,
+      "screen": "DataConsistency",
+      "test": "No undefined/null in Home",
+      "expected": "No raw JS values",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 70,
+      "screen": "DataConsistency",
+      "test": "No undefined/null in Profile",
+      "expected": "No raw JS values",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 71,
+      "screen": "Responsive",
+      "test": "Navigate to /",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 72,
+      "screen": "Responsive",
+      "test": "Mobile (375px) renders",
+      "expected": "Content visible",
+      "actual": "OK",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 73,
+      "screen": "Responsive",
+      "test": "Mobile horizontal overflow",
+      "expected": "No overflow",
+      "actual": "No overflow",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 74,
+      "screen": "Responsive",
+      "test": "Navigate to /",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 75,
+      "screen": "Responsive",
+      "test": "Tablet (768px) renders",
+      "expected": "Content visible",
+      "actual": "OK",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 76,
+      "screen": "Responsive",
+      "test": "Tablet horizontal overflow",
+      "expected": "No overflow",
+      "actual": "No overflow",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 77,
+      "screen": "Responsive",
+      "test": "Navigate to /",
+      "expected": "Page loads",
+      "actual": "Loaded",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 78,
+      "screen": "Responsive",
+      "test": "Desktop (1280px) renders",
+      "expected": "Content visible",
+      "actual": "OK",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 79,
+      "screen": "Responsive",
+      "test": "Desktop horizontal overflow",
+      "expected": "No overflow",
+      "actual": "No overflow",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "id": 80,
+      "screen": "ConsoleErrors",
+      "test": "Console errors across screens",
+      "expected": "No errors",
+      "actual": "Clean",
+      "status": "PASS",
+      "details": ""
+    }
+  ]
+}

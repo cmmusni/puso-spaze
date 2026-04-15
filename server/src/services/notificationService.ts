@@ -104,15 +104,21 @@ export async function createNotification(notif: NotificationData): Promise<void>
           data: notif.data ?? {},
         };
 
+        console.log(`[Push] Sending to ${user.expoPushToken} — title: "${notif.title}"`);
         const chunks = expo.chunkPushNotifications([message]);
         for (const chunk of chunks) {
           try {
-            await expo.sendPushNotificationsAsync(chunk);
+            const tickets = await expo.sendPushNotificationsAsync(chunk);
+            console.log('[Push] Tickets:', JSON.stringify(tickets));
           } catch (error) {
             console.error('❌ Failed to send push notification:', error);
           }
         }
+      } else {
+        console.warn(`[Push] Invalid token for user ${notif.userId}: ${user.expoPushToken}`);
       }
+    } else {
+      console.warn(`[Push] No expoPushToken for user ${notif.userId}`);
     }
 
     // Send Web Push notification if subscription exists (browser)
