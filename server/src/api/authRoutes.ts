@@ -6,12 +6,29 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../middlewares/validate';
-import { redeemInvite, getInviteEmail } from '../controllers/authController';
+import { redeemInvite, getInviteEmail, pinLogin } from '../controllers/authController';
 
 const router = Router();
 
 // Look up email associated with an invite code (for prefilling the coach signup form)
 router.get('/invite-email', getInviteEmail);
+
+// ── POST /api/auth/pin-login ────────────────
+router.post(
+  '/pin-login',
+  [
+    body('pin')
+      .trim()
+      .matches(/^\d{6,8}$/)
+      .withMessage('pin must be a 6–8 digit code'),
+    body('deviceId')
+      .optional()
+      .isUUID()
+      .withMessage('deviceId must be a valid UUID'),
+    validate,
+  ],
+  pinLogin
+);
 
 router.post(
   '/redeem-invite',

@@ -24,8 +24,6 @@ export const RESERVED_USERNAMES = [
   'support',
   'puso',
   'puso-spaze',
-  'hourly hope',
-  'hourly-hope',
 ];
 
 /** Check if a displayName is reserved (case-insensitive) */

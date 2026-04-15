@@ -668,36 +668,6 @@ export async function apiAdminSendInviteByEmail(
   return data;
 }
 
-/**
- * GET /api/admin/hourly-hope/status
- * Reads whether Hourly Hope is currently enabled.
- */
-export async function apiGetHourlyHopeStatus(
-  adminSecret: string
-): Promise<{ postingEnabled: boolean; visible: boolean }> {
-  const { data } = await client.get<{ postingEnabled: boolean; visible: boolean }>(
-    '/api/admin/hourly-hope/status',
-    { headers: { Authorization: `Bearer ${adminSecret}` } }
-  );
-  return data;
-}
-
-/**
- * PATCH /api/admin/hourly-hope/status
- * Updates whether Hourly Hope is enabled.
- */
-export async function apiSetHourlyHopeStatus(
-  body: { postingEnabled?: boolean; visible?: boolean },
-  adminSecret: string
-): Promise<{ postingEnabled: boolean; visible: boolean }> {
-  const { data } = await client.patch<{ postingEnabled: boolean; visible: boolean }>(
-    '/api/admin/hourly-hope/status',
-    body,
-    { headers: { Authorization: `Bearer ${adminSecret}` } }
-  );
-  return data;
-}
-
 // ── Notifications ────────────────────────────
 
 /**

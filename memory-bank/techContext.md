@@ -100,3 +100,7 @@ GMAIL_PASS=...
 - No password/email auth — identity is device-bound username + optional PIN
 - PIN is 6-digit unique; 8-digit fallback on collision (10 retries)
 - Recovery requests are public/unauthenticated — potential spam target
+- `AppConfig` model exists in Prisma schema but has no corresponding service
+- `webPushSubscription` (Json?) and `lastActiveAt` (DateTime) added to User model
+- JSON body limit: 100kb; nesting depth limit: 10 levels
+- Global null byte stripping on all request bodies and query params

@@ -7,7 +7,7 @@ PUSO Spaze is a compassionate mental health support platform providing a safe, a
 - **Anonymous posting** — Users can share struggles without revealing identity
 - **Community engagement** — Reactions (Pray, Care, Support), comments, mentions
 - **AI moderation** — OpenAI content filtering for safety
-- **Biblical encouragement** — Hourly AI-generated Taglish messages for Gen Z
+- **Biblical encouragement** — Personalized AI-generated daily reflections in Taglish for Gen Z
 - **Coach moderation** — Human review dashboard for flagged content
 - **Private journaling** — Personal reflection entries with mood tracking
 - **1:1 support chat** — Direct messaging between users and coaches

@@ -132,3 +132,57 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Failed to redeem invite code.' });
   }
 }
+
+/**
+ * POST /api/auth/pin-login
+ * Body: { pin: string; deviceId?: string }
+ *
+ * Authenticates a user by their unique PIN code and optionally binds a new device.
+ * Returns: { userId, displayName, role, avatarUrl, token }
+ */
+export async function pinLogin(req: Request, res: Response): Promise<void> {
+  const { pin, deviceId } = req.body as { pin: string; deviceId?: string };
+
+  if (!pin || typeof pin !== 'string') {
+    res.status(400).json({ error: 'pin is required.' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { pin },
+      select: {
+        id: true,
+        displayName: true,
+        role: true,
+        avatarUrl: true,
+        pin: true,
+      },
+    });
+
+    if (!user) {
+      res.status(401).json({ error: 'Invalid PIN.' });
+      return;
+    }
+
+    // Bind new deviceId if provided (cross-device login)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastActiveAt: new Date(),
+        ...(deviceId ? { deviceId } : {}),
+      },
+    });
+
+    res.json({
+      userId: user.id,
+      displayName: user.displayName,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      token: signToken({ userId: user.id, role: user.role }),
+    });
+  } catch (err) {
+    console.error('[AuthController] pinLogin error:', err);
+    res.status(500).json({ error: 'Failed to login with PIN.' });
+  }
+}

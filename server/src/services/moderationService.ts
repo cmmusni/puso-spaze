@@ -319,9 +319,18 @@ export async function moderateContent(text: string): Promise<ModerationResult> {
 
   // ── 2. Placeholder mode (no API key configured) ──
   // QUALITY.md Scenario 2: Without OpenAI, content that passes the local
-  // keyword check cannot be verified — default to REVIEW so a human
-  // moderator must approve it before it reaches the feed.
+  // keyword check cannot be verified.
+  // In development: default to SAFE so posts appear in the feed.
+  // In production:  default to REVIEW so a human moderator must approve.
   if (!openai) {
+    const isDev = env.NODE_ENV !== 'production';
+    if (isDev) {
+      console.warn(
+        "[Moderation] OPENAI_API_KEY not set (dev mode) — defaulting to SAFE. " +
+          "Set the key in .env to enable real moderation.",
+      );
+      return "SAFE";
+    }
     console.warn(
       "[Moderation] OPENAI_API_KEY not set — defaulting content to REVIEW. " +
         "Set the key in .env to enable real moderation.",

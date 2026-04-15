@@ -9,6 +9,9 @@
 
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
+
+// Valid mood values — must match the MOODS config in JournalScreen.tsx
+const VALID_MOODS = ['grateful', 'hopeful', 'peaceful', 'happy', 'anxious', 'sad', 'reflective', 'loved'];
 import {
   getJournals,
   getJournalById,
@@ -61,8 +64,8 @@ router.post(
     body('mood')
       .optional()
       .trim()
-      .isLength({ max: 50 })
-      .withMessage('mood must be at most 50 characters'),
+      .isIn(VALID_MOODS)
+      .withMessage(`mood must be one of: ${VALID_MOODS.join(', ')}`),
     body('tags')
       .optional()
       .isArray({ max: 10 })
@@ -92,8 +95,8 @@ router.patch(
     body('mood')
       .optional()
       .trim()
-      .isLength({ max: 50 })
-      .withMessage('mood must be at most 50 characters'),
+      .isIn(VALID_MOODS)
+      .withMessage(`mood must be one of: ${VALID_MOODS.join(', ')}`),
     body('tags')
       .optional()
       .isArray({ max: 10 })

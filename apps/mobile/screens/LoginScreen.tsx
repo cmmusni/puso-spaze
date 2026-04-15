@@ -527,7 +527,7 @@ export default function LoginScreen() {
                       {
                         icon: 'sparkles' as const,
                         title: 'AI-Powered Encouragement',
-                        body: 'Our \"Hourly Hope\" feature delivers AI-generated biblical encouragement in Taglish (Tagalog + English), crafted for Gen Z hearts that need a reminder they\'re not alone.',
+                        body: 'Receive AI-generated biblical encouragement in Taglish (Tagalog + English), crafted for Gen Z hearts that need a reminder they\'re not alone.',
                       },
                       {
                         icon: 'eye-off' as const,

@@ -24,14 +24,21 @@
 │  ├── api/            (route definitions)     │
 │  ├── controllers/    (request handlers)      │
 │  ├── services/       (business logic)        │
-│  ├── middlewares/     (logger, etc.)          │
+│  │   ├── moderationService                   │
+│  │   ├── biblicalEncouragementService        │
+│  │   ├── dailyReflectionService              │
+│  │   ├── reflectionReminderScheduler         │
+│  │   ├── notificationService                 │
+│  │   └── mentionService                      │
+│  ├── middlewares/     (logger, auth, etc.)    │
 │  ├── config/         (env, db)               │
-│  └── utils/          (helpers)               │
+│  └── utils/          (jwt, sanitize, etc.)   │
 │                                              │
 ├──────────────────────────────────────────────┤
 │  PostgreSQL (Prisma ORM)                     │
-│  OpenAI API (moderation + encouragement)     │
+│  OpenAI API (moderation + reflections)       │
 │  Resend (email)                              │
+│  Expo Push / Web Push (notifications)        │
 └──────────────────────────────────────────────┘
 ```
 
@@ -69,6 +76,25 @@
 - OpenAI auto-moderates → `SAFE` or `FLAGGED`
 - Coaches review via dashboard → approve or reject
 - Three statuses: `SAFE`, `FLAGGED`, `REVIEW`
+- Users can report content: SAFE → REVIEW via `POST /api/posts/:postId/report`
+
+### Daily Reflection System (replaces Hourly Hope)
+- **Architecture**: Three separate services replacing the old monolithic `encouragementScheduler.ts`
+  - `biblicalEncouragementService.ts` — OpenAI-powered Taglish encouragement generator (standalone, reusable)
+  - `dailyReflectionService.ts` — generates daily biblical reflections with in-memory per-day caching
+  - `reflectionReminderScheduler.ts` — daily cron push notification to opted-in users
+- **Personalization**: If userId provided, fetches user's last 5 SAFE posts (7 days) and generates contextually relevant reflection via OpenAI
+- **Caching**: Generic reflection cached per calendar day (YYYY-MM-DD key); personalized reflections cached per `userId:dateKey`
+- **Fallbacks**: Curated static reflections used when `OPENAI_API_KEY` is missing
+- **Dashboard integration**: Daily reflection served via `GET /api/stats/dashboard` (personalized when userId query param provided)
+
+### Security Middleware Stack
+- **Null byte stripping**: Global middleware strips `\u0000` from `req.body` (deep recursive) and `req.query` values
+- **JSON depth limiting**: Rejects payloads with nesting >10 levels (400 error)
+- **Body size limiting**: `express.json()` and `express.urlencoded()` limited to 100kb
+- **HTML sanitization**: `stripHtmlTags()` applied at controller level to all user content before storage
+- **IDOR protection**: All user-scoped endpoints verify `req.user.userId === req.params.userId`
+- **Error classification**: Global error handler differentiates body-parser errors (400/413) from server errors (500)
 
 ### Responsive Design
 - Mobile-first styles in `StyleSheet.create()`
@@ -83,6 +109,7 @@
 
 ### File Uploads
 - Multer with content-type guard (multipart only)
+- Magic bytes validation for image uploads (JPEG, PNG, GIF, WebP)
 - Web blob URIs → fetch blob → read MIME type (no extension parsing)
 
 ## Component Relationships

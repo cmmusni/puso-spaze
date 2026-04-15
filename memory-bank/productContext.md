@@ -16,7 +16,7 @@ Mental health support in the Philippines, especially for Gen Z, lacks accessible
 3. **Community** reacts and comments; coaches moderate flagged content
 4. **Journal** privately to track mood and reflections over time
 5. **Chat** 1:1 with coaches for deeper support
-6. **Hourly Hope** — automated encouraging posts appear periodically
+6. **Daily Reflections** — personalized AI-generated biblical reflections appear daily, with push notification reminders
 
 ## User Experience Goals
 - **Warmth & safety** — "Sacred Journal" design makes the app feel like a personal safe space

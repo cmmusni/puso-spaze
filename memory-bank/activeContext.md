@@ -1,54 +1,67 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 12, 2026
+**Last Updated:** April 16, 2026
 
 ## Current Work Focus
-- PIN-based cross-device auth & account recovery (completed)
-- Quality playbook & memory bank update
-- Android build & testing (Expo prebuild → Android Studio)
+- Memory bank & documentation update
+- Android build & testing (Expo EAS + Android Studio)
+- Security hardening (15 bug fixes completed)
 
 ## Recent Changes
 
-### PIN-Based Cross-Device Login (April 12, 2026)
-- **Server**: Added `pin` field (TEXT, UNIQUE) to User model; `generateUniquePin()` creates 6-digit PINs (8-digit fallback on collision, 10 retries)
-- **Login flow**: If username exists on a different device and PIN is provided + matches → allow cross-device login + update deviceId. If no PIN → 409
-- **PIN auto-backfill**: On login, if user has no PIN yet, one is auto-generated and saved
-- **New endpoints**: `GET /api/users/:userId/pin`, `PATCH /api/users/:userId/pin` (both JWT-protected)
-- **Client**: LoginScreen has PIN modal for cross-device login; ProfileScreen shows/edits PIN with visibility toggle
+### Encouragement System Refactor (April 13–16, 2026)
+- **DELETED**: `encouragementScheduler.ts`, `appConfigService.ts`, `ENCOURAGEMENT_FEATURE.md`
+- **NEW**: `biblicalEncouragementService.ts` — standalone OpenAI-powered encouragement generator (Taglish, Gen Z tone, 1-3 sentences)
+- **NEW**: `dailyReflectionService.ts` — daily biblical reflection with in-memory per-day caching + personalization based on user's recent posts
+- **NEW**: `reflectionReminderScheduler.ts` — daily push notification scheduler (replaces hourly cron with daily reminders)
+- **Architecture shift**: "Hourly Hope" automated posts → "Daily Reflections" with personalized content + push reminders
 
-### Account Recovery System (April 12, 2026)
-- **New model**: `RecoveryRequest` (id, displayName, reason, status: PENDING|APPROVED|DENIED, reviewedBy, reviewedAt)
-- **New controller**: `recoveryController.ts` with submit (public), list (coach), review (coach/admin)
-- **Recovery flow**: Locked-out user → submit recovery request (public, no auth) → coaches see request + user's post/journal history → approve (clears deviceId) or deny
-- **Coach Dashboard**: Added "Account Recovery" queue panel with approve/deny actions + user history display
-- **LoginScreen**: Recovery modal accessible after failed PIN attempts
+### Dashboard Stats Endpoint (April 13–16, 2026)
+- **NEW**: `GET /api/stats/dashboard` — returns `totalMembers`, `dailyStories`, `onlineCount`, `trendingTags`, `dailyReflection` (personalized if userId provided)
+- **NEW**: `GET /api/users/:userId/stats` — returns `encouragementsGiven`, `totalReflections`, `streak`
+- **Client**: `apiGetDashboardStats()`, `apiGetUserStats()` added to `services/api.ts`
 
-### Magic Bytes Upload Validation (April 12, 2026)
-- **New utility**: `server/src/utils/validateImageMagicBytes.ts` — validates uploaded files by checking magic bytes (JPEG: FF D8 FF, PNG: 89 50 4E 47, GIF, WebP), not just MIME headers
-- Used in avatar uploads (`userRoutes.ts`) — partially mitigates QUALITY.md Scenario 8
+### Security Audit — 15 Bug Fixes (April 13, 2026)
+- **BUG-001**: Race condition on concurrent reactions → try/catch P2002/P2025
+- **BUG-002**: POST_MAX_LENGTH 1000→500 (server/client sync)
+- **BUG-003**: Comment min length 1→3
+- **BUG-004**: Malformed JSON 500→400
+- **BUG-005**: Journal PATCH fields made optional
+- **BUG-006**: User-facing `POST /api/posts/:postId/report` endpoint
+- **BUG-007**: XSS — `stripHtmlTags()` on all content entry points
+- **BUG-008**: Null byte injection — global middleware strips from body+query
+- **BUG-009–011**: IDOR on PIN read/write, username change (ownership checks)
+- **BUG-012**: IDOR on anonymous toggle + notifications + avatar
+- **BUG-013**: XSS in journal entries
+- **BUG-014**: Nested JSON depth check (>10 levels → 400)
+- **BUG-015**: Journal read authorization gap (ownership check on GET)
+- **Hardening**: JSON body limit 1mb→100kb, error handler uses `err.status`, null byte sanitization on keys+query params
 
-### JWT Authentication (April 12, 2026)
-- **Server**: `jwt.ts` utility (sign/verify), `requireAuth` middleware, `JWT_SECRET` env var with default + startup warning
-- **Route protection**: All write endpoints require valid JWT Bearer token; public read endpoints remain open
-- **Token issuance**: Returns `token` on login/invite redemption
-- **Client**: `api.ts` interceptor attaches JWT; `UserContext.tsx` stores/restores/clears token
-- **Web deviceId fix**: Web clients now generate and persist deviceId via AsyncStorage/localStorage
+### Schema Additions
+- `webPushSubscription` (Json?) — Web Push API subscription on User model
+- `lastActiveAt` (DateTime) — tracks user activity for online count
+- `AppConfig` model — minimal config container (id, createdAt, updatedAt)
 
-### Earlier Changes (April 11, 2026)
-- Login screen prefills username from `getDeviceOwner()` on mount
-- Coach Dashboard: `0` displays as `0` not `00`
-- Journal Screen: Save Entry button layout adjusted for responsive breakpoints
+### SendInviteScreen Cleanup (April 16, 2026)
+- Removed all Hourly Hope references; now purely an admin invite management tool
+
+### Previous Session (April 12, 2026)
+- PIN-based cross-device login + account recovery system
+- JWT authentication on all write endpoints
+- Magic bytes upload validation
+- Web deviceId persistence
 
 ## Next Steps
 - Complete Android APK build and test on physical tablet
-- Deploy PIN + recovery + JWT changes to production (set `JWT_SECRET` env var)
-- Add functional tests for PIN validation and recovery request flow
-- Continue responsive UI polish across screens
+- Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET` env vars)
+- Add functional tests for daily reflection, user stats, and security fixes
+- Update QUALITY.md with new scenarios for daily reflections and security hardening
 
 ## Active Decisions
+- "Hourly Hope" replaced by "Daily Reflections" (personalized, cached per-day, push notifications)
 - All write API endpoints require JWT auth; read endpoints remain public
 - PIN-based cross-device login as alternative to device-bound identity
 - Recovery requests require coach review with user history verification
-- Web clients now generate and persist deviceId (same as native)
-- JWT tokens expire after 7 days — user must re-login
-- `JWT_SECRET` has hardcoded dev default with startup warning (must override in production)
+- Global middleware strips null bytes from all request bodies + query params
+- JSON body limit set to 100kb; nesting depth limited to 10 levels
+- All user-scoped mutation AND read endpoints verify ownership via JWT userId

@@ -55,7 +55,7 @@ cd server && npx prisma migrate dev  # Run migrations
 apps/mobile/          — Expo/React Native universal app (web + iOS + Android)
   screens/            — 13 screens (Home, Post, Profile, Journal, Chat, Coach, etc.)
   components/         — Shared UI (PostCard, WebSidebar, BottomTabBar, etc.)
-  services/api.ts     — API client (fetch-based)
+  services/api.ts     — API client (Axios-based)
   context/            — UserContext (Zustand), ThemeContext
   hooks/              — usePosts, useUser, useNotifications
   constants/theme.ts  — Design tokens (colors, fonts, spacing, shadows)
@@ -63,10 +63,10 @@ apps/mobile/          — Expo/React Native universal app (web + iOS + Android)
 
 server/               — Express + Prisma + PostgreSQL
   src/controllers/    — Route handlers (post, comment, user, reaction, admin, coach, journal, notification, conversation, auth, recovery)
-  src/services/       — Business logic (moderation, encouragement, notifications, mentions)
+  src/services/       — Business logic (moderation, biblicalEncouragement, dailyReflection, reflectionReminder, notifications, mentions)
   src/config/         — env.ts (env vars), db.ts (Prisma client)
   src/middlewares/    — Logger, validation, requireAuth (JWT)
-  src/utils/          — jwt.ts, generateAnonUsername, validateImageMagicBytes
+  src/utils/          — jwt.ts, sanitize.ts, generateAnonUsername, validateImageMagicBytes
   prisma/             — Schema, migrations, seed
 
 packages/types/       — Shared TypeScript types (User, Post, Comment, etc.)
@@ -81,9 +81,9 @@ User Input → Client Validation → API Request → Express Router
 ```
 
 ### External Services
-- **OpenAI**: Content moderation API + chat completions for biblical encouragement
+- **OpenAI**: Content moderation API + chat completions for daily reflections & encouragement
 - **Resend**: Email delivery (new user alerts, invite codes)
-- **Expo Push**: Mobile push notifications
+- **Expo Push / Web Push**: Push notifications (native + web)
 - **Railway**: PostgreSQL hosting (production)
 - **Vercel**: Web frontend hosting
 
@@ -91,7 +91,7 @@ User Input → Client Validation → API Request → Express Router
 
 1. **Moderation-first**: Every post and comment is AI-moderated before publishing. Content defaults to REVIEW on moderation failure — never silently approved.
 2. **Anonymous mode**: Users can toggle anonymous posting. Anonymous posts get a randomly generated display name frozen at creation time.
-3. **Hourly Hope**: A cron-based scheduler generates biblical encouragement posts every hour using OpenAI, with contextual auto-comments on user posts.
+3. **Daily Reflections**: Personalized AI-generated biblical reflections (replaces Hourly Hope). Cached per-day, personalized to user's recent emotional context. Daily push notification reminders to opted-in users.
 4. **Device binding + PIN auth**: Usernames are bound to device IDs. Users get a unique 6-digit PIN for cross-device login. Locked-out users can submit recovery requests reviewed by coaches.
 5. **JWT auth**: All write endpoints require JWT Bearer tokens (7-day expiry). Read endpoints are public.
 6. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
@@ -101,7 +101,7 @@ User Input → Client Validation → API Request → Express Router
 - `OPENAI_API_KEY` not set → moderation returns SAFE for everything (dangerous in production — see `quality/QUALITY.md` Scenario 2)
 - `ADMIN_SECRET` has a hardcoded default `pusocoach_admin_2026` — must be overridden in production (Scenario 6)
 - `JWT_SECRET` has a hardcoded default in dev — must be overridden in production (startup warning logged)
-- Encouragement scheduler catches moderation failures and sets status to SAFE — should be REVIEW (Scenario 3)
+- Encouragement system refactored: `encouragementScheduler.ts` replaced by `biblicalEncouragementService.ts`, `dailyReflectionService.ts`, and `reflectionReminderScheduler.ts`
 - File uploads: Avatar uploads validate magic bytes; post image uploads still use header-based MIME check only (Scenario 8)
 - Anonymous mode leaks real `displayName` in notification payloads (Scenario 4)
 - Device ownership check is bypassable by omitting `deviceId` — mitigated by JWT auth + PIN (Scenario 5)
