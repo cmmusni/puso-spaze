@@ -83,7 +83,9 @@ export default function CoachLoginScreen() {
           setEmailPrefilled(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[CoachLogin] Failed to fetch invite email:', err?.message ?? err);
+      });
     return () => { cancelled = true; };
   }, [coachCode]);
 

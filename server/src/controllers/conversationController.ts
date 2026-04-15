@@ -302,17 +302,16 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Verify sender has access: participant or any coach/admin
+  // Verify sender has access: must be a participant in the conversation
   const sender = await prisma.user.findUnique({ where: { id: senderId } });
   if (!sender) {
     res.status(404).json({ error: 'Sender not found.' });
     return;
   }
-  const isCoach = sender.role === 'COACH' || sender.role === 'ADMIN';
   const isParticipant = conversation.userId === senderId || conversation.coachId === senderId;
 
-  if (!isCoach && !isParticipant) {
-    res.status(403).json({ error: 'You do not have access to this conversation.' });
+  if (!isParticipant) {
+    res.status(403).json({ error: 'You can only reply in conversations where the user has messaged you.' });
     return;
   }
 

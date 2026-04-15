@@ -77,11 +77,11 @@ async function sendReflectionReminders(): Promise<void> {
  * Runs every day at 9:00 AM server time
  */
 export function startReflectionReminderScheduler(): void {
-  const schedule = '0 9 * * *'; // Every day at 9:00 AM
+  const schedule = '0 1 * * *'; // Every day at 1:00 AM UTC = 9:00 AM PHT
 
   cron.schedule(schedule, async () => {
     await sendReflectionReminders();
   });
 
-  console.log('🔔 Reflection reminder scheduler started (runs daily at 9:00 AM)');
+  console.log('🔔 Reflection reminder scheduler started (runs daily at 9:00 AM PHT)');
 }

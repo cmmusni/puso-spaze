@@ -260,6 +260,17 @@ export async function apiGetPin(
 }
 
 /**
+ * GET /api/users/:userId/stats
+ * Returns profile stats (encouragementsGiven).
+ */
+export async function apiGetUserStats(
+  userId: string
+): Promise<{ encouragementsGiven: number; totalReflections: number; streak: number }> {
+  const { data } = await client.get(`/api/users/${userId}/stats`);
+  return data;
+}
+
+/**
  * PATCH /api/users/:userId/pin
  * Updates the user's PIN code.
  */

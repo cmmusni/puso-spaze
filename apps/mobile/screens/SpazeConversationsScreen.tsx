@@ -134,7 +134,11 @@ export default function SpazeConversationsScreen({ navigation }: any) {
 
     return (
       <TouchableOpacity
-        onPress={() => navigation.navigate("Chat", { conversationId: item.id })}
+        onPress={() => navigation.navigate("Chat", {
+          conversationId: item.id,
+          convUserId: item.userId,
+          convCoachId: item.coachId,
+        })}
         activeOpacity={0.85}
         style={[s.convCard, { backgroundColor: colors.surfaceContainerLowest }]}
       >

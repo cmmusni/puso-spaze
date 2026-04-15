@@ -38,6 +38,7 @@ import BottomTabBar from "../components/BottomTabBar";
 import WebSidebar from "../components/WebSidebar";
 import { useUserStore } from "../context/UserContext";
 import { useNotifications } from "../hooks/useNotifications";
+import { useBadgeStore } from "../hooks/useNotifications";
 import { apiGetReviewQueue } from "../services/api";
 import { colors, fonts, radii } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
@@ -163,7 +164,8 @@ function ScreenWithTabs({
   const userId = useUserStore((s) => s.userId);
   const isCoach = role === "COACH" || role === "ADMIN";
   const { unreadCount } = useNotifications(userId);
-  const [reviewCount, setReviewCount] = useState(0);
+  const reviewCount = useBadgeStore((s) => s.reviewCount);
+  const setReviewCount = useBadgeStore((s) => s.setReviewCount);
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
 

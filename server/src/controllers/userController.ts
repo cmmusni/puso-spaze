@@ -477,6 +477,53 @@ export async function getPin(req: Request, res: Response): Promise<void> {
  * Body: { pin: string } — 6-digit numeric PIN
  * Updates the user's PIN code. Must be unique across all users.
  */
+// ── GET /api/users/:userId/stats ──────────────
+export async function getUserStats(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!user) {
+    res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+
+  const [encouragementsGiven, postCount, journalDates, postDates] = await Promise.all([
+    prisma.reaction.count({
+      where: {
+        userId,
+        post: { userId: { not: userId } },
+      },
+    }),
+    prisma.post.count({
+      where: { userId, moderationStatus: 'SAFE' },
+    }),
+    prisma.journal.findMany({
+      where: { userId },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.post.findMany({
+      where: { userId, moderationStatus: 'SAFE' },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  // Calculate streak: consecutive days with a journal or post, starting from today
+  const dates = new Set<string>();
+  journalDates.forEach((j) => dates.add(j.createdAt.toDateString()));
+  postDates.forEach((p) => dates.add(p.createdAt.toDateString()));
+  let streak = 0;
+  const d = new Date();
+  while (dates.has(d.toDateString())) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+
+  const totalReflections = postCount + journalDates.length;
+
+  res.json({ encouragementsGiven, totalReflections, streak });
+}
+
 export async function updatePin(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
   const { pin } = req.body as { pin: string };

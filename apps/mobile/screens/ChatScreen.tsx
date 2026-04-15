@@ -33,15 +33,25 @@ const TYPING_POLL_INTERVAL = 2000;
 const TYPING_DEBOUNCE_MS = 800;
 
 export default function ChatScreen({ navigation, route }: any) {
-  const { conversationId, coachName } = route.params as { conversationId: string; coachName?: string };
+  const { conversationId, coachName, convUserId, convCoachId } = route.params as {
+    conversationId: string;
+    coachName?: string;
+    convUserId?: string;
+    convCoachId?: string;
+  };
   const { userId, role } = useUserStore();
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isCoach = role === "COACH" || role === "ADMIN";
 
+  // Coach viewing a conversation they're not a participant in → read-only
+  const isReadOnly = isCoach && !!convUserId && !!convCoachId
+    && convUserId !== userId && convCoachId !== userId;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [isMultiline, setIsMultiline] = useState(false);
@@ -82,8 +92,14 @@ export default function ChatScreen({ navigation, route }: any) {
       console.error("Failed to fetch messages:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [userId, conversationId]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchMessages();
+  }, [fetchMessages]);
 
   // ── Poll for new messages (only while focused) ───
   useFocusEffect(
@@ -290,6 +306,8 @@ export default function ChatScreen({ navigation, route }: any) {
               renderItem={renderMessage}
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               onContentSizeChange={() => {
                 flatListRef.current?.scrollToEnd({ animated: false });
               }}
@@ -320,52 +338,61 @@ export default function ChatScreen({ navigation, route }: any) {
               }
             />
 
-            {/* ── Input bar ── */}
-            <View style={styles.inputBar}>
-              <View style={styles.inputWrap}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Type a message..."
-                  placeholderTextColor={colors.placeholder}
-                  value={text}
-                  onChangeText={handleTextChange}
-                  maxLength={2000}
-                  multiline={isMultiline}
-                  onSubmitEditing={() => {
-                    if (!isMultiline) handleSend();
-                  }}
-                  blurOnSubmit={false}
-                  {...(Platform.OS === 'web' ? {
-                    onKeyPress: (e: any) => {
-                      const nativeEvent = e.nativeEvent;
-                      if (nativeEvent.key === 'Enter' && (nativeEvent.metaKey || nativeEvent.ctrlKey)) {
-                        e.preventDefault();
-                        handleSend();
-                      } else if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey && !isMultiline) {
-                        // Plain Enter in single-line mode switches to multiline
-                        e.preventDefault();
-                        setIsMultiline(true);
-                      }
-                    },
-                  } : {})}
-                />
+            {/* ── Input bar / Read-only notice ── */}
+            {isReadOnly ? (
+              <View style={[styles.readOnlyBar, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Ionicons name="eye-outline" size={16} color={colors.muted5} />
+                <Text style={[styles.readOnlyText, { color: colors.muted5 }]}>
+                  View only — this user hasn't messaged you
+                </Text>
               </View>
-              <TouchableOpacity
-                onPress={handleSend}
-                disabled={!text.trim() || sending}
-                style={[
-                  styles.sendBtn,
-                  (!text.trim() || sending) && styles.sendBtnDisabled,
-                ]}
-                activeOpacity={0.75}
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color={colors.onPrimary} />
-                ) : (
-                  <Ionicons name="send" size={18} color={colors.onPrimary} />
-                )}
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <View style={styles.inputBar}>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Type a message..."
+                    placeholderTextColor={colors.placeholder}
+                    value={text}
+                    onChangeText={handleTextChange}
+                    maxLength={2000}
+                    multiline={isMultiline}
+                    onSubmitEditing={() => {
+                      if (!isMultiline) handleSend();
+                    }}
+                    blurOnSubmit={false}
+                    {...(Platform.OS === 'web' ? {
+                      onKeyPress: (e: any) => {
+                        const nativeEvent = e.nativeEvent;
+                        if (nativeEvent.key === 'Enter' && (nativeEvent.metaKey || nativeEvent.ctrlKey)) {
+                          e.preventDefault();
+                          handleSend();
+                        } else if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey && !isMultiline) {
+                          // Plain Enter in single-line mode switches to multiline
+                          e.preventDefault();
+                          setIsMultiline(true);
+                        }
+                      },
+                    } : {})}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={handleSend}
+                  disabled={!text.trim() || sending}
+                  style={[
+                    styles.sendBtn,
+                    (!text.trim() || sending) && styles.sendBtnDisabled,
+                  ]}
+                  activeOpacity={0.75}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color={colors.onPrimary} />
+                  ) : (
+                    <Ionicons name="send" size={18} color={colors.onPrimary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </>
         )}
       </KeyboardAvoidingView>
@@ -611,5 +638,19 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   sendBtnDisabled: {
     opacity: 0.4,
+  },
+  readOnlyBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.outline,
+  },
+  readOnlyText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
   },
 });

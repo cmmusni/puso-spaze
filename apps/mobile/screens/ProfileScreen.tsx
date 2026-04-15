@@ -30,7 +30,7 @@ import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from ".
 import { useUserStore } from "../context/UserContext";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
-import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, apiGetPin, apiUpdatePin, getBaseUrl } from "../services/api";
+import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, apiGetPin, apiUpdatePin, apiGetUserStats, getBaseUrl } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal } from "../../../packages/types";
@@ -60,6 +60,9 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [journals, setJournals] = useState<Journal[]>([]);
+  const [encouragementsGiven, setEncouragementsGiven] = useState(0);
+  const [totalReflections, setTotalReflections] = useState(0);
+  const [streak, setStreak] = useState(0);
 
   // ── Edit username state ───────────────────
   const [isEditing, setIsEditing] = useState(false);
@@ -90,12 +93,16 @@ export default function ProfileScreen() {
     try {
       await fetchPosts();
       if (userId) {
-        const [journalRes, pinRes] = await Promise.all([
+        const [journalRes, pinRes, statsRes] = await Promise.all([
           apiFetchJournals(userId),
           apiGetPin(userId).catch(() => ({ pin: null })),
+          apiGetUserStats(userId).catch(() => ({ encouragementsGiven: 0, totalReflections: 0, streak: 0 })),
         ]);
         setJournals(journalRes.journals);
         setPinCode(pinRes.pin);
+        setEncouragementsGiven(statsRes.encouragementsGiven);
+        setTotalReflections(statsRes.totalReflections);
+        setStreak(statsRes.streak);
       }
     } catch (err) {
       console.warn("[ProfileScreen] load error:", err);
@@ -121,29 +128,6 @@ export default function ProfileScreen() {
     () => posts.filter((p) => p.userId === userId),
     [posts, userId],
   );
-
-  const totalReflections = myPosts.length + journals.length;
-
-  const encouragementsGiven = useMemo(() => {
-    let count = 0;
-    posts.forEach((p) => {
-      if (p.userId !== userId && p.reactionCount) count += 1;
-    });
-    return count;
-  }, [posts, userId]);
-
-  const streak = useMemo(() => {
-    const dates = new Set<string>();
-    journals.forEach((j) => dates.add(new Date(j.createdAt).toDateString()));
-    myPosts.forEach((p) => dates.add(new Date(p.createdAt).toDateString()));
-    let s = 0;
-    const d = new Date();
-    while (dates.has(d.toDateString())) {
-      s++;
-      d.setDate(d.getDate() - 1);
-    }
-    return s;
-  }, [journals, myPosts]);
 
   // ── Recent reflections ────────────────────
   const recentReflections = useMemo(() => {

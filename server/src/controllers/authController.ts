@@ -23,10 +23,10 @@ export async function getInviteEmail(req: Request, res: Response): Promise<void>
 
   const invite = await prisma.inviteCode.findUnique({
     where: { code },
-    select: { email: true, used: true },
+    select: { email: true },
   });
 
-  if (!invite || invite.used) {
+  if (!invite) {
     res.json({ email: null });
     return;
   }

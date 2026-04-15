@@ -5,12 +5,28 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
+import { create } from 'zustand';
 import {
   apiRegisterPushToken,
   apiGetUnreadCount,
   apiGetVapidPublicKey,
   apiRegisterWebPushSubscription,
 } from '../services/api';
+import { navigationRef } from '../navigation/AppNavigator';
+
+// ── Shared badge count store (single source of truth) ──
+interface BadgeStore {
+  unreadCount: number;
+  setUnreadCount: (count: number) => void;
+  reviewCount: number;
+  setReviewCount: (count: number) => void;
+}
+export const useBadgeStore = create<BadgeStore>((set) => ({
+  unreadCount: 0,
+  setUnreadCount: (count) => set({ unreadCount: count }),
+  reviewCount: 0,
+  setReviewCount: (count) => set({ reviewCount: count }),
+}));
 
 // ── Expo notifications (only imported on native) ──
 let Notifications: typeof import('expo-notifications') | null = null;
@@ -51,7 +67,8 @@ export interface UseNotificationsResult {
 export function useNotifications(userId: string | null): UseNotificationsResult {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any | null>(null);
-  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const unreadCount = useBadgeStore((s) => s.unreadCount);
+  const setUnreadCount = useBadgeStore((s) => s.setUnreadCount);
   const [webPushSubscribed, setWebPushSubscribed] = useState<boolean>(
     // Synchronously check if permission was already granted to avoid banner flash on refresh
     Platform.OS === 'web' && typeof Notification !== 'undefined' && Notification.permission === 'granted'
@@ -121,6 +138,15 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
       });
 
       if (Notifications) {
+        // Handle cold start: check if app was opened from a notification
+        Notifications.getLastNotificationResponseAsync().then((response) => {
+          if (response) {
+            const data = response.notification.request.content.data;
+            console.log('Cold start notification:', data);
+            handleNotificationNavigation(data);
+          }
+        });
+
         notificationListener.current =
           Notifications.addNotificationReceivedListener((n) => {
             setNotification(n);
@@ -131,6 +157,7 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
           Notifications.addNotificationResponseReceivedListener((response) => {
             const data = response.notification.request.content.data;
             console.log('Notification tapped:', data);
+            handleNotificationNavigation(data);
           });
       }
     }
@@ -157,6 +184,33 @@ export function useNotifications(userId: string | null): UseNotificationsResult 
     webPushSubscribed,
     webPushSupported,
   };
+}
+
+// ─────────────────────────────────────────────
+// Notification tap → navigate to relevant screen
+// ─────────────────────────────────────────────
+
+function handleNotificationNavigation(data: any): void {
+  if (!navigationRef.isReady()) return;
+
+  const nav = navigationRef as any; // drawer screens are nested under MainDrawer
+
+  if (data?.conversationId) {
+    // MESSAGE notification → open the chat
+    nav.navigate('MainDrawer', {
+      screen: 'Chat',
+      params: { conversationId: data.conversationId },
+    });
+  } else if (data?.postId) {
+    // REACTION or COMMENT notification → open the post
+    nav.navigate('MainDrawer', {
+      screen: 'PostDetail',
+      params: { postId: data.postId, openedFrom: 'notifications' },
+    });
+  } else {
+    // ENCOURAGEMENT / SYSTEM → open notifications screen
+    nav.navigate('MainDrawer', { screen: 'Notifications' });
+  }
 }
 
 // ─────────────────────────────────────────────

@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────
 
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -26,6 +26,9 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// ── Global navigation ref (accessible outside React tree) ──
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 // ── Linking configuration for deep links ─────
 const linking = {
@@ -70,7 +73,6 @@ export default function AppNavigator() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn);
   const isLoading = useUserStore((s) => s.isLoading);
   const { colors: themeColors } = useThemeStore();
-  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [isReady, setIsReady] = React.useState(false);
 
   // ── Navigation guard: redirect to Login if not authenticated ──
