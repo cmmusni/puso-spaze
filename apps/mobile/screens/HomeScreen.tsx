@@ -685,11 +685,16 @@ export default function HomeScreen() {
               <Ionicons name="menu-outline" size={24} color={colors.heading} />
             </TouchableOpacity>
           )}
-          <Image
-            source={require("../assets/logo.png")}
-            style={styles.topBarLogo}
-            resizeMode="contain"
-          />
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Home")}
+            activeOpacity={0.7}
+          >
+            <Image
+              source={require("../assets/logo.png")}
+              style={styles.topBarLogo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Search bar */}

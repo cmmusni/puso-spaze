@@ -159,8 +159,8 @@ export async function createUser(req: Request, res: Response): Promise<void> {
   const isWeb = platform === 'web';
 
   try {
-    const existingUser = await prisma.user.findUnique({
-      where: { displayName },
+    const existingUser = await prisma.user.findFirst({
+      where: { displayName: { equals: displayName, mode: 'insensitive' } },
       select: { id: true, deviceId: true, pin: true, role: true, displayName: true },
     });
 
@@ -192,7 +192,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
       // Same device, PIN-verified, or legacy user without deviceId — allow login
       const user = await prisma.user.update({
-        where: { displayName },
+        where: { id: existingUser.id },
         data: {
           lastActiveAt: new Date(),
           // Update deviceId when logging in from a new device via PIN

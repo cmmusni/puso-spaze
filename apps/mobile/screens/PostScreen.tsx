@@ -239,14 +239,18 @@ export default function PostScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        <TouchableOpacity
+          onPress={() => (navigation as any).navigate('Home')}
+          activeOpacity={0.7}
+          style={styles.headerCenter}
+        >
           <Image
             source={require("../assets/logo.png")}
             style={styles.headerLogo}
             resizeMode="contain"
           />
           <Text style={styles.headerTitle}>PUSO Spaze</Text>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={!canSubmit}

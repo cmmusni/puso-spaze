@@ -67,9 +67,9 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
 
     // 2. Check device ownership if username already exists
     // QUALITY.md Scenario 5: Reject if existing user has deviceId but request omits it
-    const existingUser = await prisma.user.findUnique({
-      where: { displayName },
-      select: { id: true, deviceId: true },
+    const existingUser = await prisma.user.findFirst({
+      where: { displayName: { equals: displayName, mode: 'insensitive' } },
+      select: { id: true, deviceId: true, displayName: true },
     });
 
     if (existingUser && existingUser.deviceId && !deviceId) {
@@ -84,20 +84,23 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
 
     // 3. Upsert the user — keep existing role on re-login, default to COACH on first login
     //    Copy email from invite code to user record
-    const user = await prisma.user.upsert({
-      where: { displayName },
-      update: {
-        lastActiveAt: new Date(),
-        ...(deviceId && !existingUser?.deviceId ? { deviceId } : {}),
-        ...(invite.email ? { email: invite.email } : {}),
-      },
-      create: {
-        displayName,
-        role: 'COACH',
-        ...(deviceId ? { deviceId } : {}),
-        ...(invite.email ? { email: invite.email } : {}),
-      },
-    });
+    const user = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            lastActiveAt: new Date(),
+            ...(deviceId && !existingUser.deviceId ? { deviceId } : {}),
+            ...(invite.email ? { email: invite.email } : {}),
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            displayName,
+            role: 'COACH',
+            ...(deviceId ? { deviceId } : {}),
+            ...(invite.email ? { email: invite.email } : {}),
+          },
+        });
 
     if (!existingUser) {
       const context = extractNewUserAlertContext(req);
