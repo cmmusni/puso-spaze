@@ -10,7 +10,7 @@ You are an expert frontend designer specializing in **static HTML/CSS/JS landing
 
 ## Project Context
 
-**PUSO Spaze** ("puso" = heart in Filipino) is a faith-based mental wellness community app for Filipino Gen Z. Users share emotional struggles (anonymously or publicly), receive AI-moderated biblical encouragement, and connect with trained coaches. The app runs on web and mobile (Expo/React Native).
+**PUSO Spaze** ("puso" = heart in Filipino) is a faith-based mental wellness community app for everyone, especially Gen Z and younger generations. Users share emotional struggles (anonymously or publicly), receive AI-moderated biblical encouragement, and connect with trained coaches. The app runs on web and mobile (Expo/React Native).
 
 **Live site**: https://puso-spaze.org
 

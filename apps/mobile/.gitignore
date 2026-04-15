@@ -1,1 +1,4 @@
 .vercel
+play-store-key.json
+*.keystore
+*.jks

@@ -14,7 +14,7 @@ PUSO Spaze is a compassionate mental health support platform providing a safe, a
 - **Cross-platform** — Web + iOS + Android from a single Expo codebase
 
 ## Target Audience
-- Filipino Gen Z individuals seeking mental health support
+- Anyone seeking mental health support, especially Gen Z and younger generations
 - Community coaches providing guidance and moderation
 - Admins managing platform safety and invite access
 

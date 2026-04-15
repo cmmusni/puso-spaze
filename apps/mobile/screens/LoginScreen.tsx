@@ -546,8 +546,8 @@ export default function LoginScreen() {
                       },
                       {
                         icon: 'globe' as const,
-                        title: 'Built for Filipinos',
-                        body: 'Designed with the Filipino Gen Z community in mind \u2014 blending faith, culture, and mental health support in one compassionate platform.',
+                        title: 'Built for Everyone',
+                        body: 'Rooted in Filipino faith and culture, PUSO Spaze welcomes anyone who needs a compassionate space — especially Gen Z and younger generations.',  
                       },
                     ].map((item) => (
                       <View key={item.title} style={styles.guidelineRow}>

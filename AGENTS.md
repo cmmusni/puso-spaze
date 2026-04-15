@@ -4,9 +4,9 @@
 
 ## Project Description
 
-**PUSO Spaze** is a faith-based mental wellness community app for Filipino youth. Users share emotional struggles (anonymously or publicly), receive AI-moderated biblical encouragement, and connect with trained coaches. The app runs on web and mobile (Expo/React Native) with an Express+Prisma+PostgreSQL backend.
+**PUSO Spaze** is a faith-based mental wellness community app for everyone, especially Gen Z and younger generations. Users share emotional struggles (anonymously or publicly), receive AI-moderated biblical encouragement, and connect with trained coaches. The app runs on web and mobile (Expo/React Native) with an Express+Prisma+PostgreSQL backend.
 
-**One-sentence summary:** A safe, AI-moderated community space where Filipino Gen Z can share feelings, get biblical encouragement, and talk to coaches — with content moderation, anonymous posting, PIN-based cross-device login, account recovery, and push notifications.
+**One-sentence summary:** A safe, AI-moderated community space where anyone — especially Gen Z and younger generations — can share feelings, get biblical encouragement, and talk to coaches — with content moderation, anonymous posting, PIN-based cross-device login, account recovery, and push notifications.
 
 ## Quick Setup
 
