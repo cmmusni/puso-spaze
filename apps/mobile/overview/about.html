@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About — PUSO Spaze</title>
+    <meta name="description" content="Learn about PUSO Spaze — a faith-based mental wellness community app for Filipino youth." />
+    <link rel="icon" href="../assets/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { font-family: 'Be Vietnam Pro', sans-serif; line-height: 1.6; color: #1C1B1F; background: #FFFFFF; overflow-x: hidden; }
+      h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif; }
+      img { max-width: 100%; height: auto; display: block; }
+      a { color: inherit; text-decoration: none; }
+
+      .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; }
+
+      /* Nav */
+      .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(121,116,126,0.1); }
+      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+      .nav-brand { display: flex; align-items: center; gap: 10px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.25rem; color: #1C1B1F; }
+      .nav-brand img { width: 36px; height: 36px; border-radius: 8px; }
+      .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
+      .nav-links a { font-family: 'Be Vietnam Pro', sans-serif; font-size: 0.9rem; font-weight: 500; color: #49454F; transition: color 0.2s; }
+      .nav-links a:hover { color: #7C003A; }
+      .nav-cta { display: inline-flex; align-items: center; padding: 10px 24px; background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF !important; border-radius: 9999px; font-weight: 600; font-size: 0.9rem; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(124,0,58,0.2); }
+      .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,0,58,0.3); color: #FFFFFF !important; }
+      .nav-mobile-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+      .nav-mobile-btn ion-icon { font-size: 1.6rem; color: #1C1B1F; }
+
+      /* Page Hero */
+      .page-hero { padding: 80px 0 48px; text-align: center; background: #FBF8FE; }
+      .page-hero h1 { font-size: 2.75rem; font-weight: 800; color: #1C1B1F; letter-spacing: -1px; margin-bottom: 12px; }
+      .page-hero p { font-size: 1.05rem; color: #49454F; max-width: 560px; margin: 0 auto; line-height: 1.7; }
+      .breadcrumb { font-size: 0.85rem; color: #49454F; margin-bottom: 16px; }
+      .breadcrumb a { color: #7C003A; font-weight: 600; }
+
+      /* Section */
+      .section-pad { padding: 64px 0; }
+
+      /* Mission */
+      .about-mission { background: linear-gradient(135deg, #4A0230 0%, #6B0340 25%, #A60550 50%, #8149A6 100%); border-radius: 24px; padding: 48px 32px; text-align: center; position: relative; overflow: hidden; margin-bottom: 48px; }
+      .about-mission::before { content: ''; position: absolute; top: -40%; right: -15%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%); pointer-events: none; }
+      .about-mission h2 { font-size: 1.75rem; font-weight: 800; color: #FFFFFF; margin-bottom: 16px; position: relative; }
+      .about-mission p { font-size: 1rem; color: rgba(255,255,255,0.85); line-height: 1.7; max-width: 640px; margin: 0 auto; position: relative; }
+      .about-stats { display: flex; justify-content: center; gap: 48px; margin-top: 36px; position: relative; flex-wrap: wrap; }
+      .about-stat { text-align: center; }
+      .about-stat-number { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2rem; font-weight: 800; color: #FFFFFF; line-height: 1; margin-bottom: 4px; }
+      .about-stat-label { font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.08em; }
+
+      /* Cards Grid */
+      .about-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+      .about-card { background: #FFFFFF; border-radius: 20px; padding: 32px; box-shadow: 0 8px 40px -5px rgba(124,0,58,0.06); border: 1px solid rgba(121,116,126,0.1); }
+      .about-card-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 14px; margin-bottom: 20px; }
+      .about-card-icon ion-icon { font-size: 1.4rem; color: #FFFFFF; }
+      .about-card-icon.berry { background: linear-gradient(135deg, #7C003A, #A60550); }
+      .about-card-icon.purple { background: linear-gradient(135deg, #7D45A2, #9B6DBB); }
+      .about-card-icon.indigo { background: linear-gradient(135deg, #4D3BBF, #7D45A2); }
+      .about-card h3 { font-size: 1.15rem; font-weight: 700; color: #1C1B1F; margin-bottom: 8px; }
+      .about-card p { font-size: 0.9rem; color: #49454F; line-height: 1.7; }
+
+      .about-tech { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+      .about-tech-tag { display: inline-flex; align-items: center; padding: 6px 14px; background: #F3EEFA; color: #7D45A2; border-radius: 9999px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; }
+
+      .about-fb-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 20px; background: linear-gradient(135deg, #1877F2, #0C5DC7); color: #FFFFFF; font-size: 0.85rem; font-weight: 600; border-radius: 9999px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(24,119,242,0.25); }
+      .about-fb-link:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(24,119,242,0.35); color: #FFFFFF; }
+      .about-fb-link ion-icon { font-size: 1.1rem; }
+
+      /* Section Header */
+      .section-header { text-align: center; margin-bottom: 48px; }
+      .section-title { font-size: 2rem; font-weight: 800; color: #1C1B1F; letter-spacing: -0.5px; margin-bottom: 12px; }
+      .section-subtitle { font-size: 1rem; color: #49454F; max-width: 560px; margin: 0 auto; line-height: 1.7; }
+
+      /* Privacy Section */
+      .privacy-section { background: #FBF8FE; }
+      .privacy-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+      .privacy-card { background: #FFFFFF; border-radius: 20px; padding: 32px; box-shadow: 0 8px 40px -5px rgba(124,0,58,0.06); border: 1px solid rgba(121,116,126,0.1); }
+      .privacy-card-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 14px; margin-bottom: 20px; }
+      .privacy-card-icon ion-icon { font-size: 1.4rem; color: #FFFFFF; }
+      .privacy-card h3 { font-size: 1.15rem; font-weight: 700; color: #1C1B1F; margin-bottom: 8px; }
+      .privacy-card p { font-size: 0.9rem; color: #49454F; line-height: 1.7; }
+
+      /* Cookie Consent */
+      .cookie-banner { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: #FFFFFF; border-top: 1px solid rgba(121,116,126,0.12); box-shadow: 0 -4px 24px rgba(0,0,0,0.08); padding: 24px; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); }
+      .cookie-banner.visible { transform: translateY(0); }
+      .cookie-inner { max-width: 1200px; margin: 0 auto; }
+      .cookie-main { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+      .cookie-text { flex: 1; min-width: 280px; }
+      .cookie-text h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1C1B1F; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+      .cookie-text p { font-size: 0.85rem; color: #49454F; line-height: 1.6; }
+      .cookie-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      .cookie-btn { padding: 10px 24px; border-radius: 9999px; font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: none; }
+      .cookie-btn-accept { background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF; box-shadow: 0 4px 16px rgba(124,0,58,0.2); }
+      .cookie-btn-accept:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,0,58,0.3); }
+      .cookie-btn-reject { background: transparent; color: #49454F; border: 1.5px solid rgba(121,116,126,0.25); }
+      .cookie-btn-reject:hover { border-color: #7C003A; color: #7C003A; }
+      .cookie-btn-settings { background: none; border: none; color: #7C003A; font-weight: 600; cursor: pointer; padding: 10px 16px; font-size: 0.85rem; font-family: 'Be Vietnam Pro', sans-serif; }
+      .cookie-btn-settings:hover { text-decoration: underline; }
+      .cookie-details { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(121,116,126,0.1); }
+      .cookie-details.open { display: block; }
+      .cookie-category { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(121,116,126,0.06); }
+      .cookie-category:last-child { border-bottom: none; }
+      .cookie-cat-info h4 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 700; color: #1C1B1F; margin-bottom: 2px; }
+      .cookie-cat-info p { font-size: 0.78rem; color: #49454F; line-height: 1.5; }
+      .cookie-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; margin-left: 16px; }
+      .cookie-toggle input { opacity: 0; width: 0; height: 0; }
+      .cookie-slider { position: absolute; inset: 0; background: rgba(121,116,126,0.25); border-radius: 9999px; cursor: pointer; transition: background 0.2s; }
+      .cookie-slider::before { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; top: 3px; left: 3px; transition: transform 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+      .cookie-toggle input:checked + .cookie-slider { background: linear-gradient(135deg, #A60550, #8149A6); }
+      .cookie-toggle input:checked + .cookie-slider::before { transform: translateX(20px); }
+      .cookie-toggle input:disabled + .cookie-slider { opacity: 0.6; cursor: not-allowed; }
+      .cookie-save-wrap { text-align: right; margin-top: 16px; }
+
+      /* Footer */
+      .site-footer { background: #1C1B1F; padding: 40px 0; color: #FFFFFF; }
+      .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; }
+      .footer-brand { display: flex; flex-direction: column; gap: 4px; }
+      .footer-brand-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.1rem; }
+      .footer-tagline { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+      .footer-links { display: flex; align-items: center; gap: 24px; list-style: none; }
+      .footer-links a { font-size: 0.85rem; color: rgba(255,255,255,0.6); transition: color 0.2s; }
+      .footer-links a:hover { color: #FFFFFF; }
+      .footer-social { display: flex; gap: 12px; }
+      .footer-social a { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); transition: background 0.2s, color 0.2s; }
+      .footer-social a:hover { background: rgba(255,255,255,0.16); color: #FFFFFF; }
+      .footer-social ion-icon { font-size: 1.1rem; }
+
+      /* Fade */
+      .fade-target { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+      .fade-target.visible { opacity: 1; transform: translateY(0); }
+
+      /* Scroll Top */
+      .scroll-top { position: fixed; bottom: 24px; right: 24px; width: 44px; height: 44px; background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 16px rgba(124,0,58,0.3); transition: opacity 0.3s, transform 0.3s, visibility 0.3s; z-index: 100; opacity: 0; visibility: hidden; border: none; font-size: 1.2rem; }
+      .scroll-top.visible { opacity: 1; visibility: visible; }
+      .scroll-top:hover { transform: translateY(-3px); }
+
+      @media (min-width: 600px) {
+        .container { padding: 0 32px; }
+        .about-grid { grid-template-columns: repeat(2, 1fr); }
+        .privacy-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (min-width: 900px) {
+        .container { padding: 0 48px; }
+        .about-grid { grid-template-columns: repeat(3, 1fr); }
+        .privacy-grid { grid-template-columns: repeat(3, 1fr); }
+        .page-hero h1 { font-size: 3rem; }
+        .section-title { font-size: 2.25rem; }
+      }
+      @media (max-width: 599px) {
+        .nav-links { display: none; }
+        .nav-mobile-btn { display: flex; }
+        .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: #FFFFFF; padding: 16px 24px; gap: 16px; border-bottom: 1px solid rgba(121,116,126,0.12); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        .page-hero h1 { font-size: 2rem; }
+        .about-stats { gap: 24px; }
+        .about-stat-number { font-size: 1.5rem; }
+        .footer-inner { flex-direction: column; text-align: center; }
+        .footer-links { flex-wrap: wrap; justify-content: center; }
+        .footer-social { justify-content: center; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <div class="container nav-inner">
+        <a href="index.html" class="nav-brand" aria-label="PUSO Spaze Home">
+          <img src="../assets/icon.png" alt="" width="36" height="36" />
+          PUSO Spaze
+        </a>
+        <button class="nav-mobile-btn" aria-label="Toggle menu" id="navToggle">
+          <ion-icon name="menu-outline"></ion-icon>
+        </button>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="index.html#features">Features</a></li>
+          <li><a href="about.html" style="color: #7C003A;">About</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li><a href="https://puso-spaze.org" class="nav-cta" target="_blank" rel="noopener noreferrer">Get Started</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <section class="page-hero">
+        <div class="container">
+          <p class="breadcrumb"><a href="index.html">Home</a> / About</p>
+          <h1>About PUSO Spaze</h1>
+          <p>We built this space because every heart deserves to be heard — especially yours.</p>
+        </div>
+      </section>
+
+      <!-- Mission -->
+      <section class="section-pad fade-target">
+        <div class="container">
+          <div class="about-mission">
+            <h2>Our Mission</h2>
+            <p>To create the safest digital sanctuary for Filipino Gen Z — where emotional struggles are met with compassion, biblical encouragement, and real human connection. No judgment, no stigma, just healing.</p>
+            <div class="about-stats">
+              <div class="about-stat">
+                <div class="about-stat-number">24/7</div>
+                <div class="about-stat-label">Safe Space</div>
+              </div>
+              <div class="about-stat">
+                <div class="about-stat-number">100%</div>
+                <div class="about-stat-label">Anonymous</div>
+              </div>
+              <div class="about-stat">
+                <div class="about-stat-number">AI + Human</div>
+                <div class="about-stat-label">Moderation</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- What is PUSO Spaze? -->
+      <section class="section-pad fade-target">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">What is PUSO Spaze?</h2>
+            <p class="section-subtitle">PUSO Spaze ("puso" means heart in Filipino) is an anonymous peer support community where you can share your struggles, receive encouragement, and find hope — without fear of judgment.</p>
+          </div>
+
+          <div class="about-grid">
+            <div class="about-card">
+              <div class="about-card-icon berry"><ion-icon name="people-outline"></ion-icon></div>
+              <h3>Built for Filipinos</h3>
+              <p>Designed with the Filipino Gen Z community in mind — blending faith, culture, and mental health support in one compassionate platform.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon purple"><ion-icon name="sparkles-outline"></ion-icon></div>
+              <h3>AI-Powered Encouragement</h3>
+              <p>Our "Hourly Hope" feature delivers AI-generated biblical encouragement in Taglish (Tagalog + English), crafted for Gen Z hearts that need a reminder they're not alone.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon indigo"><ion-icon name="eye-off-outline"></ion-icon></div>
+              <h3>Truly Anonymous</h3>
+              <p>Post with a randomly generated username or choose your own. Your real identity is never revealed. Share freely, heal openly.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon berry"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
+              <h3>Coach-Moderated Safety</h3>
+              <p>Trained PUSO Coaches review flagged content to keep the community safe. Harmful posts are caught by AI moderation and human review.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon purple"><ion-icon name="chatbubbles-outline"></ion-icon></div>
+              <h3>React &amp; Support</h3>
+              <p>Show support through Pray and Care reactions. Leave encouraging comments with @mentions. Every interaction is a chance to lift someone up.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon indigo"><ion-icon name="globe-outline"></ion-icon></div>
+              <h3>Everywhere You Are</h3>
+              <p>One codebase, every screen. PUSO Spaze runs on iOS, Android, and the web — so your sanctuary travels with you.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Values & Tech -->
+      <section class="section-pad fade-target" style="background: #FBF8FE;">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Our Values &amp; Tech</h2>
+            <p class="section-subtitle">Faith, privacy, and safety at the core of everything we build.</p>
+          </div>
+
+          <div class="about-grid">
+            <div class="about-card">
+              <div class="about-card-icon berry"><ion-icon name="heart-outline"></ion-icon></div>
+              <h3>Faith-Centered Healing</h3>
+              <p>Every encouragement is rooted in Scripture. Our AI companion delivers biblical hope tailored to the community's emotional pulse — every hour, every day.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon purple"><ion-icon name="eye-off-outline"></ion-icon></div>
+              <h3>Privacy-First Design</h3>
+              <p>No real names required. PIN-based login, anonymous posting, and device-bound accounts ensure your identity stays yours alone.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon indigo"><ion-icon name="shield-half-outline"></ion-icon></div>
+              <h3>AI-Powered Safety</h3>
+              <p>Every post is screened by keyword filtering and OpenAI moderation before publishing. Harmful content is caught before anyone sees it.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon berry"><ion-icon name="code-slash-outline"></ion-icon></div>
+              <h3>Built With</h3>
+              <p>Modern, open-source technologies powering a cross-platform experience.</p>
+              <div class="about-tech">
+                <span class="about-tech-tag">React Native</span>
+                <span class="about-tech-tag">Expo</span>
+                <span class="about-tech-tag">TypeScript</span>
+                <span class="about-tech-tag">Express</span>
+                <span class="about-tech-tag">Prisma</span>
+                <span class="about-tech-tag">PostgreSQL</span>
+                <span class="about-tech-tag">OpenAI</span>
+              </div>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon purple"><ion-icon name="phone-portrait-outline"></ion-icon></div>
+              <h3>Cross-Platform</h3>
+              <p>One universal codebase runs natively on iOS, Android, and the web. Updates reach everyone simultaneously.</p>
+            </div>
+            <div class="about-card">
+              <div class="about-card-icon indigo"><ion-icon name="logo-facebook"></ion-icon></div>
+              <h3>Join Our Community</h3>
+              <p>Follow us on Facebook for updates, encouragement, and stories from the PUSO Spaze community.</p>
+              <a href="https://www.facebook.com/PUSOofficial" target="_blank" rel="noopener noreferrer" class="about-fb-link">
+                <ion-icon name="logo-facebook"></ion-icon>
+                facebook.com/PUSOofficial
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Privacy Policy -->
+      <section class="section-pad privacy-section fade-target" id="privacy">
+        <div class="container">
+          <div class="section-header">
+            <ion-icon name="lock-closed" style="font-size: 2rem; color: #7C003A; margin-bottom: 8px;"></ion-icon>
+            <h2 class="section-title">Privacy Policy</h2>
+            <p class="section-subtitle">Your privacy and safety are our top priorities.</p>
+          </div>
+
+          <div class="privacy-grid">
+            <div class="privacy-card">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #7C003A, #A60550);"><ion-icon name="finger-print-outline"></ion-icon></div>
+              <h3>No Personal Data Collected</h3>
+              <p>We do not collect your real name, email, phone number, or location. Your identity within PUSO Spaze is limited to your chosen or auto-generated username.</p>
+            </div>
+            <div class="privacy-card">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #7D45A2, #9B6DBB);"><ion-icon name="phone-portrait-outline"></ion-icon></div>
+              <h3>Device Binding</h3>
+              <p>Your username is linked to your device via a secure, randomly generated device ID stored locally. This helps you keep your identity across sessions without creating an account.</p>
+            </div>
+            <div class="privacy-card">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #4D3BBF, #7D45A2);"><ion-icon name="cloud-outline"></ion-icon></div>
+              <h3>What We Store</h3>
+              <p>We store your posts, comments, and reactions on our secure servers. Posts go through AI moderation to ensure community safety before being published.</p>
+            </div>
+            <div class="privacy-card">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #7C003A, #A60550);"><ion-icon name="trash-outline"></ion-icon></div>
+              <h3>Data Deletion</h3>
+              <p>You can clear your device binding at any time from your Profile. Coaches and admins can remove individual posts or comments. Contact us to request full data deletion.</p>
+            </div>
+            <div class="privacy-card">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #7D45A2, #9B6DBB);"><ion-icon name="shield-outline"></ion-icon></div>
+              <h3>AI Moderation</h3>
+              <p>Posts are reviewed by OpenAI's content moderation API to detect harmful content. This is done to protect the community — no personal data is shared beyond the post text.</p>
+            </div>
+            <div class="privacy-card">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #4D3BBF, #7D45A2);"><ion-icon name="notifications-off-outline"></ion-icon></div>
+              <h3>Push Notifications</h3>
+              <p>Push notifications are opt-in and only used for reactions, comments, and mentions on your posts. You can disable them at any time.</p>
+            </div>
+            <div class="privacy-card" style="grid-column: 1 / -1; text-align: center;">
+              <div class="privacy-card-icon" style="background: linear-gradient(135deg, #7C003A, #A60550); margin-left: auto; margin-right: auto;"><ion-icon name="analytics-outline"></ion-icon></div>
+              <h3>No Tracking or Ads</h3>
+              <p>PUSO Spaze does not use analytics trackers, advertising networks, or sell any user data to third parties. Ever.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <span class="footer-brand-name">PUSO Spaze</span>
+          <span class="footer-tagline">&copy; 2026 PUSO Spaze. Crafted for the sacred soul.</span>
+        </div>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li><a href="about.html#privacy">Privacy</a></li>
+        </ul>
+        <div class="footer-social">
+          <a href="https://www.facebook.com/PUSOofficial" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><ion-icon name="logo-facebook"></ion-icon></a>
+          <a href="#" aria-label="Heart"><ion-icon name="heart-outline"></ion-icon></a>
+        </div>
+      </div>
+    </footer>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top"><ion-icon name="chevron-up-outline"></ion-icon></button>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script>
+      const navToggle = document.getElementById('navToggle');
+      const navLinks = document.getElementById('navLinks');
+      navToggle.addEventListener('click', () => {
+        navLinks.classList.toggle('open');
+        navToggle.querySelector('ion-icon').setAttribute('name', navLinks.classList.contains('open') ? 'close-outline' : 'menu-outline');
+      });
+      navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+        navLinks.classList.remove('open');
+        navToggle.querySelector('ion-icon').setAttribute('name', 'menu-outline');
+      }));
+      const scrollTopBtn = document.getElementById('scrollTop');
+      window.addEventListener('scroll', () => scrollTopBtn.classList.toggle('visible', window.scrollY > 300), { passive: true });
+      scrollTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      const fadeObserver = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }), { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+      document.querySelectorAll('.fade-target').forEach(el => fadeObserver.observe(el));
+
+      // Cookie consent
+      (() => {
+        const STORAGE_KEY = 'puso_cookie_consent';
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const banner = document.getElementById('cookieBanner');
+        if (saved) return;
+        setTimeout(() => banner.classList.add('visible'), 800);
+
+        const detailsWrap = document.getElementById('cookieDetails');
+        document.getElementById('cookieSettingsBtn').addEventListener('click', () => {
+          detailsWrap.classList.toggle('open');
+        });
+        document.getElementById('cookieAcceptAll').addEventListener('click', () => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ essential: true, analytics: true, functional: true, ts: Date.now() }));
+          banner.classList.remove('visible');
+        });
+        document.getElementById('cookieRejectAll').addEventListener('click', () => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ essential: true, analytics: false, functional: false, ts: Date.now() }));
+          banner.classList.remove('visible');
+        });
+        document.getElementById('cookieSavePrefs').addEventListener('click', () => {
+          const prefs = {
+            essential: true,
+            analytics: document.getElementById('cookieAnalytics').checked,
+            functional: document.getElementById('cookieFunctional').checked,
+            ts: Date.now(),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+          banner.classList.remove('visible');
+        });
+      })();
+    </script>
+
+    <!-- Cookie Consent Banner -->
+    <div class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Cookie consent">
+      <div class="cookie-inner">
+        <div class="cookie-main">
+          <div class="cookie-text">
+            <h3><ion-icon name="shield-checkmark" style="color: #7C003A;"></ion-icon> Your Privacy Matters</h3>
+            <p>We use cookies and local storage to improve your experience on PUSO Spaze. Essential cookies are required for core functionality. You can customize your preferences below.</p>
+          </div>
+          <div class="cookie-actions">
+            <button class="cookie-btn cookie-btn-accept" id="cookieAcceptAll">Accept All</button>
+            <button class="cookie-btn cookie-btn-reject" id="cookieRejectAll">Reject Non-Essential</button>
+            <button class="cookie-btn-settings" id="cookieSettingsBtn">Customize</button>
+          </div>
+        </div>
+        <div class="cookie-details" id="cookieDetails">
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Essential Cookies</h4>
+              <p>Required for login, session management, and basic site functionality. Cannot be disabled.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" checked disabled />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Functional Cookies</h4>
+              <p>Remember your preferences like theme, language, and cookie consent choices.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" id="cookieFunctional" checked />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Analytics Cookies</h4>
+              <p>Help us understand how visitors interact with the site so we can improve the experience. No personal data is shared.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" id="cookieAnalytics" />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-save-wrap">
+            <button class="cookie-btn cookie-btn-accept" id="cookieSavePrefs">Save Preferences</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

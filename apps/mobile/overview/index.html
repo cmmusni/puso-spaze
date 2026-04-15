@@ -3,895 +3,615 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PUSO Spaze - Project Overview</title>
+    <title>PUSO Spaze — Your Heart's Safe Space</title>
+    <meta name="description" content="A faith-based mental wellness community app for Filipino youth. Share anonymously, receive biblical encouragement, and connect with trained coaches." />
+    <link rel="icon" href="../assets/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+      /* ── Reset ── */
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
 
-      html {
-        scroll-behavior: smooth;
-      }
-
+      /* ── Base ── */
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif;
+        font-family: 'Be Vietnam Pro', sans-serif;
         line-height: 1.6;
-        color: #1a1a1a;
-        background: linear-gradient(
-          135deg,
-          #4A0230 0%,
-          #6B0340 25%,
-          #A60550 50%,
-          #A60550 75%,
-          #8149A6 100%
-        );
-        background-attachment: fixed;
-        padding: 20px;
+        color: #1C1B1F;
+        background: #FFFFFF;
         overflow-x: hidden;
       }
 
-      /* Animated background particles */
-      body::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+
+      img { max-width: 100%; height: auto; display: block; }
+      a { color: inherit; text-decoration: none; }
+
+      /* ── Layout ── */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
         width: 100%;
-        height: 100%;
-        background:
-          radial-gradient(
-            circle at 20% 50%,
-            rgba(47, 122, 109, 0.15) 0%,
-            transparent 50%
-          ),
-          radial-gradient(
-            circle at 80% 80%,
-            rgba(197, 98, 69, 0.15) 0%,
-            transparent 50%
-          ),
-          radial-gradient(
-            circle at 40% 20%,
-            rgba(224, 122, 78, 0.1) 0%,
-            transparent 50%
-          );
-        animation: float 20s ease-in-out infinite;
+      }
+
+      /* ── Nav ── */
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(121, 116, 126, 0.1);
+      }
+
+      .nav-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 64px;
+      }
+
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 800;
+        font-size: 1.25rem;
+        color: #1C1B1F;
+      }
+
+      .nav-brand img {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        list-style: none;
+      }
+
+      .nav-links a {
+        font-family: 'Be Vietnam Pro', sans-serif;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #49454F;
+        transition: color 0.2s;
+        border-bottom: none;
+      }
+
+      .nav-links a:hover {
+        color: #7C003A;
+      }
+
+      .nav-cta {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 24px;
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        color: #FFFFFF !important;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 16px rgba(124, 0, 58, 0.2);
+      }
+
+      .nav-cta:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 24px rgba(124, 0, 58, 0.3);
+        color: #FFFFFF !important;
+      }
+
+      .nav-mobile-btn {
+        display: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+      }
+
+      .nav-mobile-btn ion-icon {
+        font-size: 1.6rem;
+        color: #1C1B1F;
+      }
+
+      /* ── Hero ── */
+      .hero {
+        position: relative;
+        padding: 80px 0 60px;
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: '';
+        position: absolute;
+        top: -40%;
+        right: -10%;
+        width: 700px;
+        height: 700px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(166, 5, 80, 0.08) 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .hero-inner {
+        display: flex;
+        align-items: center;
+        gap: 48px;
+      }
+
+      .hero-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 16px;
+        background: #F3EEFA;
+        color: #7D45A2;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 24px;
+        letter-spacing: 0.02em;
+      }
+
+      .hero-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -1.5px;
+        color: #1C1B1F;
+        margin-bottom: 20px;
+      }
+
+      .hero-title em {
+        font-style: italic;
+        background: linear-gradient(135deg, #A60550, #8149A6, #9B6DBB);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero-desc {
+        font-size: 1.05rem;
+        color: #49454F;
+        line-height: 1.7;
+        margin-bottom: 32px;
+        max-width: 480px;
+      }
+
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        padding: 14px 28px;
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        color: #FFFFFF;
+        border-radius: 9999px;
+        font-family: 'Be Vietnam Pro', sans-serif;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 20px rgba(124, 0, 58, 0.25);
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(124, 0, 58, 0.35);
+      }
+
+      .btn-text {
+        font-family: 'Be Vietnam Pro', sans-serif;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #49454F;
+        transition: color 0.2s;
+        border: none;
+        background: none;
+        cursor: pointer;
+        padding: 14px 8px;
+      }
+
+      .btn-text:hover {
+        color: #7C003A;
+      }
+
+      .hero-phone {
+        flex: 0 0 auto;
+        position: relative;
+        width: 320px;
+      }
+
+      .phone-frame {
+        position: relative;
+        width: 280px;
+        margin: 0 auto;
+        border-radius: 40px;
+        overflow: hidden;
+        box-shadow:
+          0 24px 80px rgba(124, 0, 58, 0.15),
+          0 8px 40px -5px rgba(124, 0, 58, 0.06);
+        background: #1C1B1F;
+        padding: 12px;
+      }
+
+      .phone-frame img {
+        border-radius: 30px;
+        width: 100%;
+      }
+
+      .phone-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(166, 5, 80, 0.12) 0%, transparent 70%);
         pointer-events: none;
         z-index: -1;
       }
 
-      @keyframes float {
-        0%,
-        100% {
-          transform: translateY(0px);
-        }
-        50% {
-          transform: translateY(-20px);
-        }
+      /* ── Section Shared ── */
+      .section-pad {
+        padding: 80px 0;
       }
 
-      .container {
-        max-width: 1000px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(10px);
-        border-radius: 24px;
-        padding: 50px;
-        box-shadow:
-          0 25px 80px rgba(0, 0, 0, 0.4),
-          0 0 0 1px rgba(255, 255, 255, 0.1);
-        animation: slideUp 0.8s ease-out;
-      }
-
-      @keyframes slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(30px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      header {
+      .section-header {
         text-align: center;
-        margin-bottom: 50px;
-        padding-bottom: 40px;
-        border-bottom: 3px solid transparent;
-        background:
-          linear-gradient(white, white) padding-box,
-          linear-gradient(135deg, #A60550, #8149A6, #9B6DBB) border-box;
-        border-image-slice: 1;
-        position: relative;
+        margin-bottom: 48px;
       }
 
-      header::after {
-        content: "";
-        position: absolute;
-        bottom: -3px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 100px;
-        height: 3px;
-        background: linear-gradient(90deg, #A60550, #8149A6);
-        border-radius: 10px;
-        box-shadow: 0 0 20px rgba(47, 122, 109, 0.6);
-      }
-
-      .logo {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto 25px;
-        border-radius: 30px;
-        object-fit: cover;
-        transition: transform 0.3s ease;
-      }
-
-      .logo:hover {
-        transform: scale(1.05) rotate(5deg);
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          box-shadow:
-            0 15px 35px rgba(47, 122, 109, 0.4),
-            0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        50% {
-          box-shadow:
-            0 15px 50px rgba(197, 98, 69, 0.6),
-            0 5px 20px rgba(0, 0, 0, 0.3);
-        }
-      }
-
-      h1 {
-        font-size: 3rem;
-        color: #1a1a1a;
-        margin-bottom: 15px;
-        background: linear-gradient(
-          135deg,
-          #A60550 0%,
-          #A60550 25%,
-          #8149A6 50%,
-          #9B6DBB 100%
-        );
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+      .section-title {
+        font-size: 2.25rem;
         font-weight: 800;
-        letter-spacing: -1px;
-        animation: gradientShift 5s ease infinite;
-        background-size: 200% auto;
-      }
-
-      @keyframes gradientShift {
-        0%,
-        100% {
-          background-position: 0% center;
-        }
-        50% {
-          background-position: 100% center;
-        }
-      }
-
-      .tagline {
-        font-size: 1.3rem;
-        color: #6b7280;
-        font-weight: 400;
-        margin-bottom: 10px;
-      }
-
-      .version-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #A60550, #8149A6);
-        color: white;
-        padding: 8px 20px;
-        border-radius: 25px;
-        font-size: 0.95rem;
-        margin-top: 20px;
-        box-shadow: 0 8px 20px rgba(47, 122, 109, 0.4);
-        animation: glow 2s ease-in-out infinite;
-        font-weight: 600;
-      }
-
-      @keyframes glow {
-        0%,
-        100% {
-          box-shadow: 0 8px 20px rgba(47, 122, 109, 0.4);
-        }
-        50% {
-          box-shadow: 0 8px 30px rgba(197, 98, 69, 0.6);
-        }
-      }
-
-      h2 {
-        font-size: 2.2rem;
-        color: #1a1a1a;
-        padding: 15px;
-        border-radius: 12px;
-        border-bottom: 3px solid transparent;
-        background:
-          linear-gradient(white, white) padding-box,
-          linear-gradient(90deg, #A60550, #8149A6) border-box;
-        border-image-slice: 1;
-        font-weight: 700;
-        position: relative;
-        animation: fadeIn 0.6s ease-out;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateX(-20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-
-      h2::before {
-        content: "◆ ";
-        background: linear-gradient(135deg, #A60550, #8149A6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-right: 10px;
-      }
-
-      h3 {
-        font-size: 1.7rem;
-        color: #1f2937;
-        margin: 0 20px;
-        font-weight: 700;
-        position: relative;
-        padding-left: 20px;
-      }
-
-      h3::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 4px;
-        height: 80%;
-        background: linear-gradient(180deg, #A60550, #8149A6);
-        border-radius: 10px;
-      }
-
-      h4 {
-        font-size: 1.3rem;
-        color: #374151;
-        margin: 25px 0 12px;
-        font-weight: 600;
-      }
-
-      p {
-        margin-bottom: 18px;
-        color: #4b5563;
-        line-height: 1.8;
-      }
-
-      .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 25px;
-        margin: 35px 0;
-      }
-
-      .feature-card {
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-        padding: 30px;
-        border-radius: 16px;
-        border-left: 5px solid #A60550;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      }
-
-      .feature-card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(
-          135deg,
-          rgba(47, 122, 109, 0.05),
-          rgba(197, 98, 69, 0.05)
-        );
-        opacity: 0;
-        transition: opacity 0.4s ease;
-      }
-
-      .feature-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(47, 122, 109, 0.25);
-        border-left-color: #8149A6;
-      }
-
-      .feature-card:hover::before {
-        opacity: 1;
-      }
-
-      .feature-icon {
-        margin-bottom: 15px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        animation: bounce 2s ease-in-out infinite;
-        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-      }
-
-      .feature-icon ion-icon {
-        font-size: 2.8rem;
-        color: #A60550;
-      }
-
-      @keyframes bounce {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-10px);
-        }
-      }
-
-      .feature-card:hover .feature-icon {
-        animation: shake 0.5s ease-in-out;
-      }
-
-      @keyframes shake {
-        0%,
-        100% {
-          transform: translateX(0) rotate(0deg);
-        }
-        25% {
-          transform: translateX(-5px) rotate(-5deg);
-        }
-        75% {
-          transform: translateX(5px) rotate(5deg);
-        }
-      }
-
-      .feature-title {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #1a1a1a;
+        color: #1C1B1F;
+        letter-spacing: -0.5px;
         margin-bottom: 12px;
       }
 
-      .feature-desc {
+      .section-subtitle {
         font-size: 1rem;
-        color: #6b7280;
+        color: #49454F;
+        max-width: 520px;
+        margin: 0 auto;
         line-height: 1.6;
-        margin: 0;
       }
 
-      .ai-people-section {
-        background: linear-gradient(
-          145deg,
-          #4A0230 0%,
-          #6B0340 55%,
-          #A60550 100%
-        );
-        padding: 56px 44px;
+      /* ── Feature Cards (Sanctuary) ── */
+      .features-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+
+      .feature-card-new {
+        background: #FFFFFF;
         border-radius: 24px;
-        margin-bottom: 40px;
-        box-shadow:
-          0 20px 55px rgba(8, 15, 30, 0.45),
-          inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        color: white;
-        border: 1px solid rgba(47, 122, 109, 0.2);
+        padding: 32px;
+        box-shadow: 0 8px 40px -5px rgba(124, 0, 58, 0.06);
+        border: 1px solid rgba(121, 116, 126, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        overflow: hidden;
+      }
+
+      .feature-card-new:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 56px -8px rgba(124, 0, 58, 0.12);
+      }
+
+      .feature-card-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #F3EEFA;
+        margin-bottom: 16px;
+      }
+
+      .feature-card-icon ion-icon {
+        font-size: 1.4rem;
+        color: #7C003A;
+      }
+
+      .feature-card-new h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1C1B1F;
+        margin-bottom: 8px;
+      }
+
+      .feature-card-new p {
+        font-size: 0.9rem;
+        color: #49454F;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+
+      .feature-card-img-wrap {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #F3EEFA;
+        height: 550px;
+      }
+
+      .feature-card-img {
+        width: 100%;
+        height: auto;
+        position: absolute;
+        top: -80px;
+        left: 0;
+        border-radius: 0;
+        background: #F3EEFA;
+      }
+
+      /* ── Coach Section ── */
+      .coach-section {
+        background: #FFFFFF;
+        border-radius: 24px;
+        box-shadow: 0 8px 40px -5px rgba(124, 0, 58, 0.06);
+        border: 1px solid rgba(121, 116, 126, 0.1);
+        overflow: hidden;
+      }
+
+      .coach-inner {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .coach-content {
+        padding: 40px 32px;
+      }
+
+      .coach-content .feature-card-icon {
+        margin-bottom: 20px;
+      }
+
+      .coach-content h3 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #1C1B1F;
+        margin-bottom: 12px;
+      }
+
+      .coach-content > p {
+        font-size: 0.95rem;
+        color: #49454F;
+        line-height: 1.7;
+        margin-bottom: 24px;
+      }
+
+      .coach-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .coach-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #1C1B1F;
+      }
+
+      .coach-list-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #7C003A;
+        flex-shrink: 0;
+      }
+
+      .coach-img-wrap {
+        padding: 0 32px 32px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .coach-img-wrap img {
+        border-radius: 20px;
+        max-width: 300px;
+        width: 100%;
+        box-shadow: 0 8px 40px -5px rgba(124, 0, 58, 0.08);
+      }
+
+      /* ── CTA Section ── */
+      .cta-section {
+        padding: 80px 0;
+      }
+
+      .cta-card {
+        background: linear-gradient(135deg, #4A0230 0%, #6B0340 25%, #A60550 50%, #8149A6 100%);
+        border-radius: 24px;
+        padding: 64px 32px;
+        text-align: center;
         position: relative;
         overflow: hidden;
       }
 
-      .ai-people-section::before {
-        content: "";
+      .cta-card::before {
+        content: '';
         position: absolute;
-        top: -120px;
-        right: -100px;
-        width: 320px;
-        height: 320px;
+        top: -50%;
+        right: -20%;
+        width: 500px;
+        height: 500px;
         border-radius: 50%;
-        background: radial-gradient(
-          circle,
-          rgba(47, 122, 109, 0.2) 0%,
-          rgba(47, 122, 109, 0) 70%
-        );
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, transparent 70%);
         pointer-events: none;
       }
 
-      .ai-people-title {
-        color: white;
-        text-align: center;
-        border: none;
-        margin-bottom: 34px;
-        font-size: 2.35rem;
-        background: linear-gradient(
-          135deg,
-          #A60550 0%,
-          #4D3BBF 45%,
-          #9B6DBB 100%
-        );
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        letter-spacing: -0.4px;
-        position: relative;
-      }
-
-      .ai-people-title::before {
-        content: "◆";
-        margin-right: 12px;
-        color: #A60550;
-        -webkit-text-fill-color: #A60550;
-      }
-
-      .ai-people-content {
-        max-width: 820px;
-        margin: 0 auto;
-        position: relative;
-        z-index: 1;
-      }
-
-      .ai-people-intro {
-        color: #dbe2ef;
-        line-height: 1.8;
-        font-size: 1.1rem;
-        margin-bottom: 16px;
-        font-weight: 500;
-      }
-
-      .ai-people-list {
-        list-style: none;
-        padding-left: 0;
-        margin-bottom: 36px;
-      }
-
-      .ai-people-list li {
-        color: #d1d5db;
-        line-height: 1.9;
-        font-size: 1.08rem;
-        margin: 10px 0;
-        padding-left: 28px;
-        position: relative;
-      }
-
-      .ai-people-list li::before {
-        content: "•";
-        position: absolute;
-        left: 8px;
-        top: 0;
-        color: #4D3BBF;
-        font-size: 1.45rem;
-        line-height: 1.1;
-      }
-
-      .ai-heart-line {
-        color: #e5e7eb;
-        line-height: 1.8;
-        font-size: 1.5rem;
-        margin-top: 12px;
-        text-align: center;
-        font-weight: 700;
-        letter-spacing: -0.3px;
-      }
-
-      .people-card {
-        margin-top: 26px;
-        padding: 30px;
-        background: linear-gradient(
-          145deg,
-          rgba(17, 66, 60, 0.35),
-          rgba(29, 93, 84, 0.18)
-        );
-        border-radius: 14px;
-        border: 2px solid rgba(47, 122, 109, 0.45);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-      }
-
-      .people-card-title {
-        color: #f8fafc;
-        line-height: 1.4;
-        font-size: 2rem;
-        text-align: center;
+      .cta-card h2 {
+        font-size: 2.5rem;
         font-weight: 800;
-        margin-bottom: 14px;
+        color: #FFFFFF;
+        margin-bottom: 16px;
+        letter-spacing: -0.5px;
+        line-height: 1.2;
+        position: relative;
       }
 
-      .people-card-copy {
-        color: #e5e7eb;
-        margin-top: 14px;
-        line-height: 1.95;
-        font-size: 1.16rem;
-        text-align: left;
-        max-width: 560px;
+      .cta-card p {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 32px;
+        max-width: 440px;
+        margin-left: auto;
+        margin-right: auto;
+        position: relative;
       }
 
-      .ai-people-tagline {
-        margin-top: 36px;
-        font-size: 1.7rem;
-        font-style: italic;
-        color: #4D3BBF;
-        text-align: center;
-        line-height: 1.75;
-        font-weight: 500;
-      }
-
-      .tech-stack {
+      .cta-buttons {
         display: flex;
+        justify-content: center;
+        gap: 16px;
         flex-wrap: wrap;
-        gap: 12px;
-        margin: 25px 0;
+        position: relative;
       }
 
-      .tech-badge {
-        background: linear-gradient(135deg, #A60550, #A60550);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 12px;
+      .btn-outline {
+        display: inline-flex;
+        align-items: center;
+        padding: 14px 28px;
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        color: #FFFFFF;
+        border-radius: 9999px;
+        font-family: 'Be Vietnam Pro', sans-serif;
         font-weight: 600;
         font-size: 0.95rem;
-        box-shadow: 0 6px 18px rgba(47, 122, 109, 0.35);
-        transition: all 0.3s ease;
-        cursor: default;
-        position: relative;
-        overflow: hidden;
-      }
-
-      .tech-badge::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          rgba(255, 255, 255, 0.3),
-          transparent
-        );
-        transition: left 0.5s ease;
-      }
-
-      .tech-badge:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(47, 122, 109, 0.5);
-      }
-
-      .tech-badge:hover::before {
-        left: 100%;
-      }
-
-      .info-box {
-        background: linear-gradient(135deg, #FBF8FE 0%, #F3EEFA 100%);
-        border-left: 5px solid #A60550;
-        padding: 25px;
-        margin: 25px 0;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(47, 122, 109, 0.15);
-        transition: transform 0.3s ease;
-      }
-
-      .info-box:hover {
-        transform: translateX(5px);
-      }
-
-      .warning-box {
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-        border-left: 5px solid #f59e0b;
-        padding: 25px;
-        margin: 25px 0;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15);
-        transition: transform 0.3s ease;
-      }
-
-      .warning-box:hover {
-        transform: translateX(5px);
-      }
-
-      .success-box {
-        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-        border-left: 5px solid #10b981;
-        padding: 25px;
-        margin: 25px 0;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
-        transition: transform 0.3s ease;
-      }
-
-      .success-box:hover {
-        transform: translateX(5px);
-      }
-
-      ul,
-      ol {
-        margin: 20px 0 20px 35px;
-        color: #4b5563;
-      }
-
-      li {
-        margin: 12px 0;
-        line-height: 1.7;
-        position: relative;
-        padding-left: 10px;
-      }
-
-      ul li::marker {
-        color: #A60550;
-        font-size: 1.2em;
-      }
-
-      code {
-        background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-        padding: 3px 8px;
-        border-radius: 6px;
-        font-family: "Courier New", monospace;
-        color: #A60550;
-        font-size: 0.9em;
-        border: 1px solid #d1d5db;
-        font-weight: 600;
-      }
-
-      pre {
-        background: linear-gradient(135deg, #4A0230 0%, #6B0340 100%);
-        color: #f3f4f6;
-        padding: 25px;
-        border-radius: 12px;
-        overflow-x: auto;
-        margin: 25px 0;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        border: 1px solid #374151;
-        position: relative;
-      }
-
-      pre::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 30px;
-        background: linear-gradient(
-          90deg,
-          #A60550,
-          #f59e0b,
-          #10b981,
-          #A60550,
-          #8149A6
-        );
-        border-radius: 12px 12px 0 0;
-        opacity: 0.1;
-      }
-
-      pre code {
         background: transparent;
-        color: #f3f4f6;
-        padding: 0;
-        border: none;
-        font-size: 0.95em;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
       }
 
-      .screenshot {
-        width: 100%;
-        max-width: 600px;
-        border-radius: 16px;
-        margin: 25px auto;
-        display: block;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-        transition:
-          transform 0.3s ease,
-          box-shadow 0.3s ease;
+      .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: #FFFFFF;
       }
 
-      .screenshot:hover {
-        transform: scale(1.02);
-        box-shadow: 0 20px 60px rgba(47, 122, 109, 0.3);
+      /* ── Footer ── */
+      .site-footer {
+        background: #1C1B1F;
+        padding: 40px 0;
+        color: #FFFFFF;
       }
 
-      .screenshot-caption {
-        text-align: center;
-        color: #6b7280;
-        font-size: 0.95rem;
-        margin-top: 12px;
-        font-style: italic;
+      .footer-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 24px;
       }
 
-      a {
-        color: #A60550;
-        text-decoration: none;
-        border-bottom: 2px solid transparent;
-        transition: all 0.3s ease;
-        font-weight: 500;
+      .footer-brand {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
       }
 
-      a.try-it-out {
-        background: linear-gradient(135deg, #A60550, #8149A6);
-        color: white;
-        padding: 8px 20px;
-        border-radius: 25px;
-        font-size: 0.95rem;
-        box-shadow: 0 8px 20px rgba(47, 122, 109, 0.4);
+      .footer-brand-name {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 800;
+        font-size: 1.1rem;
       }
 
-      a:hover {
-        border-bottom-color: #A60550;
-        color: #A60550;
+      .footer-tagline {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.5);
       }
 
-      a.try-it-out:hover {
-        color: #4D3BBF;
-        text-decoration: none;
-        border-bottom: 2px solid transparent;
-        transition: all 0.3s ease;
-        font-weight: 500;
+      .footer-links {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        list-style: none;
       }
 
-      .nav-link {
-        display: inline-block;
-        padding: 8px 16px;
-        background: white;
-        border: 2px solid #A60550;
-        border-radius: 20px;
-        color: #A60550;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        border-bottom: 2px solid #A60550;
-      }
-
-      .nav-link:hover {
-        background: linear-gradient(135deg, #A60550, #8149A6);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(47, 122, 109, 0.4);
-      }
-
-      .sticky-menu-bar {
-        position: sticky;
-        top: 12px;
-        z-index: 999;
-        backdrop-filter: blur(10px);
-        background: rgba(237, 247, 245, 0.92);
-        border: 1px solid rgba(47, 122, 109, 0.28);
-        box-shadow: 0 10px 24px rgba(47, 122, 109, 0.22);
-      }
-
-      .sticky-menu-bar:hover {
-        transform: none;
-      }
-
-      footer {
-        text-align: center;
-        margin-top: 60px;
-        padding-top: 40px;
-        border-top: 3px solid transparent;
-        background:
-          linear-gradient(white, white) padding-box,
-          linear-gradient(90deg, #A60550, #8149A6) border-box;
-        border-image-slice: 1;
-        color: #6b7280;
-      }
-
-      .section {
-        margin: 50px 0;
-        animation: fadeInUp 0.8s ease-out;
-        scroll-margin-top: 120px;
-      }
-
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 25px 0;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        border-radius: 12px;
-        overflow: hidden;
-      }
-
-      th,
-      td {
-        padding: 16px;
-        text-align: left;
-        border-bottom: 1px solid #e5e7eb;
-      }
-
-      th {
-        background: linear-gradient(135deg, #A60550, #A60550);
-        font-weight: 700;
-        color: white;
-        text-transform: uppercase;
+      .footer-links a {
         font-size: 0.85rem;
-        letter-spacing: 0.5px;
+        color: rgba(255, 255, 255, 0.6);
+        transition: color 0.2s;
       }
 
-      tr {
-        transition: background-color 0.3s ease;
+      .footer-links a:hover {
+        color: #FFFFFF;
       }
 
-      tr:hover {
-        background-color: #FFFFFF;
+      .footer-social {
+        display: flex;
+        gap: 12px;
       }
 
-      .update-section {
-        background: linear-gradient(
-          135deg,
-          #FBF8FE 0%,
-          #F3EEFA 50%,
-          #E5DAF0 100%
-        );
-        padding: 35px;
-        border-radius: 16px;
-        margin: 30px 0;
-        box-shadow: 0 10px 30px rgba(47, 122, 109, 0.15);
-        border: 1px solid rgba(47, 122, 109, 0.2);
-        position: relative;
-        overflow: hidden;
+      .footer-social a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.7);
+        transition: background 0.2s, color 0.2s;
       }
 
-      .update-section::before {
-        content: "✨";
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        font-size: 3rem;
-        opacity: 0.3;
-        animation: twinkle 2s ease-in-out infinite;
+      .footer-social a:hover {
+        background: rgba(255, 255, 255, 0.16);
+        color: #FFFFFF;
       }
 
-      @keyframes twinkle {
-        0%,
-        100% {
-          opacity: 0.3;
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.6;
-          transform: scale(1.1);
-        }
+      .footer-social ion-icon {
+        font-size: 1.1rem;
       }
 
-      /* Scroll to top button */
+      /* ── Scroll To Top ── */
       .scroll-top {
         position: fixed;
-        bottom: 30px;
-        right: 30px;
-        width: 50px;
-        height: 50px;
+        bottom: 24px;
+        right: 24px;
+        width: 44px;
+        height: 44px;
         background: linear-gradient(135deg, #A60550, #8149A6);
-        color: white;
+        color: #FFFFFF;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 8px 20px rgba(47, 122, 109, 0.5);
-        transition: all 0.3s ease;
-        z-index: 1000;
+        box-shadow: 0 4px 16px rgba(124, 0, 58, 0.3);
+        transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+        z-index: 100;
         opacity: 0;
         visibility: hidden;
+        border: none;
+        font-size: 1.2rem;
       }
 
       .scroll-top.visible {
@@ -900,549 +620,677 @@
       }
 
       .scroll-top:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 30px rgba(47, 122, 109, 0.7);
+        transform: translateY(-3px);
       }
 
-      @media (max-width: 768px) {
-        .container {
-          padding: 25px;
+      /* ── Cookie Consent ── */
+      .cookie-banner { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: #FFFFFF; border-top: 1px solid rgba(121,116,126,0.12); box-shadow: 0 -4px 24px rgba(0,0,0,0.08); padding: 24px; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); }
+      .cookie-banner.visible { transform: translateY(0); }
+      .cookie-inner { max-width: 1200px; margin: 0 auto; }
+      .cookie-main { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+      .cookie-text { flex: 1; min-width: 280px; }
+      .cookie-text h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1C1B1F; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+      .cookie-text p { font-size: 0.85rem; color: #49454F; line-height: 1.6; }
+      .cookie-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      .cookie-btn { padding: 10px 24px; border-radius: 9999px; font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: none; }
+      .cookie-btn-accept { background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF; box-shadow: 0 4px 16px rgba(124,0,58,0.2); }
+      .cookie-btn-accept:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,0,58,0.3); }
+      .cookie-btn-reject { background: transparent; color: #49454F; border: 1.5px solid rgba(121,116,126,0.25); }
+      .cookie-btn-reject:hover { border-color: #7C003A; color: #7C003A; }
+      .cookie-btn-settings { background: none; border: none; color: #7C003A; font-weight: 600; cursor: pointer; padding: 10px 16px; font-size: 0.85rem; font-family: 'Be Vietnam Pro', sans-serif; }
+      .cookie-btn-settings:hover { text-decoration: underline; }
+      .cookie-details { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(121,116,126,0.1); }
+      .cookie-details.open { display: block; }
+      .cookie-category { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(121,116,126,0.06); }
+      .cookie-category:last-child { border-bottom: none; }
+      .cookie-cat-info h4 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 700; color: #1C1B1F; margin-bottom: 2px; }
+      .cookie-cat-info p { font-size: 0.78rem; color: #49454F; line-height: 1.5; }
+      .cookie-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; margin-left: 16px; }
+      .cookie-toggle input { opacity: 0; width: 0; height: 0; }
+      .cookie-slider { position: absolute; inset: 0; background: rgba(121,116,126,0.25); border-radius: 9999px; cursor: pointer; transition: background 0.2s; }
+      .cookie-slider::before { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; top: 3px; left: 3px; transition: transform 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+      .cookie-toggle input:checked + .cookie-slider { background: linear-gradient(135deg, #A60550, #8149A6); }
+      .cookie-toggle input:checked + .cookie-slider::before { transform: translateX(20px); }
+      .cookie-toggle input:disabled + .cookie-slider { opacity: 0.6; cursor: not-allowed; }
+      .cookie-save-wrap { text-align: right; margin-top: 16px; }
+
+      /* ── Device Carousel ── */
+      .device-gallery {
+        background: #FBF8FE;
+        overflow: hidden;
+      }
+
+      .carousel-viewport {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .carousel-track {
+        display: flex;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .carousel-slide {
+        flex: 0 0 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 24px;
+        padding: 0 24px 16px;
+      }
+
+      .carousel-device-frame {
+        border-radius: 20px;
+        overflow: hidden;
+        background: #FFFFFF;
+        box-shadow: 0 8px 40px -5px rgba(124, 0, 58, 0.1);
+        border: 1px solid rgba(121, 116, 126, 0.08);
+      }
+
+      .carousel-device-frame.phone {
+        width: 200px;
+        border-radius: 24px;
+      }
+
+      .carousel-device-frame.tablet {
+        width: 500px;
+        border-radius: 16px;
+      }
+
+      .carousel-device-frame img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .carousel-label {
+        text-align: center;
+        margin-top: 20px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1C1B1F;
+      }
+
+      .carousel-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 32px;
+      }
+
+      .carousel-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 2px solid rgba(121, 116, 126, 0.2);
+        background: #FFFFFF;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        color: #1C1B1F;
+      }
+
+      .carousel-btn:hover {
+        border-color: #7C003A;
+        box-shadow: 0 4px 16px rgba(124, 0, 58, 0.12);
+      }
+
+      .carousel-btn ion-icon {
+        font-size: 1.2rem;
+      }
+
+      .carousel-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .carousel-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(121, 116, 126, 0.25);
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+      }
+
+      .carousel-dot.active {
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        transform: scale(1.25);
+      }
+
+      @media (max-width: 599px) {
+        .carousel-device-frame.phone { width: 120px; }
+        .carousel-device-frame.tablet { width: 240px; }
+        .carousel-slide { gap: 12px; }
+        .carousel-label { font-size: 0.95rem; }
+      }
+
+      @media (min-width: 900px) {
+        .carousel-device-frame.phone { width: 220px; }
+        .carousel-device-frame.tablet { width: 560px; }
+      }
+
+      /* ── Fade-in animation ── */
+      .fade-target {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.7s ease, transform 0.7s ease;
+      }
+
+      .fade-target.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* ── Responsive ── */
+      @media (min-width: 600px) {
+        .container { padding: 0 32px; }
+
+        .hero-title { font-size: 3rem; }
+
+        .features-grid {
+          grid-template-columns: repeat(2, 1fr);
         }
 
-        .sticky-menu-bar {
-          top: 8px;
+        .coach-inner {
+          flex-direction: row;
+          align-items: center;
         }
 
-        h1 {
-          font-size: 2.2rem;
+        .coach-content {
+          flex: 1;
+          padding: 48px 40px;
         }
 
-        h2 {
-          font-size: 1.8rem;
+        .coach-img-wrap {
+          flex: 0 0 280px;
+          padding: 32px;
+        }
+      }
+
+      @media (min-width: 900px) {
+        .container { padding: 0 48px; }
+
+        .hero { padding: 100px 0 80px; }
+
+        .hero-title { font-size: 3.75rem; }
+
+        .hero-phone { width: 360px; }
+
+        .phone-frame { width: 310px; }
+
+        .section-title { font-size: 2.5rem; }
+
+        .cta-card { padding: 80px 48px; }
+        .cta-card h2 { font-size: 2.75rem; }
+
+        .coach-img-wrap { flex: 0 0 340px; }
+      }
+
+      @media (max-width: 599px) {
+        .nav-links { display: none; }
+        .nav-mobile-btn { display: flex; }
+
+        .nav-links.open {
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          top: 64px;
+          left: 0;
+          right: 0;
+          background: #FFFFFF;
+          padding: 16px 24px;
+          gap: 16px;
+          border-bottom: 1px solid rgba(121, 116, 126, 0.12);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
 
-        .feature-grid {
-          grid-template-columns: 1fr;
+        .hero-inner {
+          flex-direction: column;
+          text-align: center;
         }
 
-        .logo {
-          width: 90px;
-          height: 90px;
+        .hero-desc { margin-left: auto; margin-right: auto; }
+
+        .hero-actions { justify-content: center; }
+
+        .hero-phone { width: 260px; margin-top: 24px; }
+
+        .phone-frame { width: 240px; }
+
+        .hero-title { font-size: 2.5rem; }
+
+        .cta-card h2 { font-size: 1.75rem; }
+
+        .footer-inner {
+          flex-direction: column;
+          text-align: center;
         }
 
-        .scroll-top {
-          bottom: 20px;
-          right: 20px;
-          width: 45px;
-          height: 45px;
-        }
+        .footer-links { flex-wrap: wrap; justify-content: center; }
+        .footer-social { justify-content: center; }
       }
     </style>
   </head>
-  <body>
-    <div class="container">
-      <header>
-        <img src="./assets/icon.png" alt="PUSO Spaze Logo" class="logo" />
-        <h1>PUSO Spaze</h1>
-        <p class="tagline">
-          Safe Space for Mental Health Support & Biblical Encouragement
-        </p>
-        <span class="version-badge">Version 1.0.0 | February 2026</span>
-      </header>
 
-      <!-- Navigation Links -->
-      <div
-        class="info-box sticky-menu-bar"
-        style="text-align: center; padding: 30px; opacity: 0.8"
-      >
-        <div
-          style="
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 15px;
-          "
-        >
-          <a href="#overview" class="nav-link">Overview</a>
-          <a href="#features" class="nav-link">Features</a>
-          <a href="#future" class="nav-link">Future Plans</a>
-          <a
-            href="https://puso-spaze.org"
-            class="nav-link try-it-out"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Try It Out</a
-          >
+  <body>
+    <!-- ═══ Navigation ═══ -->
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <div class="container nav-inner">
+        <a href="#" class="nav-brand" aria-label="PUSO Spaze Home">
+          <img src="../assets/icon.png" alt="" width="36" height="36" />
+          PUSO Spaze
+        </a>
+        <button class="nav-mobile-btn" aria-label="Toggle menu" id="navToggle">
+          <ion-icon name="menu-outline"></ion-icon>
+        </button>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#features">Features</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li>
+            <a href="https://puso-spaze.org" class="nav-cta" target="_blank" rel="noopener noreferrer">Get Started</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <!-- ═══ Hero ═══ -->
+      <section class="hero" id="hero">
+        <div class="container hero-inner">
+          <div class="hero-content">
+            <span class="hero-badge">A Sanctuary for Reflection</span>
+            <h1 class="hero-title">
+              Your Heart's<br /><em>Safe Space.</em>
+            </h1>
+            <p class="hero-desc">
+              Find hope, share your journey, and connect with a compassionate community through PUSO Spaze — the sacred journal and support network designed for your soul.
+            </p>
+            <div class="hero-actions">
+              <a href="https://puso-spaze.org" class="btn-primary" target="_blank" rel="noopener noreferrer">Create Your Anonymous Account</a>
+              <a href="#features" class="btn-text">Learn More</a>
+            </div>
+          </div>
+          <div class="hero-phone" aria-hidden="true">
+            <div class="phone-glow"></div>
+            <div class="phone-frame">
+              <img src="../assets/screens/iphone/iphone-login.png" alt="PUSO Spaze app login screen showing anonymous identity creation" loading="lazy" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Features — Emotional Sanctuary ═══ -->
+      <section class="section-pad fade-target" id="features">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Designed for Emotional Sanctuary</h2>
+            <p class="section-subtitle">We've traded cold clinical interfaces for the warmth of a sacred journal. Every interaction is an invitation to heal.</p>
+          </div>
+
+          <div class="features-grid">
+            <!-- The Sacred Journal -->
+            <article class="feature-card-new">
+              <div class="feature-card-icon">
+                <ion-icon name="book-outline"></ion-icon>
+              </div>
+              <h3>The Sacred Journal</h3>
+              <p>Capture your most intimate thoughts with daily reflections and intelligent mood tracking. It's more than a diary; it's a mirror for your soul.</p>
+              <div class="feature-card-img-wrap">
+                <img src="../assets/screens/iphone/iphone-journal.png" alt="PUSO Spaze journal screen showing daily reflections and mood tracking" class="feature-card-img" loading="lazy" />
+              </div>
+            </article>
+
+            <!-- Community Feed -->
+            <article class="feature-card-new">
+              <div class="feature-card-icon">
+                <ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+              </div>
+              <h3>Community Feed</h3>
+              <p>Share anonymously and find strength in others. Our AI-driven 'Hourly Hope' provides biblical encouragement tailored to the collective heartbeat of the community.</p>
+              <div class="feature-card-img-wrap">
+                <img src="../assets/screens/iphone/iphone-feed.png" alt="PUSO Spaze community feed showing encouraging posts and daily reflections" class="feature-card-img" loading="lazy" />
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Wellness Coach Support ═══ -->
+      <section class="section-pad fade-target" id="coaches">
+        <div class="container">
+          <div class="coach-section">
+            <div class="coach-inner">
+              <div class="coach-content">
+                <div class="feature-card-icon">
+                  <ion-icon name="shield-checkmark-outline"></ion-icon>
+                </div>
+                <h3>Wellness Coach Support</h3>
+                <p>Direct, private access to professional wellness coaches who understand your journey. No judgment, just guidance rooted in compassion and experience.</p>
+                <ul class="coach-list">
+                  <li><span class="coach-list-dot"></span>1-on-1 Private Messaging</li>
+                  <li><span class="coach-list-dot"></span>Spiritual & Mental Alignment</li>
+                  <li><span class="coach-list-dot"></span>Crisis Intervention Ready</li>
+                </ul>
+              </div>
+              <div class="coach-img-wrap">
+                <img src="../assets/screens/iphone/iphone-spaze-coach.png" alt="PUSO Spaze coach screen showing available wellness coaches and messaging" loading="lazy" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Device Gallery Carousel ═══ -->
+      <section class="section-pad device-gallery fade-target">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Beautiful on Every Screen</h2>
+            <p class="section-subtitle">From phone to tablet, PUSO Spaze adapts to give you the best experience wherever you reflect.</p>
+          </div>
+        </div>
+        <div class="container">
+          <div class="carousel-viewport">
+            <div class="carousel-track" id="carouselTrack">
+              <div class="carousel-slide" data-label="Community Feed">
+                <div class="carousel-device-frame phone">
+                  <img src="../assets/screens/iphone/iphone-feed.png" alt="Community Feed on iPhone" loading="lazy" />
+                </div>
+                <div class="carousel-device-frame tablet">
+                  <img src="../assets/screens/ipad/ipad-feed.png" alt="Community Feed on iPad" loading="lazy" />
+                </div>
+              </div>
+              <div class="carousel-slide" data-label="Sacred Journal">
+                <div class="carousel-device-frame phone">
+                  <img src="../assets/screens/iphone/iphone-journal.png" alt="Sacred Journal on iPhone" loading="lazy" />
+                </div>
+                <div class="carousel-device-frame tablet">
+                  <img src="../assets/screens/ipad/ipad-journal.png" alt="Sacred Journal on iPad" loading="lazy" />
+                </div>
+              </div>
+              <div class="carousel-slide" data-label="Your Profile">
+                <div class="carousel-device-frame phone">
+                  <img src="../assets/screens/iphone/iphone-profile.png" alt="Profile on iPhone" loading="lazy" />
+                </div>
+                <div class="carousel-device-frame tablet">
+                  <img src="../assets/screens/ipad/ipad-profile.png" alt="Profile on iPad" loading="lazy" />
+                </div>
+              </div>
+              <div class="carousel-slide" data-label="Spaze Coach">
+                <div class="carousel-device-frame phone">
+                  <img src="../assets/screens/iphone/iphone-spaze-coach.png" alt="Spaze Coach on iPhone" loading="lazy" />
+                </div>
+                <div class="carousel-device-frame tablet">
+                  <img src="../assets/screens/ipad/ipad-spaze-coach.png" alt="Spaze Coach on iPad" loading="lazy" />
+                </div>
+              </div>
+              <div class="carousel-slide" data-label="Login">
+                <div class="carousel-device-frame phone">
+                  <img src="../assets/screens/iphone/iphone-login.png" alt="Login on iPhone" loading="lazy" />
+                </div>
+                <div class="carousel-device-frame tablet">
+                  <img src="../assets/screens/ipad/ipad-login.png" alt="Login on iPad" loading="lazy" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="carousel-label" id="carouselLabel">Community Feed</div>
+          <div class="carousel-controls">
+            <button class="carousel-btn" id="carouselPrev" aria-label="Previous screen">
+              <ion-icon name="chevron-back-outline"></ion-icon>
+            </button>
+            <div class="carousel-dots" id="carouselDots"></div>
+            <button class="carousel-btn" id="carouselNext" aria-label="Next screen">
+              <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ CTA ═══ -->
+      <section class="cta-section fade-target">
+        <div class="container">
+          <div class="cta-card">
+            <h2>Start Your Healing<br />Journey Today.</h2>
+            <p>Join thousands of others finding peace, one reflection at a time. Anonymous, safe, and sacred.</p>
+            <div class="cta-buttons">
+              <a href="https://puso-spaze.org" class="btn-outline" target="_blank" rel="noopener noreferrer">Create Anonymous Account</a>
+              <a href="https://www.facebook.com/PUSOofficial" class="btn-outline" target="_blank" rel="noopener noreferrer">
+                <ion-icon name="logo-facebook" style="margin-right: 8px;"></ion-icon> Follow Us on Facebook
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ═══ Footer ═══ -->
+    <footer class="site-footer" role="contentinfo">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <span class="footer-brand-name">PUSO Spaze</span>
+          <span class="footer-tagline">&copy; 2026 PUSO Spaze. Crafted for the sacred soul.</span>
+        </div>
+        <ul class="footer-links">
+          <li><a href="about.html">About</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li><a href="about.html#privacy">Privacy</a></li>
+        </ul>
+        <div class="footer-social">
+          <a href="https://www.facebook.com/PUSOofficial" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+            <ion-icon name="logo-facebook"></ion-icon>
+          </a>
+          <a href="#" aria-label="Heart">
+            <ion-icon name="heart-outline"></ion-icon>
+          </a>
         </div>
       </div>
+    </footer>
 
-      <!-- OVERVIEW -->
-      <section id="overview" class="section">
-        <section
-          class="section"
-          style="
-            background: linear-gradient(
-              135deg,
-              #FBF8FE 0%,
-              #F3EEFA 50%,
-              #E5DAF0 100%
-            );
-            padding: 50px 40px;
-            border-radius: 20px;
-            margin-bottom: 40px;
-            box-shadow: 0 10px 40px rgba(47, 122, 109, 0.15);
-          "
-        >
-          <div style="text-align: center; max-width: 800px; margin: 0 auto">
-            <h2
-              style="
-                border: none;
-                font-size: 2.5rem;
-                margin: 0 0 20px 0;
-                padding: 0;
-                background: linear-gradient(
-                  135deg,
-                  #A60550 0%,
-                  #A60550 50%,
-                  #8149A6 100%
-                );
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-              "
-            >
-              A safe space to share.<br />
-              A community that cares.
-            </h2>
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+      <ion-icon name="chevron-up-outline"></ion-icon>
+    </button>
 
-            <div
-              style="
-                text-align: center;
-                color: #4b5563;
-                line-height: 1.9;
-                font-size: 1.1rem;
-                margin-top: 30px;
-              "
-            >
-              <p
-                style="font-style: italic; color: #6b7280; margin-bottom: 30px"
-              >
-                <strong>Not everything needs to be posted publicly.</strong
-                ><br />
-                <strong>Not every struggle needs a name attached to it.</strong>
-              </p>
+    <!-- Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-              <p>
-                PUSO Spaze was created for the
-                <strong>quiet battles</strong> —<br />
-                the unspoken prayers, the late-night worries,<br />
-                the thoughts you're not ready to say out loud.
-              </p>
-
-              <p style="margin-top: 30px">
-                Here, you can
-                <strong style="color: #A60550">share anonymously</strong>.<br />
-                Here, you can be
-                <strong style="color: #A60550"
-                  >heard without being exposed</strong
-                >.<br />
-                Here, someone will
-                <strong style="color: #A60550">pause… and pray for you</strong>.
-              </p>
-            </div>
-
-            <div
-              style="
-                margin-top: 50px;
-                padding: 35px;
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-              "
-            >
-              <h3
-                style="
-                  color: #1a1a1a;
-                  font-size: 1.8rem;
-                  margin-bottom: 20px;
-                  padding: 0;
-                "
-              >
-                💭 Why We Built This
-              </h3>
-              <p style="color: #4b5563; line-height: 1.8; text-align: left">
-                Social media connects people — but it doesn't always make people
-                feel safe.<br /><br />
-
-                Many young people today carry
-                <strong
-                  >anxiety, pressure, doubt, and spiritual questions</strong
-                >
-                in silence. We believe no one should have to walk through that
-                alone.<br /><br />
-
-                PUSO Spaze was built to create a
-                <strong style="color: #A60550">digital sanctuary</strong> — a
-                modern community space where
-                <strong>vulnerability is protected</strong> and
-                <strong>compassion is practiced</strong>.
-              </p>
-
-              <p
-                style="
-                  color: #4b5563;
-                  line-height: 1.8;
-                  text-align: left;
-                  margin-top: 18px;
-                "
-              >
-                This app was inspired by the Touch Campus Movement of
-                <a
-                  href="https://www.facebook.com/PUSOofficial"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style="
-                    color: #A60550;
-                    font-weight: 700;
-                    text-decoration: none;
-                  "
-                  >PUSO Official</a
-                >. As a Touch Campus Coach, I learned this kind of platform can
-                help students share deep and overthinking thoughts anonymously —
-                especially as the class year ends — while still allowing coaches
-                to keep engaging and supporting them in a safe, anonymous way.
-              </p>
-
-              <p
-                style="
-                  margin-top: 25px;
-                  font-size: 1.1rem;
-                  font-style: italic;
-                  color: #A60550;
-                  font-weight: 600;
-                "
-              >
-                This isn't about likes.<br />
-                It's about lifting one another up.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Protected by AI, Powered by People -->
-        <section class="section ai-people-section">
-          <h2 class="ai-people-title">Protected by AI, Powered by People</h2>
-          <div class="ai-people-content">
-            <p class="ai-people-intro">We use AI technology to:</p>
-            <ul class="ai-people-list">
-              <li>Filter harmful or abusive content</li>
-              <li>Maintain a respectful environment</li>
-              <li>Encourage positive, supportive responses</li>
-            </ul>
-
-            <p class="ai-heart-line">But the heart of PUSO Spaze is not AI.</p>
-
-            <div class="people-card">
-              <p class="people-card-title">It's people.</p>
-              <p class="people-card-copy">
-                Real people choosing to pray.<br />
-                Real people choosing to encourage.<br />
-                Real people choosing kindness.
-              </p>
-            </div>
-
-            <p class="ai-people-tagline">
-              AI protects the space — Community fills it.
-            </p>
-          </div>
-        </section>
-      </section>
-
-      <!-- FEATURES -->
-      <section id="features" class="section">
-        <h2>Features</h2>
-
-        <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="person-circle-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Anonymous Posting</div>
-            <p class="feature-desc">
-              Share your thoughts freely with generated anonymous usernames.
-              Your identity stays private.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="leaf-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Hourly Hope Companion</div>
-            <p class="feature-desc">
-              AI-powered encouragement that posts every hour and also adds an
-              instant contextual encouragement comment after you share.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="shield-checkmark-outline"></ion-icon>
-            </div>
-            <div class="feature-title">AI Moderation</div>
-            <p class="feature-desc">
-              Smart moderation helps filter harmful or abusive content and keeps
-              community conversations safe and respectful.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="people-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Comments & Reactions</div>
-            <p class="feature-desc">
-              Support others with thoughtful comments and emoji reactions
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="notifications-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Notifications</div>
-            <p class="feature-desc">
-              Get notified in Home Screen when someone reacts to your post,
-              comments, or when new encouragement arrives. Push Notifications
-              will come with Mobile App Version that is coming soon!
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="school-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Coach Dashboard</div>
-            <p class="feature-desc">
-              Special interface for mental/spiritual health coaches to monitor
-              posts, engage with students, and oversee community wellness.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- FUTURE PLANS -->
-      <section id="future" class="section">
-        <h2>🔮 Future Plans</h2>
-
-        <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="camera-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Post with a Snap</div>
-            <p class="feature-desc">
-              Share your thoughts instantly with a quick snap. Capture moments,
-              express feelings, and connect with the community in real-time.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="camera-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Mobile App Version</div>
-            <p class="feature-desc">
-              Take PUSO Spaze with you on the go! Mobile app with push
-              notifications and a seamless experience coming soon.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="chatbubbles-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Spaze Buddy Chat</div>
-            <p class="feature-desc">
-              Private AI chat companion for confidential support, biblical
-              advice, and active listening whenever you need someone to talk to.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="search-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Search & Filter</div>
-            <p class="feature-desc">
-              Find posts by keywords, tags, or date range to discover relevant
-              content.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="people-circle-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Support Groups</div>
-            <p class="feature-desc">
-              Create or join topic-specific support communities for shared
-              experiences.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">
-              <ion-icon name="library-outline"></ion-icon>
-            </div>
-            <div class="feature-title">Resource Library</div>
-            <p class="feature-desc">
-              Curated mental health resources, biblical articles, and coping
-              strategies.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- TEAM -->
-      <section id="team" class="section">
-        <h2>Team & Credits</h2>
-
-        <h3>Development Team</h3>
-        <ul>
-          <li><strong>Lead Developer:</strong> Clifford Mark Musni</li>
-          <li><strong>Project Type:</strong> Mental Health Support Platform</li>
-          <li><strong>Development Period:</strong> February 2026</li>
-          <li><strong>Status:</strong> Active Development</li>
-        </ul>
-
-        <h3>Technologies & Services</h3>
-        <ul>
-          <li>
-            <strong>OpenAI:</strong> GPT-4o-mini for AI-generated biblical
-            encouragement
-          </li>
-          <li>
-            <strong>Railway:</strong> Backend hosting and PostgreSQL database
-          </li>
-          <li>
-            <strong>Expo:</strong> React Native development platform and EAS
-            build service
-          </li>
-          <li>
-            <strong>Prisma:</strong> Next-generation ORM for database management
-          </li>
-        </ul>
-
-        <h3>Open Source Libraries</h3>
-        <ul>
-          <li>React Native & Expo SDK</li>
-          <li>Express.js & TypeScript</li>
-          <li>Zustand (State Management)</li>
-          <li>React Navigation</li>
-          <li>node-cron (Task Scheduling)</li>
-          <li>expo-server-sdk (Push Notifications)</li>
-        </ul>
-
-        <div class="success-box">
-          <strong>Special Thanks:</strong> To everyone supporting mental
-          health awareness and those who courageously share their struggles to
-          help others feel less alone.
-        </div>
-      </section>
-
-      <!-- FOOTER -->
-      <footer>
-        <img
-          src="./assets/icon.png"
-          alt="PUSO Spaze Logo"
-          style="
-            width: 80px;
-            height: 80px;
-            border-radius: 16px;
-            margin-bottom: 20px;
-          "
-        />
-        <p><strong style="font-size: 1.3rem">PUSO Spaze</strong></p>
-        <p style="font-style: italic; color: #9ca3af; margin: 10px 0">
-          A safe space for your heart
-        </p>
-        <p style="margin-top: 25px; font-weight: 500">
-          © 2026 PUSO Spaze | Built with <ion-icon name="heart-sharp"></ion-icon> using React Native & Express.js
-        </p>
-        <p style="font-size: 0.9rem; color: #9ca3af; margin-top: 10px">
-          Last Updated: February 28, 2026
-        </p>
-      </footer>
-    </div>
-
-    <!-- Scroll to Top Button -->
-    <div class="scroll-top" id="scrollTop" onclick="scrollToTop()">↑</div>
-
-    <script
-      type="module"
-      src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"
-    ></script>
-    <script
-      nomodule
-      src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"
-    ></script>
     <script>
-      // Scroll to top functionality
-      const scrollTopBtn = document.getElementById("scrollTop");
-
-      window.addEventListener("scroll", () => {
-        if (window.pageYOffset > 300) {
-          scrollTopBtn.classList.add("visible");
-        } else {
-          scrollTopBtn.classList.remove("visible");
-        }
+      // Mobile nav toggle
+      const navToggle = document.getElementById('navToggle');
+      const navLinks = document.getElementById('navLinks');
+      navToggle.addEventListener('click', () => {
+        navLinks.classList.toggle('open');
+        const icon = navToggle.querySelector('ion-icon');
+        icon.setAttribute('name', navLinks.classList.contains('open') ? 'close-outline' : 'menu-outline');
       });
 
-      function scrollToTop() {
-        window.scrollTo({
-          top: 0,
-          behavior: "smooth",
+      // Close mobile nav on link click
+      navLinks.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+          navLinks.classList.remove('open');
+          navToggle.querySelector('ion-icon').setAttribute('name', 'menu-outline');
         });
-      }
+      });
 
-      // Animate elements on scroll
-      const observerOptions = {
-        threshold: 0.1,
-        rootMargin: "0px 0px -50px 0px",
-      };
+      // Scroll to top
+      const scrollTopBtn = document.getElementById('scrollTop');
+      window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.scrollY > 300);
+      }, { passive: true });
 
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Fade-in on scroll
+      const fadeObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
-            entry.target.style.opacity = "1";
-            entry.target.style.transform = "translateY(0)";
+            entry.target.classList.add('visible');
           }
         });
-      }, observerOptions);
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
-      // Observe all sections
-      document.querySelectorAll(".section").forEach((section) => {
-        section.style.opacity = "0";
-        section.style.transform = "translateY(20px)";
-        section.style.transition = "opacity 0.6s ease, transform 0.6s ease";
-        observer.observe(section);
-      });
+      document.querySelectorAll('.fade-target').forEach(el => fadeObserver.observe(el));
 
-      // Add smooth scroll to anchor links
-      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-        anchor.addEventListener("click", function (e) {
-          e.preventDefault();
-          const target = document.querySelector(this.getAttribute("href"));
+      // Smooth scroll for anchor links
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+          const target = document.querySelector(this.getAttribute('href'));
           if (target) {
-            target.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         });
       });
+
+      // Device carousel
+      (() => {
+        const track = document.getElementById('carouselTrack');
+        const slides = track.querySelectorAll('.carousel-slide');
+        const label = document.getElementById('carouselLabel');
+        const dotsWrap = document.getElementById('carouselDots');
+        const prevBtn = document.getElementById('carouselPrev');
+        const nextBtn = document.getElementById('carouselNext');
+        let current = 0;
+        const total = slides.length;
+
+        // Build dots
+        for (let i = 0; i < total; i++) {
+          const dot = document.createElement('button');
+          dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+          dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+          dot.addEventListener('click', () => goTo(i));
+          dotsWrap.appendChild(dot);
+        }
+
+        function goTo(index) {
+          current = ((index % total) + total) % total;
+          track.style.transform = 'translateX(-' + (current * 100) + '%)';
+          label.textContent = slides[current].dataset.label;
+          dotsWrap.querySelectorAll('.carousel-dot').forEach((d, i) => {
+            d.classList.toggle('active', i === current);
+          });
+        }
+
+        prevBtn.addEventListener('click', () => { goTo(current - 1); resetAuto(); });
+        nextBtn.addEventListener('click', () => { goTo(current + 1); resetAuto(); });
+
+        // Auto-slide every 4s
+        let autoTimer = setInterval(() => goTo(current + 1), 4000);
+        function resetAuto() {
+          clearInterval(autoTimer);
+          autoTimer = setInterval(() => goTo(current + 1), 4000);
+        }
+
+        // Pause on hover
+        const section = track.closest('.device-gallery');
+        section.addEventListener('mouseenter', () => clearInterval(autoTimer));
+        section.addEventListener('mouseleave', () => { autoTimer = setInterval(() => goTo(current + 1), 4000); });
+
+        // Swipe support
+        let startX = 0;
+        track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; clearInterval(autoTimer); }, { passive: true });
+        track.addEventListener('touchend', e => {
+          const diff = startX - e.changedTouches[0].clientX;
+          if (Math.abs(diff) > 50) goTo(current + (diff > 0 ? 1 : -1));
+          resetAuto();
+        });
+      })();
+
+      // Cookie consent
+      (() => {
+        const STORAGE_KEY = 'puso_cookie_consent';
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const banner = document.getElementById('cookieBanner');
+        if (saved) return;
+        setTimeout(() => banner.classList.add('visible'), 800);
+
+        const detailsWrap = document.getElementById('cookieDetails');
+        document.getElementById('cookieSettingsBtn').addEventListener('click', () => {
+          detailsWrap.classList.toggle('open');
+        });
+        document.getElementById('cookieAcceptAll').addEventListener('click', () => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ essential: true, analytics: true, functional: true, ts: Date.now() }));
+          banner.classList.remove('visible');
+        });
+        document.getElementById('cookieRejectAll').addEventListener('click', () => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ essential: true, analytics: false, functional: false, ts: Date.now() }));
+          banner.classList.remove('visible');
+        });
+        document.getElementById('cookieSavePrefs').addEventListener('click', () => {
+          const prefs = {
+            essential: true,
+            analytics: document.getElementById('cookieAnalytics').checked,
+            functional: document.getElementById('cookieFunctional').checked,
+            ts: Date.now(),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+          banner.classList.remove('visible');
+        });
+      })();
     </script>
+
+    <!-- Cookie Consent Banner -->
+    <div class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Cookie consent">
+      <div class="cookie-inner">
+        <div class="cookie-main">
+          <div class="cookie-text">
+            <h3><ion-icon name="shield-checkmark" style="color: #7C003A;"></ion-icon> Your Privacy Matters</h3>
+            <p>We use cookies and local storage to improve your experience on PUSO Spaze. Essential cookies are required for core functionality. You can customize your preferences below.</p>
+          </div>
+          <div class="cookie-actions">
+            <button class="cookie-btn cookie-btn-accept" id="cookieAcceptAll">Accept All</button>
+            <button class="cookie-btn cookie-btn-reject" id="cookieRejectAll">Reject Non-Essential</button>
+            <button class="cookie-btn-settings" id="cookieSettingsBtn">Customize</button>
+          </div>
+        </div>
+        <div class="cookie-details" id="cookieDetails">
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Essential Cookies</h4>
+              <p>Required for login, session management, and basic site functionality. Cannot be disabled.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" checked disabled />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Functional Cookies</h4>
+              <p>Remember your preferences like theme, language, and cookie consent choices.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" id="cookieFunctional" checked />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Analytics Cookies</h4>
+              <p>Help us understand how visitors interact with the site so we can improve the experience. No personal data is shared.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" id="cookieAnalytics" />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-save-wrap">
+            <button class="cookie-btn cookie-btn-accept" id="cookieSavePrefs">Save Preferences</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

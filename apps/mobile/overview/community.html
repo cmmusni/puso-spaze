@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Community — PUSO Spaze</title>
+    <meta name="description" content="Join the PUSO Spaze community — find encouragement, share your story, and connect with others who understand." />
+    <link rel="icon" href="../assets/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { font-family: 'Be Vietnam Pro', sans-serif; line-height: 1.6; color: #1C1B1F; background: #FFFFFF; overflow-x: hidden; }
+      h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif; }
+      img { max-width: 100%; height: auto; display: block; }
+      a { color: inherit; text-decoration: none; }
+      .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; }
+
+      /* Nav */
+      .site-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(121,116,126,0.1); }
+      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+      .nav-brand { display: flex; align-items: center; gap: 10px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.25rem; color: #1C1B1F; }
+      .nav-brand img { width: 36px; height: 36px; border-radius: 8px; }
+      .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
+      .nav-links a { font-family: 'Be Vietnam Pro', sans-serif; font-size: 0.9rem; font-weight: 500; color: #49454F; transition: color 0.2s; }
+      .nav-links a:hover { color: #7C003A; }
+      .nav-cta { display: inline-flex; align-items: center; padding: 10px 24px; background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF !important; border-radius: 9999px; font-weight: 600; font-size: 0.9rem; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(124,0,58,0.2); }
+      .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,0,58,0.3); color: #FFFFFF !important; }
+      .nav-mobile-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+      .nav-mobile-btn ion-icon { font-size: 1.6rem; color: #1C1B1F; }
+
+      /* Page Hero */
+      .page-hero { padding: 80px 0 48px; text-align: center; background: #FBF8FE; }
+      .page-hero h1 { font-size: 2.75rem; font-weight: 800; color: #1C1B1F; letter-spacing: -1px; margin-bottom: 12px; }
+      .page-hero p { font-size: 1.05rem; color: #49454F; max-width: 560px; margin: 0 auto; line-height: 1.7; }
+      .breadcrumb { font-size: 0.85rem; color: #49454F; margin-bottom: 16px; }
+      .breadcrumb a { color: #7C003A; font-weight: 600; }
+
+      .section-pad { padding: 64px 0; }
+
+      /* Quote Section */
+      .quote-section { padding: 64px 0; text-align: center; }
+      .quote-icon { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #A60550, #8149A6); margin-bottom: 32px; }
+      .quote-icon svg { width: 28px; height: 28px; fill: #FFFFFF; }
+      .quote-text { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.75rem; font-weight: 700; font-style: italic; color: #1C1B1F; line-height: 1.5; max-width: 640px; margin: 0 auto 32px; letter-spacing: -0.3px; min-height: 120px; transition: opacity 0.5s ease, transform 0.5s ease; }
+      .quote-author { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      .quote-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #7C003A, #7D45A2); margin-bottom: 8px; }
+      .quote-name { font-weight: 700; font-size: 0.95rem; color: #1C1B1F; }
+      .quote-role { font-size: 0.8rem; font-weight: 600; color: #49454F; letter-spacing: 0.08em; text-transform: uppercase; }
+      .quote-dots { display: flex; justify-content: center; gap: 8px; margin-top: 32px; }
+      .quote-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(121,116,126,0.25); border: none; padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+      .quote-dot.active { background: linear-gradient(135deg, #A60550, #8149A6); transform: scale(1.25); }
+
+      /* Community Cards */
+      .community-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+      .community-card { background: #FFFFFF; border-radius: 20px; padding: 32px; box-shadow: 0 8px 40px -5px rgba(124,0,58,0.06); border: 1px solid rgba(121,116,126,0.1); text-align: center; }
+      .community-card-icon { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; margin-bottom: 20px; }
+      .community-card-icon ion-icon { font-size: 1.6rem; color: #FFFFFF; }
+      .community-card-icon.berry { background: linear-gradient(135deg, #7C003A, #A60550); }
+      .community-card-icon.purple { background: linear-gradient(135deg, #7D45A2, #9B6DBB); }
+      .community-card-icon.indigo { background: linear-gradient(135deg, #4D3BBF, #7D45A2); }
+      .community-card-icon.blue { background: linear-gradient(135deg, #1877F2, #0C5DC7); }
+      .community-card h3 { font-size: 1.15rem; font-weight: 700; color: #1C1B1F; margin-bottom: 8px; }
+      .community-card p { font-size: 0.9rem; color: #49454F; line-height: 1.7; }
+
+      /* CTA */
+      .cta-card { background: linear-gradient(135deg, #4A0230 0%, #6B0340 25%, #A60550 50%, #8149A6 100%); border-radius: 24px; padding: 64px 32px; text-align: center; position: relative; overflow: hidden; }
+      .cta-card::before { content: ''; position: absolute; top: -50%; right: -20%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%); pointer-events: none; }
+      .cta-card h2 { font-size: 2.25rem; font-weight: 800; color: #FFFFFF; margin-bottom: 16px; letter-spacing: -0.5px; line-height: 1.2; position: relative; }
+      .cta-card p { font-size: 1rem; color: rgba(255,255,255,0.8); margin-bottom: 32px; max-width: 440px; margin-left: auto; margin-right: auto; position: relative; }
+      .cta-buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; position: relative; }
+      .btn-outline { display: inline-flex; align-items: center; padding: 14px 28px; border: 2px solid rgba(255,255,255,0.6); color: #FFFFFF; border-radius: 9999px; font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600; font-size: 0.95rem; background: transparent; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+      .btn-outline:hover { background: rgba(255,255,255,0.12); border-color: #FFFFFF; }
+
+      .fb-banner { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; background: #F3EEFA; border-radius: 20px; padding: 32px; margin-top: 48px; }
+      .fb-banner-text { font-size: 1rem; font-weight: 600; color: #1C1B1F; }
+      .fb-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: linear-gradient(135deg, #1877F2, #0C5DC7); color: #FFFFFF; font-size: 0.9rem; font-weight: 600; border-radius: 9999px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(24,119,242,0.25); }
+      .fb-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(24,119,242,0.35); color: #FFFFFF; }
+      .fb-btn ion-icon { font-size: 1.1rem; }
+
+      /* Footer */
+      .site-footer { background: #1C1B1F; padding: 40px 0; color: #FFFFFF; }
+      .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; }
+      .footer-brand { display: flex; flex-direction: column; gap: 4px; }
+      .footer-brand-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.1rem; }
+      .footer-tagline { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+      .footer-links { display: flex; align-items: center; gap: 24px; list-style: none; }
+      .footer-links a { font-size: 0.85rem; color: rgba(255,255,255,0.6); transition: color 0.2s; }
+      .footer-links a:hover { color: #FFFFFF; }
+      .footer-social { display: flex; gap: 12px; }
+      .footer-social a { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); transition: background 0.2s, color 0.2s; }
+      .footer-social a:hover { background: rgba(255,255,255,0.16); color: #FFFFFF; }
+      .footer-social ion-icon { font-size: 1.1rem; }
+
+      .fade-target { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+      .fade-target.visible { opacity: 1; transform: translateY(0); }
+      .scroll-top { position: fixed; bottom: 24px; right: 24px; width: 44px; height: 44px; background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 16px rgba(124,0,58,0.3); transition: opacity 0.3s, transform 0.3s, visibility 0.3s; z-index: 100; opacity: 0; visibility: hidden; border: none; font-size: 1.2rem; }
+      .scroll-top.visible { opacity: 1; visibility: visible; }
+      .scroll-top:hover { transform: translateY(-3px); }
+
+      /* Cookie Consent */
+      .cookie-banner { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: #FFFFFF; border-top: 1px solid rgba(121,116,126,0.12); box-shadow: 0 -4px 24px rgba(0,0,0,0.08); padding: 24px; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); }
+      .cookie-banner.visible { transform: translateY(0); }
+      .cookie-inner { max-width: 1200px; margin: 0 auto; }
+      .cookie-main { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+      .cookie-text { flex: 1; min-width: 280px; }
+      .cookie-text h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1C1B1F; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+      .cookie-text p { font-size: 0.85rem; color: #49454F; line-height: 1.6; }
+      .cookie-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      .cookie-btn { padding: 10px 24px; border-radius: 9999px; font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: none; }
+      .cookie-btn-accept { background: linear-gradient(135deg, #A60550, #8149A6); color: #FFFFFF; box-shadow: 0 4px 16px rgba(124,0,58,0.2); }
+      .cookie-btn-accept:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,0,58,0.3); }
+      .cookie-btn-reject { background: transparent; color: #49454F; border: 1.5px solid rgba(121,116,126,0.25); }
+      .cookie-btn-reject:hover { border-color: #7C003A; color: #7C003A; }
+      .cookie-btn-settings { background: none; border: none; color: #7C003A; font-weight: 600; cursor: pointer; padding: 10px 16px; font-size: 0.85rem; font-family: 'Be Vietnam Pro', sans-serif; }
+      .cookie-btn-settings:hover { text-decoration: underline; }
+      .cookie-details { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(121,116,126,0.1); }
+      .cookie-details.open { display: block; }
+      .cookie-category { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(121,116,126,0.06); }
+      .cookie-category:last-child { border-bottom: none; }
+      .cookie-cat-info h4 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 700; color: #1C1B1F; margin-bottom: 2px; }
+      .cookie-cat-info p { font-size: 0.78rem; color: #49454F; line-height: 1.5; }
+      .cookie-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; margin-left: 16px; }
+      .cookie-toggle input { opacity: 0; width: 0; height: 0; }
+      .cookie-slider { position: absolute; inset: 0; background: rgba(121,116,126,0.25); border-radius: 9999px; cursor: pointer; transition: background 0.2s; }
+      .cookie-slider::before { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; top: 3px; left: 3px; transition: transform 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+      .cookie-toggle input:checked + .cookie-slider { background: linear-gradient(135deg, #A60550, #8149A6); }
+      .cookie-toggle input:checked + .cookie-slider::before { transform: translateX(20px); }
+      .cookie-toggle input:disabled + .cookie-slider { opacity: 0.6; cursor: not-allowed; }
+      .cookie-save-wrap { text-align: right; margin-top: 16px; }
+
+      @media (min-width: 600px) {
+        .container { padding: 0 32px; }
+        .community-grid { grid-template-columns: repeat(2, 1fr); }
+        .quote-text { font-size: 2rem; }
+      }
+      @media (min-width: 900px) {
+        .container { padding: 0 48px; }
+        .community-grid { grid-template-columns: repeat(3, 1fr); }
+        .page-hero h1 { font-size: 3rem; }
+        .quote-text { font-size: 2.25rem; }
+      }
+      @media (max-width: 599px) {
+        .nav-links { display: none; }
+        .nav-mobile-btn { display: flex; }
+        .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: #FFFFFF; padding: 16px 24px; gap: 16px; border-bottom: 1px solid rgba(121,116,126,0.12); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        .page-hero h1 { font-size: 2rem; }
+        .quote-text { font-size: 1.35rem; }
+        .cta-card h2 { font-size: 1.75rem; }
+        .footer-inner { flex-direction: column; text-align: center; }
+        .footer-links { flex-wrap: wrap; justify-content: center; }
+        .footer-social { justify-content: center; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <div class="container nav-inner">
+        <a href="index.html" class="nav-brand" aria-label="PUSO Spaze Home">
+          <img src="../assets/icon.png" alt="" width="36" height="36" />
+          PUSO Spaze
+        </a>
+        <button class="nav-mobile-btn" aria-label="Toggle menu" id="navToggle">
+          <ion-icon name="menu-outline"></ion-icon>
+        </button>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="index.html#features">Features</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="community.html" style="color: #7C003A;">Community</a></li>
+          <li><a href="https://puso-spaze.org" class="nav-cta" target="_blank" rel="noopener noreferrer">Get Started</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <section class="page-hero">
+        <div class="container">
+          <p class="breadcrumb"><a href="index.html">Home</a> / Community</p>
+          <h1>Our Community</h1>
+          <p>A compassionate space where Filipino youth find hope, encouragement, and connection — one heartfelt post at a time.</p>
+        </div>
+      </section>
+
+      <!-- Quotes -->
+      <section class="quote-section fade-target">
+        <div class="container">
+          <div class="quote-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
+          </div>
+          <blockquote class="quote-text" id="quoteText">
+            "God uses broken things. Broken soil to produce a crop, broken clouds to give rain, broken grain to give bread, broken bread to give strength."
+          </blockquote>
+          <div class="quote-author">
+            <div class="quote-avatar" aria-hidden="true"></div>
+            <span class="quote-name" id="quoteName">Vance Havner</span>
+            <span class="quote-role" id="quoteRole">Pastor &amp; Author</span>
+          </div>
+          <div class="quote-dots" id="quoteDots"></div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="section-pad fade-target">
+        <div class="container">
+          <div class="cta-card">
+            <h2>Start Your Healing<br />Journey Today.</h2>
+            <p>Join others finding peace, one reflection at a time. Anonymous, safe, and sacred.</p>
+            <div class="cta-buttons">
+              <a href="https://puso-spaze.org" class="btn-outline" target="_blank" rel="noopener noreferrer">Create Anonymous Account</a>
+              <a href="https://www.facebook.com/PUSOofficial" class="btn-outline" target="_blank" rel="noopener noreferrer">
+                <ion-icon name="logo-facebook" style="margin-right: 8px;"></ion-icon> Follow on Facebook
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <span class="footer-brand-name">PUSO Spaze</span>
+          <span class="footer-tagline">&copy; 2026 PUSO Spaze. Crafted for the sacred soul.</span>
+        </div>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="community.html">Community</a></li>
+          <li><a href="about.html#privacy">Privacy</a></li>
+        </ul>
+        <div class="footer-social">
+          <a href="https://www.facebook.com/PUSOofficial" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><ion-icon name="logo-facebook"></ion-icon></a>
+          <a href="#" aria-label="Heart"><ion-icon name="heart-outline"></ion-icon></a>
+        </div>
+      </div>
+    </footer>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top"><ion-icon name="chevron-up-outline"></ion-icon></button>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script>
+      const navToggle = document.getElementById('navToggle');
+      const navLinks = document.getElementById('navLinks');
+      navToggle.addEventListener('click', () => {
+        navLinks.classList.toggle('open');
+        navToggle.querySelector('ion-icon').setAttribute('name', navLinks.classList.contains('open') ? 'close-outline' : 'menu-outline');
+      });
+      navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+        navLinks.classList.remove('open');
+        navToggle.querySelector('ion-icon').setAttribute('name', 'menu-outline');
+      }));
+      const scrollTopBtn = document.getElementById('scrollTop');
+      window.addEventListener('scroll', () => scrollTopBtn.classList.toggle('visible', window.scrollY > 300), { passive: true });
+      scrollTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      const fadeObserver = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }), { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+      document.querySelectorAll('.fade-target').forEach(el => fadeObserver.observe(el));
+
+      // Quote rotator
+      (() => {
+        const quotes = [
+          { text: '"God uses broken things. Broken soil to produce a crop, broken clouds to give rain, broken grain to give bread, broken bread to give strength."', name: 'Vance Havner', role: 'Pastor & Author' },
+          { text: '"He heals the brokenhearted and binds up their wounds."', name: 'Psalm 147:3', role: 'Holy Bible' },
+          { text: '"You don\'t have to be great to start, but you have to start to be great."', name: 'Zig Ziglar', role: 'Christian Author & Speaker' },
+          { text: '"Darkness cannot drive out darkness; only light can do that. Hate cannot drive out hate; only love can do that."', name: 'Martin Luther King Jr.', role: 'Pastor & Civil Rights Leader' },
+          { text: '"Faith is taking the first step even when you don\'t see the whole staircase."', name: 'Martin Luther King Jr.', role: 'Pastor & Civil Rights Leader' },
+          { text: '"God never said that the journey would be easy, but He did say that the arrival would be worthwhile."', name: 'Max Lucado', role: 'Pastor & Bestselling Author' },
+          { text: '"Come to me, all you who are weary and burdened, and I will give you rest."', name: 'Matthew 11:28', role: 'Holy Bible' },
+        ];
+        const textEl = document.getElementById('quoteText');
+        const nameEl = document.getElementById('quoteName');
+        const roleEl = document.getElementById('quoteRole');
+        const dotsWrap = document.getElementById('quoteDots');
+        let qCurrent = 0;
+        quotes.forEach((_, i) => {
+          const dot = document.createElement('button');
+          dot.className = 'quote-dot' + (i === 0 ? ' active' : '');
+          dot.setAttribute('aria-label', 'Quote ' + (i + 1));
+          dot.addEventListener('click', () => { showQuote(i); resetQuoteAuto(); });
+          dotsWrap.appendChild(dot);
+        });
+        function showQuote(index) {
+          qCurrent = ((index % quotes.length) + quotes.length) % quotes.length;
+          textEl.style.opacity = '0'; textEl.style.transform = 'translateY(12px)';
+          setTimeout(() => {
+            textEl.textContent = quotes[qCurrent].text;
+            nameEl.textContent = quotes[qCurrent].name;
+            roleEl.textContent = quotes[qCurrent].role;
+            textEl.style.opacity = '1'; textEl.style.transform = 'translateY(0)';
+          }, 300);
+          dotsWrap.querySelectorAll('.quote-dot').forEach((d, i) => d.classList.toggle('active', i === qCurrent));
+        }
+        let quoteTimer = setInterval(() => showQuote(qCurrent + 1), 6000);
+        function resetQuoteAuto() { clearInterval(quoteTimer); quoteTimer = setInterval(() => showQuote(qCurrent + 1), 6000); }
+      })();
+
+      // Cookie consent
+      (() => {
+        const STORAGE_KEY = 'puso_cookie_consent';
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const banner = document.getElementById('cookieBanner');
+        if (saved) return;
+        setTimeout(() => banner.classList.add('visible'), 800);
+
+        const detailsWrap = document.getElementById('cookieDetails');
+        document.getElementById('cookieSettingsBtn').addEventListener('click', () => {
+          detailsWrap.classList.toggle('open');
+        });
+        document.getElementById('cookieAcceptAll').addEventListener('click', () => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ essential: true, analytics: true, functional: true, ts: Date.now() }));
+          banner.classList.remove('visible');
+        });
+        document.getElementById('cookieRejectAll').addEventListener('click', () => {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ essential: true, analytics: false, functional: false, ts: Date.now() }));
+          banner.classList.remove('visible');
+        });
+        document.getElementById('cookieSavePrefs').addEventListener('click', () => {
+          const prefs = {
+            essential: true,
+            analytics: document.getElementById('cookieAnalytics').checked,
+            functional: document.getElementById('cookieFunctional').checked,
+            ts: Date.now(),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+          banner.classList.remove('visible');
+        });
+      })();
+    </script>
+
+    <!-- Cookie Consent Banner -->
+    <div class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Cookie consent">
+      <div class="cookie-inner">
+        <div class="cookie-main">
+          <div class="cookie-text">
+            <h3><ion-icon name="shield-checkmark" style="color: #7C003A;"></ion-icon> Your Privacy Matters</h3>
+            <p>We use cookies and local storage to improve your experience on PUSO Spaze. Essential cookies are required for core functionality. You can customize your preferences below.</p>
+          </div>
+          <div class="cookie-actions">
+            <button class="cookie-btn cookie-btn-accept" id="cookieAcceptAll">Accept All</button>
+            <button class="cookie-btn cookie-btn-reject" id="cookieRejectAll">Reject Non-Essential</button>
+            <button class="cookie-btn-settings" id="cookieSettingsBtn">Customize</button>
+          </div>
+        </div>
+        <div class="cookie-details" id="cookieDetails">
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Essential Cookies</h4>
+              <p>Required for login, session management, and basic site functionality. Cannot be disabled.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" checked disabled />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Functional Cookies</h4>
+              <p>Remember your preferences like theme, language, and cookie consent choices.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" id="cookieFunctional" checked />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-category">
+            <div class="cookie-cat-info">
+              <h4>Analytics Cookies</h4>
+              <p>Help us understand how visitors interact with the site so we can improve the experience. No personal data is shared.</p>
+            </div>
+            <label class="cookie-toggle">
+              <input type="checkbox" id="cookieAnalytics" />
+              <span class="cookie-slider"></span>
+            </label>
+          </div>
+          <div class="cookie-save-wrap">
+            <button class="cookie-btn cookie-btn-accept" id="cookieSavePrefs">Save Preferences</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
