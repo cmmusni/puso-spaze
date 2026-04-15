@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "194107874719",
+    "project_id": "puso-spaze",
+    "storage_bucket": "puso-spaze.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:194107874719:android:00295e187d2abb9c5631aa",
+        "android_client_info": {
+          "package_name": "com.pusospaze.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDISYxeIpif5qzNzDDCyAKxpPU1Mg8u9wM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
