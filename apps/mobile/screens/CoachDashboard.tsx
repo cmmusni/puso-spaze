@@ -264,7 +264,8 @@ export default function CoachDashboard() {
 
   // ── Derived data ──────────────────────────
   const pendingCount = posts.length + comments.length;
-  const flaggedCount = posts.filter(p => p.moderationStatus === 'FLAGGED').length;
+  const flaggedCount = posts.filter(p => p.moderationStatus === 'FLAGGED').length
+    + comments.filter(c => c.moderationStatus === 'FLAGGED').length;
   const unusedCodes = inviteCodes.filter((c) => !c.used);
   const usedCodes = inviteCodes.filter((c) => c.used);
 
@@ -579,7 +580,7 @@ export default function CoachDashboard() {
             {renderStatCard(
               'flag-outline',
               colors.danger,
-              'Flagged Posts',
+              'Flagged Content',
               flaggedCount,
               flaggedCount > 0 ? 'Priority' : undefined,
               colors.danger,

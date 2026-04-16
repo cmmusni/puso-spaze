@@ -192,17 +192,25 @@ export default function NotificationsScreen() {
     }
 
     const postId = notification.data?.postId;
-    if (!postId) return;
+    if (postId) {
+      try {
+        const { post } = await apiGetPostById(postId);
+        navigation.navigate('PostDetail', {
+          postId: post.id,
+          openedFrom: 'notifications',
+        });
+      } catch (error) {
+        console.error('Failed to fetch post:', error);
+        Alert.alert('Error', 'Could not load this post. It may have been removed.');
+      }
+      return;
+    }
 
-    try {
-      const { post } = await apiGetPostById(postId);
-      navigation.navigate('PostDetail', {
-        postId: post.id,
-        openedFrom: 'notifications',
-      });
-    } catch (error) {
-      console.error('Failed to fetch post:', error);
-      Alert.alert('Error', 'Could not load this post. It may have been removed.');
+    // Daily Reflection / targeted screen notifications → navigate to Feed
+    const screen = notification.data?.screen;
+    if (screen) {
+      const target = screen === 'Journal' ? 'Home' : screen;
+      navigation.navigate(target as any);
     }
   };
 

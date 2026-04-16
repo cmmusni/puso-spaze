@@ -207,6 +207,10 @@ function handleNotificationNavigation(data: any): void {
       screen: 'PostDetail',
       params: { postId: data.postId, openedFrom: 'notifications' },
     });
+  } else if (data?.screen) {
+    // Targeted screen (e.g. Daily Reflection → Home feed)
+    const target = data.screen === 'Journal' ? 'Home' : data.screen;
+    nav.navigate('MainDrawer', { screen: target });
   } else {
     // ENCOURAGEMENT / SYSTEM → open notifications screen
     nav.navigate('MainDrawer', { screen: 'Notifications' });
