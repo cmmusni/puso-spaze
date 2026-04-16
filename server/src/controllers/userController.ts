@@ -474,10 +474,17 @@ export async function getUserStats(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const [encouragementsGiven, postCount, journalDates, postDates] = await Promise.all([
+  const [reactionsGiven, commentsGiven, postCount, journalDates, postDates] = await Promise.all([
     prisma.reaction.count({
       where: {
         userId,
+        post: { userId: { not: userId } },
+      },
+    }),
+    prisma.comment.count({
+      where: {
+        userId,
+        moderationStatus: 'SAFE',
         post: { userId: { not: userId } },
       },
     }),
@@ -495,6 +502,8 @@ export async function getUserStats(req: Request, res: Response): Promise<void> {
       orderBy: { createdAt: 'desc' },
     }),
   ]);
+
+  const encouragementsGiven = reactionsGiven + commentsGiven;
 
   // Calculate streak: consecutive days with a journal or post, starting from today
   const dates = new Set<string>();

@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
-import { getReviewQueue, moderatePost, moderateComment, flagPost, getMembers } from '../controllers/coachController';
+import { getReviewQueue, moderatePost, moderateComment, flagPost, flagComment, getMembers } from '../controllers/coachController';
 import { getRecoveryRequests, reviewRecoveryRequest } from '../controllers/recoveryController';
 
 const router = Router();
@@ -54,6 +54,18 @@ router.patch(
     validate,
   ],
   moderateComment
+);
+
+// PATCH /api/coach/comments/:id/flag
+router.patch(
+  '/comments/:id/flag',
+  requireAuth,
+  [
+    param('id').isUUID().withMessage('Invalid comment id'),
+    body('coachId').isUUID().withMessage('coachId is required'),
+    validate,
+  ],
+  flagComment
 );
 
 // ── Recovery request management ─────────────

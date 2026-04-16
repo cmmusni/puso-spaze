@@ -44,6 +44,7 @@ import {
   apiDeletePost,
   apiUpdatePost,
   apiSearchUsers,
+  apiFlagComment,
   resolveAvatarUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
@@ -682,16 +683,22 @@ export default function PostDetailScreen() {
 
   // ── Render a single comment (reusable for replies) ───
   const renderCommentItem = (item: Comment, isReply = false) => {
+    const isOwnAnonymousComment = item.isAnonymous && item.userId === userId;
+    const rawName = isOwnAnonymousComment
+      ? (username ?? item.user?.displayName ?? "Anonymous")
+      : (item.user?.displayName ?? "Anonymous");
     const name =
-      item.user?.role === "COACH" || item.user?.role === "ADMIN"
-        ? `Coach ${item.user?.displayName ?? "Anonymous"}`
-        : (item.user?.displayName ?? "Anonymous");
-    const initial = item.isAnonymous ? "?" : name.charAt(0).toUpperCase();
+      !isOwnAnonymousComment && (item.user?.role === "COACH" || item.user?.role === "ADMIN")
+        ? `Coach ${rawName}`
+        : rawName;
+    const commentAvatarUrl = isOwnAnonymousComment ? avatarUrl : item.user?.avatarUrl;
+    const initial = item.isAnonymous && !isOwnAnonymousComment ? "?" : name.charAt(0).toUpperCase();
     const avatarGrad = avatarColors(initial);
     const isUnderReview = item.moderationStatus === "REVIEW";
     const isOwnComment = item.userId === userId;
     const canDeleteComment = isOwnComment || role === "ADMIN";
     const isDeletingThisComment = deletingCommentId === item.id;
+    const canFlagComment = role === "ADMIN" || role === "COACH";
 
     const commentReactionCounts = item.reactionCounts ?? {};
     const commentUserReaction = item.userReaction ?? null;
@@ -707,25 +714,37 @@ export default function PostDetailScreen() {
             source={require("../assets/logo.png")}
             style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
           />
-        ) : item.user?.avatarUrl ? (
-          <Image
-            source={{ uri: resolveAvatarUrl(item.user.avatarUrl) }}
-            style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
-          />
         ) : (
-          <LinearGradient
-            colors={avatarGrad}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => (navigation as any).navigate("Profile", { userId: item.userId })}
           >
-            <Text style={styles.commentAvatarInitial}>{initial}</Text>
-          </LinearGradient>
+            {commentAvatarUrl ? (
+              <Image
+                source={{ uri: resolveAvatarUrl(commentAvatarUrl) }}
+                style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
+              />
+            ) : (
+              <LinearGradient
+                colors={avatarGrad}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
+              >
+                <Text style={styles.commentAvatarInitial}>{initial}</Text>
+              </LinearGradient>
+            )}
+          </TouchableOpacity>
         )}
 
         <View style={styles.commentBody}>
           <View style={styles.commentMeta}>
             <Text style={styles.commentAuthor}>{name}</Text>
+            {isOwnAnonymousComment && (
+              <Text style={[styles.commentTime, { color: colors.secondary, marginRight: 8, }]}>
+                as {item.anonDisplayName ?? "Anonymous"}
+              </Text>
+            )}
             <Text style={styles.commentTime}>
               {formatRelativeTime(item.createdAt)}
             </Text>
@@ -740,6 +759,54 @@ export default function PostDetailScreen() {
                   name="create-outline"
                   size={13}
                   color={colors.primary}
+                />
+              </TouchableOpacity>
+            )}
+            {isOwnComment && (
+              <TouchableOpacity
+                onPress={async () => {
+                  const confirmed = await showConfirm(
+                    "Delete Comment",
+                    "Are you sure you want to delete this comment?"
+                  );
+                  if (confirmed) performDeleteComment(item);
+                }}
+                activeOpacity={0.75}
+                style={styles.commentEditBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={13}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            )}
+            {canFlagComment && item.moderationStatus !== "FLAGGED" && (
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!userId) return;
+                  const confirmed = await showConfirm(
+                    "Flag Comment",
+                    "Flag this comment as inappropriate? It will be hidden from the feed."
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await apiFlagComment(item.id, userId);
+                    await loadData();
+                    showAlert("Flagged", "Comment has been flagged and hidden.");
+                  } catch (err: any) {
+                    showAlert("Error", err?.response?.data?.error ?? "Could not flag comment.");
+                  }
+                }}
+                activeOpacity={0.75}
+                style={styles.commentEditBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="flag-outline"
+                  size={13}
+                  color={colors.warningText}
                 />
               </TouchableOpacity>
             )}
@@ -876,8 +943,12 @@ export default function PostDetailScreen() {
     );
   }
 
-  const displayName = post.user?.displayName ?? "Anonymous";
-  const initial = post.isAnonymous ? "?" : displayName.charAt(0).toUpperCase();
+  const isOwnAnonymousPost = post.isAnonymous && post.userId === userId;
+  const displayName = isOwnAnonymousPost
+    ? (username ?? post.user?.displayName ?? "Anonymous")
+    : (post.user?.displayName ?? "Anonymous");
+  const postAvatarUrl = isOwnAnonymousPost ? avatarUrl : post.user?.avatarUrl;
+  const initial = post.isAnonymous && !isOwnAnonymousPost ? "?" : displayName.charAt(0).toUpperCase();
   const userInitial = (username ?? "A").charAt(0).toUpperCase();
 
   // Feeling detection
@@ -917,21 +988,26 @@ export default function PostDetailScreen() {
           />
           <Text style={styles.headerTitle}>PUSO Spaze</Text>
         </TouchableOpacity>
-        {userAvatarUrl ? (
-          <Image
-            source={{ uri: resolveAvatarUrl(userAvatarUrl) }}
-            style={styles.headerAvatar}
-          />
-        ) : (
-          <LinearGradient
-            colors={[colors.primaryContainer, colors.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerAvatar}
-          >
-            <Text style={styles.headerAvatarText}>{userInitial}</Text>
-          </LinearGradient>
-        )}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => (navigation as any).navigate("Profile")}
+        >
+          {userAvatarUrl ? (
+            <Image
+              source={{ uri: resolveAvatarUrl(userAvatarUrl) }}
+              style={styles.headerAvatar}
+            />
+          ) : (
+            <LinearGradient
+              colors={[colors.primaryContainer, colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerAvatar}
+            >
+              <Text style={styles.headerAvatarText}>{userInitial}</Text>
+            </LinearGradient>
+          )}
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -958,9 +1034,9 @@ export default function PostDetailScreen() {
                       source={require("../assets/logo.png")}
                       style={styles.postAvatar}
                     />
-                  ) : post.user?.avatarUrl ? (
+                  ) : postAvatarUrl ? (
                     <Image
-                      source={{ uri: resolveAvatarUrl(post.user.avatarUrl) }}
+                      source={{ uri: resolveAvatarUrl(postAvatarUrl) }}
                       style={styles.postAvatar}
                     />
                   ) : (
@@ -989,6 +1065,11 @@ export default function PostDetailScreen() {
                     </View>
                     <Text style={styles.postSubtitle}>
                       {roleBadgeText} {"\u2022"} {formatRelativeTime(post.createdAt)}
+                      {isOwnAnonymousPost && (
+                        <Text style={{ color: colors.secondary }}>
+                          {" \u2022 Posted as "}{post.anonDisplayName ?? "Anonymous"}
+                        </Text>
+                      )}
                       {feeling && (
                         <Text style={styles.postFeeling}>
                           {" \u2014 is feeling "}{feeling.emoji}{" "}{feeling.label}
@@ -1256,7 +1337,7 @@ export default function PostDetailScreen() {
       <Modal
         visible={commentMenuVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         statusBarTranslucent
         onRequestClose={closeCommentMenu}
       >
@@ -1270,6 +1351,7 @@ export default function PostDetailScreen() {
             onPress={(e) => e.stopPropagation()}
             style={styles.menuSheet}
           >
+            <View style={styles.menuHandle} />
             <Text style={styles.menuTitle}>Comment options</Text>
             {selectedComment?.userId === userId && (
               <TouchableOpacity
@@ -1277,17 +1359,27 @@ export default function PostDetailScreen() {
                 activeOpacity={0.8}
                 onPress={handleEditFromMenu}
               >
-                <Ionicons name="create-outline" size={16} color={colors.primary} />
-                <Text style={styles.menuEditText}>Edit comment</Text>
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.primaryContainer + "40" }]}>
+                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.menuOptionInfo}>
+                  <Text style={styles.menuOptionText}>Edit comment</Text>
+                  <Text style={styles.menuOptionSub}>Change what you wrote</Text>
+                </View>
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[styles.menuOptionBtn, styles.menuDeleteBtn]}
+              style={styles.menuOptionBtn}
               activeOpacity={0.8}
               onPress={handleDeleteFromMenu}
             >
-              <Ionicons name="trash-outline" size={16} color={colors.errorText} />
-              <Text style={styles.menuDeleteText}>Delete comment</Text>
+              <View style={[styles.menuIconCircle, { backgroundColor: colors.errorBg }]}>
+                <Ionicons name="trash-outline" size={18} color={colors.errorText} />
+              </View>
+              <View style={styles.menuOptionInfo}>
+                <Text style={[styles.menuOptionText, { color: colors.errorText }]}>Delete comment</Text>
+                <Text style={styles.menuOptionSub}>Permanently remove this comment</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuCancelBtn}
@@ -1304,7 +1396,7 @@ export default function PostDetailScreen() {
       <Modal
         visible={editCommentVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         statusBarTranslucent
         onRequestClose={() => {
           if (savingCommentEdit) return;
@@ -1326,6 +1418,7 @@ export default function PostDetailScreen() {
             onPress={(e) => e.stopPropagation()}
             style={styles.menuSheet}
           >
+            <View style={styles.menuHandle} />
             <Text style={styles.menuTitle}>Edit comment</Text>
             <TextInput
               style={styles.editCommentInput}
@@ -1339,7 +1432,7 @@ export default function PostDetailScreen() {
             />
             <View style={styles.editCommentActions}>
               <TouchableOpacity
-                style={styles.menuCancelBtn}
+                style={[styles.menuCancelBtn]}
                 activeOpacity={0.8}
                 onPress={() => {
                   setEditCommentVisible(false);
@@ -1350,8 +1443,11 @@ export default function PostDetailScreen() {
                 <Text style={styles.menuCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.editCommentSaveBtn}
-                activeOpacity={0.8}
+                style={[
+                  styles.editCommentSaveBtn,
+                  (savingCommentEdit || !editCommentText.trim()) && { opacity: 0.5 },
+                ]}
+                activeOpacity={0.85}
                 onPress={handleSaveEditedComment}
                 disabled={savingCommentEdit || !editCommentText.trim()}
               >
@@ -1973,13 +2069,29 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
   },
   commentEditBtn: {
-    marginLeft: 6,
+    marginLeft: 4,
     width: 22,
     height: 22,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surfaceContainerLow,
+  },
+  flagCommentBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
+    backgroundColor: colors.warningBg,
+  },
+  flagCommentText: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.warningText,
   },
   reviewBadge: {
     backgroundColor: colors.warningBg,
@@ -2171,6 +2283,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
   },
   menuCancelBtn: {
+    flex: 1,
     borderRadius: radii.full,
     backgroundColor: colors.surfaceContainerHigh,
     paddingHorizontal: 14,
@@ -2216,34 +2329,34 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   editCommentInput: {
     backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radii.md,
-    minHeight: 110,
-    maxHeight: 220,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: radii.lg,
+    minHeight: 120,
+    maxHeight: 240,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: colors.onSurface,
     fontFamily: fonts.bodyRegular,
     textAlignVertical: "top",
-    marginBottom: 10,
     ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   editCommentActions: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     gap: 10,
+    marginTop: 4,
   },
   editCommentSaveBtn: {
-    borderRadius: radii.md,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flex: 1,
+    borderRadius: radii.full,
     backgroundColor: colors.primary,
-    minWidth: 70,
+    paddingVertical: 14,
     alignItems: "center",
+    justifyContent: "center",
   },
   editCommentSaveText: {
     color: colors.onPrimary,
-    fontSize: 14,
-    fontFamily: fonts.displayBold,
+    fontSize: 15,
+    fontFamily: fonts.displaySemiBold,
   },
 
   // ── Floating Picker Modal ────────────────

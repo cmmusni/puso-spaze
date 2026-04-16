@@ -103,15 +103,21 @@ type CardNavProp = any;
 
 export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
-  const { userId, role } = useUser();
+  const { userId, role, username: currentUserDisplayName, avatarUrl: currentUserAvatarUrl } = useUser();
   const colors = useThemeStore((s) => s.colors);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isMedium = screenWidth >= 600;
+  const isSmall = screenWidth >= 350;
 
-  const displayName = post.user?.displayName ?? "Anonymous";
+  // ── Anonymous owner detection ─────────────────
+  const isOwnAnonymousPost = post.isAnonymous && post.userId === userId;
+  const displayName = isOwnAnonymousPost
+    ? (currentUserDisplayName ?? post.user?.displayName ?? "Anonymous")
+    : (post.user?.displayName ?? "Anonymous");
+  const displayAvatarUrl = isOwnAnonymousPost ? currentUserAvatarUrl : post.user?.avatarUrl;
   const timeAgo = formatRelativeTime(post.createdAt);
-  const initial = post.isAnonymous ? "?" : displayName.charAt(0).toUpperCase();
+  const initial = post.isAnonymous && !isOwnAnonymousPost ? "?" : displayName.charAt(0).toUpperCase();
 
   // ── Local reaction state (optimistic) ────────
   const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
@@ -390,9 +396,9 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
                 source={require("../assets/logo.png")}
                 style={[styles.avatar, isMedium && styles.avatarMd]}
               />
-            ) : post.user?.avatarUrl ? (
+            ) : displayAvatarUrl ? (
               <Image
-                source={{ uri: resolveAvatarUrl(post.user.avatarUrl) }}
+                source={{ uri: resolveAvatarUrl(displayAvatarUrl) }}
                 style={[styles.avatar, isMedium && styles.avatarMd]}
               />
             ) : (
@@ -409,6 +415,14 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
             <View>
               <View style={styles.authorNameRow}>
                 <Text style={[styles.authorName, isMedium && { fontSize: 15 }]}>{displayName}</Text>
+                {isOwnAnonymousPost && (
+                  <Text
+                    style={[styles.authorSubtitle, { color: colors.secondary, maxWidth: isSmall ? 100 : isMedium ? 200 : 120 }]}
+                    numberOfLines={1}
+                  >
+                    {" · Posted as "}{post.anonDisplayName ?? "Anonymous"}
+                  </Text>
+                )}
                 {post.userId !== "system-encouragement-bot" && post.user?.role !== "USER" && !post.isAnonymous && (
                   <View style={[
                     styles.roleBadge,
@@ -557,11 +571,14 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
         </View>
 
         {post.latestComment && post.latestComment.userId !== SYSTEM_USER_ID && (() => {
-          const cName = post.latestComment.user?.displayName ?? "Member";
-          const cInitial = cName.charAt(0).toUpperCase();
+          const isOwnAnonComment = post.latestComment!.isAnonymous && post.latestComment!.userId === userId;
+          const cName = isOwnAnonComment
+            ? (currentUserDisplayName ?? post.latestComment!.user?.displayName ?? "Member")
+            : (post.latestComment!.user?.displayName ?? "Member");
+          const cInitial = post.latestComment!.isAnonymous && !isOwnAnonComment ? "?" : cName.charAt(0).toUpperCase();
           const cColorPair = avatarPalette[cInitial.charCodeAt(0) % avatarPalette.length];
-          const cTime = formatRelativeTime(post.latestComment.createdAt);
-          const cAvatarUrl = post.latestComment.user?.avatarUrl;
+          const cTime = formatRelativeTime(post.latestComment!.createdAt);
+          const cAvatarUrl = isOwnAnonComment ? currentUserAvatarUrl : (post.latestComment!.isAnonymous ? null : post.latestComment!.user?.avatarUrl);
           return (
             <View style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}>
               {cAvatarUrl ? (

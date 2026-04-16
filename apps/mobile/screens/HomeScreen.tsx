@@ -833,7 +833,7 @@ export default function HomeScreen() {
 
               {/* FAB */}
               <TouchableOpacity
-                onPress={() => navigation.getParent()?.navigate("Post")}
+                onPress={() => navigation.navigate("Post")}
                 activeOpacity={0.85}
                 style={styles.fab}
               >

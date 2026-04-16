@@ -107,7 +107,7 @@ export default function PostScreen() {
   );
   const [visibilityMenuVisible, setVisibilityMenuVisible] = useState(false);
 
-  const canSubmit = !loading && content.trim().length >= 3;
+  const canSubmit = !loading && content.trim().length >= 2;
 
   const userInitial = (username ?? "A").charAt(0).toUpperCase();
 

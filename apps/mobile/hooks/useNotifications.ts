@@ -201,16 +201,16 @@ function handleNotificationNavigation(data: any): void {
       screen: 'Chat',
       params: { conversationId: data.conversationId },
     });
+  } else if (data?.screen) {
+    // Targeted screen (e.g. flagged content → Home feed)
+    const target = data.screen === 'Journal' ? 'Home' : data.screen;
+    nav.navigate('MainDrawer', { screen: target });
   } else if (data?.postId) {
     // REACTION or COMMENT notification → open the post
     nav.navigate('MainDrawer', {
       screen: 'PostDetail',
       params: { postId: data.postId, openedFrom: 'notifications' },
     });
-  } else if (data?.screen) {
-    // Targeted screen (e.g. Daily Reflection → Home feed)
-    const target = data.screen === 'Journal' ? 'Home' : data.screen;
-    nav.navigate('MainDrawer', { screen: target });
   } else {
     // ENCOURAGEMENT / SYSTEM → open notifications screen
     nav.navigate('MainDrawer', { screen: 'Notifications' });

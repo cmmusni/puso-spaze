@@ -625,6 +625,21 @@ export async function apiFlagPost(
 }
 
 /**
+ * PATCH /api/coach/comments/:id/flag
+ * Flag a comment for review (Coaches/Admins only).
+ */
+export async function apiFlagComment(
+  commentId: string,
+  coachId: string
+): Promise<{ comment: any; message: string }> {
+  const { data } = await client.patch<{ comment: any; message: string }>(
+    `/api/coach/comments/${commentId}/flag`,
+    { coachId }
+  );
+  return data;
+}
+
+/**
  * POST /api/admin/invite-codes/send-email
  * Generates a new invite code and emails it to the provided address.
  * Requires the admin secret for authorisation.

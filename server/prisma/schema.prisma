@@ -28,6 +28,7 @@ model User {
   pin           String?  @unique // Random PIN code for cross-device login
   role          UserRole @default(USER)
   isAnonymous          Boolean  @default(false) // Hide identity from community
+  anonDisplayName      String?  // Persistent anonymous username (generated on first anonymous post/comment)
   expoPushToken        String?  // For mobile push notifications
   webPushSubscription  Json?    // Web Push API subscription object (endpoint, keys)
   email                String?  // Coach email address (from invite code)

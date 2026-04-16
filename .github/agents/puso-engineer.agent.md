@@ -208,6 +208,7 @@ export const apiDoSomething = async (params: Params): Promise<Response> => {
 - **NEVER** use web-only APIs (`document`, `window`, DOM) without `Platform.OS === 'web'` guard
 - **NEVER** use native-only APIs without `Platform.OS !== 'web'` guard
 - File uploads on web: Fetch blob → read `.type` for MIME (blob URIs have no extension)
+- Any implementation in frontend MUST consider both web and native implications (e.g., navigation, styling, APIs). Make sure it works seamlessly on all platforms. Also, check if it requires backend changes, as any backend changes have platform-specific effects (e.g., file handling, CORS).
 
 ### Multer Guard
 ```ts

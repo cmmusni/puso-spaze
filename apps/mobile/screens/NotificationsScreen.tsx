@@ -193,6 +193,14 @@ export default function NotificationsScreen() {
       return;
     }
 
+    // Flagged content or targeted screen notifications → navigate directly
+    const screen = notification.data?.screen;
+    if (screen) {
+      const target = screen === 'Journal' ? 'Home' : screen;
+      navigation.navigate(target as any);
+      return;
+    }
+
     const postId = notification.data?.postId;
     if (postId) {
       try {
@@ -206,13 +214,6 @@ export default function NotificationsScreen() {
         Alert.alert('Error', 'Could not load this post. It may have been removed.');
       }
       return;
-    }
-
-    // Daily Reflection / targeted screen notifications → navigate to Feed
-    const screen = notification.data?.screen;
-    if (screen) {
-      const target = screen === 'Journal' ? 'Home' : screen;
-      navigation.navigate(target as any);
     }
   };
 

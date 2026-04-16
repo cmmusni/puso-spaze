@@ -52,6 +52,8 @@ export interface Post {
     userId: string;
     content: string;
     createdAt: string;
+    isAnonymous?: boolean;
+    anonDisplayName?: string | null;
     user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
   };
 }

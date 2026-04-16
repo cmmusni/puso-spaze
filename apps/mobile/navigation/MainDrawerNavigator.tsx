@@ -47,7 +47,7 @@ import type { Post } from "../../../packages/types";
 // ── Param list ────────────────────────────────
 export type MainDrawerParamList = {
   Home: { highlightPostId?: string } | undefined;
-  Profile: undefined;
+  Profile: { userId?: string } | undefined;
   ReviewQueue: undefined;
   SendInvite: undefined;
   Post: undefined;

@@ -8,7 +8,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
 import { moderateContent } from '../services/moderationService';
-import { notifyComment } from '../services/notificationService';
+import { notifyComment, createNotification } from '../services/notificationService';
 import { notifyMentionsInComment } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { stripHtmlTags } from '../utils/sanitize';
@@ -39,10 +39,20 @@ export async function createComment(req: Request, res: Response): Promise<void> 
   if (!post) { res.status(404).json({ error: 'Post not found.' }); return; }
 
   // ── Check anonymous mode ──────────────────
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAnonymous: true, avatarUrl: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAnonymous: true, avatarUrl: true, anonDisplayName: true } });
   if (!user) { res.status(404).json({ error: 'User not found.' }); return; }
   const commentIsAnonymous = user.isAnonymous;
-  const anonDisplayName = commentIsAnonymous ? generateAnonUsername() : null;
+
+  // Use the user's persistent anonymous name, generating one if needed
+  let anonDisplayName: string | null = null;
+  if (commentIsAnonymous) {
+    if (user.anonDisplayName) {
+      anonDisplayName = user.anonDisplayName;
+    } else {
+      anonDisplayName = generateAnonUsername();
+      await prisma.user.update({ where: { id: userId }, data: { anonDisplayName } });
+    }
+  }
 
   // ── AI Moderation ────────────────────────
   let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
@@ -222,6 +232,17 @@ export async function deleteComment(req: Request, res: Response): Promise<void> 
     if (!isOwner && !isAdmin) {
       res.status(403).json({ error: 'You do not have permission to delete this comment.' });
       return;
+    }
+
+    // Notify author if deleted by admin (not self-delete)
+    if (isAdmin && !isOwner) {
+      createNotification({
+        userId: comment.userId,
+        type: 'SYSTEM',
+        title: 'Comment Removed',
+        body: 'Your comment was removed by a moderator. Please ensure your messages follow community guidelines.',
+        data: { postId: comment.postId },
+      }).catch(() => {});
     }
 
     await prisma.comment.delete({ where: { id: commentId } });

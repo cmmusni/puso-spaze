@@ -10,6 +10,7 @@ import { notifyMentionsInPost } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { stripHtmlTags } from '../utils/sanitize';
 import { uploadBuffer } from '../config/cloudinary';
+import { createNotification } from '../services/notificationService';
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -32,7 +33,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     : null;
 
   // ── Verify user exists ────────────────────
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, isAnonymous: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, isAnonymous: true, anonDisplayName: true } });
   if (!user) {
     res.status(404).json({ error: 'User not found.' });
     return;
@@ -42,7 +43,17 @@ export async function createPost(req: Request, res: Response): Promise<void> {
   const postIsAnonymous = bodyIsAnonymous !== undefined
     ? (bodyIsAnonymous === true || bodyIsAnonymous === 'true')
     : user.isAnonymous;
-  const anonDisplayName = postIsAnonymous ? generateAnonUsername() : null;
+
+  // Use the user's persistent anonymous name, generating one if needed
+  let anonDisplayName: string | null = null;
+  if (postIsAnonymous) {
+    if (user.anonDisplayName) {
+      anonDisplayName = user.anonDisplayName;
+    } else {
+      anonDisplayName = generateAnonUsername();
+      await prisma.user.update({ where: { id: userId }, data: { anonDisplayName } });
+    }
+  }
 
   // ── AI Moderation ────────────────────────
   let moderationStatus: 'SAFE' | 'FLAGGED' | 'REVIEW';
@@ -147,6 +158,8 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
           userId: true,
           content: true,
           createdAt: true,
+          isAnonymous: true,
+          anonDisplayName: true,
           user: { select: { displayName: true, role: true, avatarUrl: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -200,7 +213,11 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
             userId: latestComment.userId,
             content: latestComment.content,
             createdAt: latestComment.createdAt.toISOString(),
-            user: latestComment.user,
+            isAnonymous: latestComment.isAnonymous,
+            anonDisplayName: latestComment.anonDisplayName,
+            user: latestComment.isAnonymous
+              ? { displayName: latestComment.anonDisplayName ?? 'Anonymous', role: latestComment.user.role }
+              : latestComment.user,
           }
         : undefined,
       };
@@ -298,6 +315,17 @@ export async function deletePost(req: Request, res: Response): Promise<void> {
   if (!isOwner && !isAdmin) {
     res.status(403).json({ error: 'You do not have permission to delete this post.' });
     return;
+  }
+
+  // ── Notify author if deleted by admin (not self-delete) ──
+  if (isAdmin && !isOwner) {
+    createNotification({
+      userId: post.userId,
+      type: 'SYSTEM',
+      title: 'Post Removed',
+      body: 'Your post was removed by a moderator. Please ensure your messages follow community guidelines.',
+      data: { screen: 'Home' },
+    }).catch(() => {});
   }
 
   // ── Delete the post ──────────────────────

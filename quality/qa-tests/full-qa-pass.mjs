@@ -70,7 +70,7 @@ async function inputValidation() {
   r = await req('POST', '/api/posts', { content: '', userId: mainUser.userId }, auth);
   record('Empty post', 'empty', '422', String(r.status), r.status === 422 ? 'PASS' : 'FAIL');
   r = await req('POST', '/api/posts', { content: 'AB', userId: mainUser.userId }, auth);
-  record('2-char post', 'AB', '422', String(r.status), r.status === 422 ? 'PASS' : 'FAIL');
+  record('2-char post', 'AB', '201', String(r.status), r.status === 201 ? 'PASS' : 'FAIL');
   r = await req('POST', '/api/posts', { content: '     ', userId: mainUser.userId }, auth);
   record('Whitespace post', 'spaces', '422', String(r.status), r.status === 422 ? 'PASS' : 'FAIL');
   r = await req('POST', '/api/posts', { content: 'B'.repeat(2000), userId: mainUser.userId }, auth);

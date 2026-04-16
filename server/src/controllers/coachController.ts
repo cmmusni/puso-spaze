@@ -6,6 +6,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { createNotification } from '../services/notificationService';
 
 // ── Helpers ───────────────────────────────────
 
@@ -79,6 +80,26 @@ export async function moderatePost(req: Request, res: Response): Promise<void> {
       where: { id },
       data: { moderationStatus: action === 'approve' ? 'SAFE' : 'FLAGGED' },
     });
+
+    // Notify the post author
+    if (action === 'approve') {
+      createNotification({
+        userId: post.userId,
+        type: 'SYSTEM',
+        title: 'Post Approved',
+        body: 'Your post has been reviewed and approved. It is now visible to the community.',
+        data: { postId: post.id, screen: 'Home' },
+      }).catch(() => {});
+    } else {
+      createNotification({
+        userId: post.userId,
+        type: 'SYSTEM',
+        title: 'Post Rejected',
+        body: 'Your post was not approved. Please ensure your messages follow community guidelines.',
+        data: { postId: post.id, screen: 'Home' },
+      }).catch(() => {});
+    }
+
     res.json({ post, action });
   } catch (err) {
     console.error('[CoachController] moderatePost error:', err);
@@ -109,6 +130,26 @@ export async function moderateComment(req: Request, res: Response): Promise<void
       where: { id },
       data: { moderationStatus: action === 'approve' ? 'SAFE' : 'FLAGGED' },
     });
+
+    // Notify the comment author
+    if (action === 'approve') {
+      createNotification({
+        userId: comment.userId,
+        type: 'SYSTEM',
+        title: 'Comment Approved',
+        body: 'Your comment has been reviewed and approved. It is now visible to the community.',
+        data: { postId: comment.postId, commentId: comment.id },
+      }).catch(() => {});
+    } else {
+      createNotification({
+        userId: comment.userId,
+        type: 'SYSTEM',
+        title: 'Comment Rejected',
+        body: 'Your comment was not approved. Please ensure your messages follow community guidelines.',
+        data: { postId: comment.postId, commentId: comment.id },
+      }).catch(() => {});
+    }
+
     res.json({ comment, action });
   } catch (err) {
     console.error('[CoachController] moderateComment error:', err);
@@ -145,10 +186,63 @@ export async function flagPost(req: Request, res: Response): Promise<void> {
       data: { moderationStatus: 'FLAGGED' },
     });
 
+    // Notify the post author
+    createNotification({
+      userId: post.userId,
+      type: 'SYSTEM',
+      title: 'Post Flagged',
+      body: 'Your post was flagged by a coach for review. Please ensure your messages follow community guidelines.',
+      data: { postId: post.id, screen: 'Home' },
+    }).catch(() => {});
+
     res.json({ post: updatedPost, message: 'Post flagged successfully.' });
   } catch (err) {
     console.error('[CoachController] flagPost error:', err);
     res.status(500).json({ error: 'Failed to flag post.' });
+  }
+}
+
+/**
+ * PATCH /api/coach/comments/:id/flag
+ * Body: { coachId: string }
+ *
+ * Flag a comment (moves it to FLAGGED status)
+ */
+export async function flagComment(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  const { coachId } = req.body as { coachId: string };
+
+  if (!(await verifyCoach(coachId))) {
+    res.status(403).json({ error: 'Access denied. PUSO Coach account required.' });
+    return;
+  }
+
+  try {
+    const comment = await prisma.comment.findUnique({ where: { id } });
+
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found.' });
+      return;
+    }
+
+    const updatedComment = await prisma.comment.update({
+      where: { id },
+      data: { moderationStatus: 'FLAGGED' },
+    });
+
+    // Notify the comment author
+    createNotification({
+      userId: comment.userId,
+      type: 'SYSTEM',
+      title: 'Comment Flagged',
+      body: 'Your comment was flagged by a coach for review. Please ensure your messages follow community guidelines.',
+      data: { postId: comment.postId, commentId: comment.id, screen: 'Home' },
+    }).catch(() => {});
+
+    res.json({ comment: updatedComment, message: 'Comment flagged successfully.' });
+  } catch (err) {
+    console.error('[CoachController] flagComment error:', err);
+    res.status(500).json({ error: 'Failed to flag comment.' });
   }
 }
 
