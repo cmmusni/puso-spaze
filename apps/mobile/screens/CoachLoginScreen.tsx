@@ -105,7 +105,7 @@ export default function CoachLoginScreen() {
     }
     setLoading(true);
     try {
-      await loginAsCoach(coachName.trim(), trimmedCode);
+      await loginAsCoach(coachName.trim(), trimmedCode, coachEmail.trim() || undefined);
       navigation.reset({ index: 0, routes: [{ name: 'MainDrawer' }] });
     } catch (err: any) {
       const msg =

@@ -738,7 +738,7 @@ export default function LoginScreen() {
               Tell us why you need to recover "{pinUsername}". A PUSO Coach will review your request and verify your identity based on your post history.
             </Text>
             <TextInput
-              style={[styles.pinInput, { height: 80, textAlignVertical: 'top' }]}
+              style={[styles.pinInput, { height: 100, textAlignVertical: 'top', fontSize: 14, letterSpacing: 0, textAlign: 'left', fontFamily: fonts.bodyRegular, lineHeight: 20, paddingTop: 14 }]}
               value={recoveryReason}
               onChangeText={setRecoveryReason}
               placeholder='e.g. "I cleared my browser cache" or "I got a new phone"'

@@ -43,7 +43,7 @@ export async function getInviteEmail(req: Request, res: Response): Promise<void>
  * Returns: { userId, displayName, role }
  */
 export async function redeemInvite(req: Request, res: Response): Promise<void> {
-  const { displayName, code, deviceId } = req.body as { displayName: string; code: string; deviceId?: string };
+  const { displayName, code, deviceId, email } = req.body as { displayName: string; code: string; deviceId?: string; email?: string };
 
   try {
     // 0. Block all reserved usernames from invite code flow
@@ -83,14 +83,15 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
     }
 
     // 3. Upsert the user — keep existing role on re-login, default to COACH on first login
-    //    Copy email from invite code to user record
+    //    Copy email from invite code or request body to user record
+    const coachEmail = invite.email || (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined);
     const user = existingUser
       ? await prisma.user.update({
           where: { id: existingUser.id },
           data: {
             lastActiveAt: new Date(),
             ...(deviceId && !existingUser.deviceId ? { deviceId } : {}),
-            ...(invite.email ? { email: invite.email } : {}),
+            ...(coachEmail ? { email: coachEmail } : {}),
           },
         })
       : await prisma.user.create({
@@ -98,7 +99,7 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
             displayName,
             role: 'COACH',
             ...(deviceId ? { deviceId } : {}),
-            ...(invite.email ? { email: invite.email } : {}),
+            ...(coachEmail ? { email: coachEmail } : {}),
           },
         });
 

@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { sendRecoveryAlertEmail } from '../services/newUserAlertService';
 
 /**
  * POST /api/recovery-requests  (PUBLIC — no auth required)
@@ -50,6 +51,13 @@ export async function submitRecoveryRequest(req: Request, res: Response): Promis
         displayName: displayName.trim(),
         reason: reason.trim(),
       },
+    });
+
+    // Notify admin via email (async, non-blocking)
+    void sendRecoveryAlertEmail({
+      displayName: displayName.trim(),
+      reason: reason.trim(),
+      requestId: request.id,
     });
 
     res.status(201).json({ id: request.id, status: request.status });

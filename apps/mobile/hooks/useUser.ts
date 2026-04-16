@@ -89,13 +89,13 @@ export function useUser() {
    * Validates that this username is allowed on this device.
    */
   const loginAsCoach = useCallback(
-    async (displayName: string, code: string): Promise<void> => {
+    async (displayName: string, code: string, email?: string): Promise<void> => {
       // Validate device ownership before attempting login
       await validateDeviceOwner(displayName);
 
       const deviceId = await getDeviceId();
       const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
-        await apiRedeemInviteCode({ displayName, code, deviceId, platform: Platform.OS });
+        await apiRedeemInviteCode({ displayName, code, deviceId, platform: Platform.OS, ...(email ? { email } : {}) });
       await loginUser(serverId, serverName, serverRole, serverAvatar, token);
     },
     [loginUser, validateDeviceOwner, getDeviceId]

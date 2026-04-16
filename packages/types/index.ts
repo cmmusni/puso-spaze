@@ -144,7 +144,7 @@ export interface SearchUsersResponse { users: MentionUser[]; }
 export interface UserSession { userId: string; username: string; role: UserRole; isLoggedIn: boolean; }
 
 // Coach / Admin
-export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; platform?: string; }
+export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; platform?: string; email?: string; }
 export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; token?: string; }
 
 export interface ReviewQueue { posts: Post[]; comments: Comment[]; }
