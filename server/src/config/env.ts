@@ -50,6 +50,13 @@ export const env = {
   VAPID_PRIVATE_KEY: optional('VAPID_PRIVATE_KEY', ''),
   /** VAPID subject (mailto: or https: URL) */
   VAPID_SUBJECT: optional('VAPID_SUBJECT', 'mailto:admin@puso-spaze.org'),
+  // ── Cloudinary (persistent image storage) ─────────────────────────
+  /** Cloudinary cloud name — get from cloudinary.com dashboard */
+  CLOUDINARY_CLOUD_NAME: optional('CLOUDINARY_CLOUD_NAME', ''),
+  /** Cloudinary API key */
+  CLOUDINARY_API_KEY: optional('CLOUDINARY_API_KEY', ''),
+  /** Cloudinary API secret */
+  CLOUDINARY_API_SECRET: optional('CLOUDINARY_API_SECRET', ''),
 } as const;
 
 // ── Startup security warnings ────────────────

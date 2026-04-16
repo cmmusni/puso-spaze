@@ -9,6 +9,7 @@ import { moderateContent } from '../services/moderationService';
 import { notifyMentionsInPost } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { stripHtmlTags } from '../utils/sanitize';
+import { uploadBuffer } from '../config/cloudinary';
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -26,7 +27,9 @@ export async function createPost(req: Request, res: Response): Promise<void> {
   const bodyIsAnonymous = req.body.isAnonymous;
 
   const imageFile = (req as any).file as Express.Multer.File | undefined;
-  const imageUrl = imageFile ? `/uploads/${imageFile.filename}` : null;
+  const imageUrl = imageFile
+    ? await uploadBuffer(imageFile.buffer, 'puso-spaze/posts')
+    : null;
 
   // ── Verify user exists ────────────────────
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, isAnonymous: true } });

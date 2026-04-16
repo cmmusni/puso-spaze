@@ -7,24 +7,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import multer from 'multer';
-import path from 'path';
-import crypto from 'crypto';
 import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, getPin, updatePin, getUserStats } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
-import { isValidImageFile } from '../utils/validateImageMagicBytes';
-import fs from 'fs';
+import { isValidImageBuffer } from '../utils/validateImageMagicBytes';
 
 const router = Router();
 
-// ── Multer config for avatar uploads ──────────
-const avatarStorage = multer.diskStorage({
-  destination: path.join(__dirname, '..', '..', 'uploads'),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${crypto.randomUUID()}${ext}`);
-  },
-});
+// ── Multer config for avatar uploads (memory storage → Cloudinary) ──────
+const avatarStorage = multer.memoryStorage();
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -152,8 +143,7 @@ router.post(
         if (err) return next(err);
         // QUALITY.md Scenario 8: Magic byte validation
         const file = (req as any).file as Express.Multer.File | undefined;
-        if (file && !isValidImageFile(file.path)) {
-          fs.unlink(file.path, () => {});
+        if (file && !isValidImageBuffer(file.buffer)) {
           res.status(400).json({ error: 'Uploaded file is not a valid image.' });
           return;
         }

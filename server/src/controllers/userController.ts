@@ -8,6 +8,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../config/db';
+import { uploadBuffer } from '../config/cloudinary';
 import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 import { signToken } from '../utils/jwt';
 
@@ -421,7 +422,7 @@ export async function uploadAvatar(req: Request, res: Response): Promise<void> {
   }
 
   try {
-    const avatarUrl = `/uploads/${imageFile.filename}`;
+    const avatarUrl = await uploadBuffer(imageFile.buffer, 'puso-spaze/avatars');
     const user = await prisma.user.update({
       where: { id: userId },
       data: { avatarUrl },
