@@ -74,6 +74,18 @@ export function getBaseUrl(): string {
   return BASE_URL;
 }
 
+/**
+ * Resolve a media URL to a fully-qualified URL.
+ * Cloudinary URLs (and any absolute URL) are returned as-is.
+ * Legacy relative paths (e.g. /uploads/...) are prefixed with the base URL.
+ * Returns an empty string for falsy input.
+ */
+export function resolveAvatarUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BASE_URL}${url}`;
+}
+
 const client = axios.create({
   baseURL: BASE_URL,
   timeout: 15_000,

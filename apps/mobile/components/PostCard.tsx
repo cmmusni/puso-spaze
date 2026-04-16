@@ -36,7 +36,7 @@ import {
   apiFlagPost,
   apiPinPost,
   apiUnpinPost,
-  getBaseUrl,
+  resolveAvatarUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
@@ -392,7 +392,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
               />
             ) : post.user?.avatarUrl ? (
               <Image
-                source={{ uri: `${getBaseUrl()}${post.user.avatarUrl}` }}
+                source={{ uri: resolveAvatarUrl(post.user.avatarUrl) }}
                 style={[styles.avatar, isMedium && styles.avatarMd]}
               />
             ) : (
@@ -477,7 +477,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
         {/* ── Post Image ── */}
         {post.imageUrl && (
           <Image
-            source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+            source={{ uri: resolveAvatarUrl(post.imageUrl) }}
             style={[styles.postImage, isMedium && { height: 260 }]}
             resizeMode="cover"
           />
@@ -566,7 +566,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
             <View style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}>
               {cAvatarUrl ? (
                 <Image
-                  source={{ uri: `${getBaseUrl()}${cAvatarUrl}` }}
+                  source={{ uri: resolveAvatarUrl(cAvatarUrl) }}
                   style={[styles.commentAvatar, isMedium && { width: 28, height: 28, borderRadius: 14 }]}
                 />
               ) : (

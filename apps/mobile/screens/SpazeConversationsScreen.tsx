@@ -21,7 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
-import { apiFetchAllConversations, getBaseUrl } from "../services/api";
+import { apiFetchAllConversations, getBaseUrl, resolveAvatarUrl } from "../services/api";
 import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import type { Conversation } from "../../../packages/types";
@@ -146,7 +146,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
         <View style={s.dualAvatarWrap}>
           {memberAvatar ? (
             <Image
-              source={{ uri: `${getBaseUrl()}${memberAvatar}` }}
+              source={{ uri: resolveAvatarUrl(memberAvatar) }}
               style={s.avatarLeft}
             />
           ) : (
@@ -161,7 +161,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
           )}
           {coachAvatar ? (
             <Image
-              source={{ uri: `${getBaseUrl()}${coachAvatar}` }}
+              source={{ uri: resolveAvatarUrl(coachAvatar) }}
               style={[s.avatarRight, { borderColor: colors.surfaceContainerLowest }]}
             />
           ) : (

@@ -30,7 +30,7 @@ import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from ".
 import { useUserStore } from "../context/UserContext";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
-import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, apiGetPin, apiUpdatePin, apiGetUserStats, getBaseUrl } from "../services/api";
+import { apiUpdateUsername, apiFetchJournals, apiUploadAvatar, apiGetPin, apiUpdatePin, apiGetUserStats, getBaseUrl, resolveAvatarUrl } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal } from "../../../packages/types";
@@ -257,7 +257,7 @@ export default function ProfileScreen() {
     );
   }
 
-  const resolvedAvatarUri = avatarUrl ? `${getBaseUrl()}${avatarUrl}` : null;
+  const resolvedAvatarUri = resolveAvatarUrl(avatarUrl) || null;
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>

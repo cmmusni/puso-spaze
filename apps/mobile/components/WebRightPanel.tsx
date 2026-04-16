@@ -8,7 +8,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useUser } from "../hooks/useUser";
-import { apiGetDashboardStats, apiFetchCoaches, apiFetchConversations, apiGetOrCreateConversation, getBaseUrl, type DashboardStats } from "../services/api";
+import { apiGetDashboardStats, apiFetchCoaches, apiFetchConversations, apiGetOrCreateConversation, resolveAvatarUrl, type DashboardStats } from "../services/api";
 import type { CoachProfile, Conversation } from "../../../packages/types";
 
 function formatTimeAgo(dateStr: string): string {
@@ -151,7 +151,7 @@ export default function WebRightPanel() {
                   >
                     {other?.avatarUrl ? (
                       <Image
-                        source={{ uri: `${getBaseUrl()}${other.avatarUrl}` }}
+                        source={{ uri: resolveAvatarUrl(other.avatarUrl) }}
                         style={styles.coachAvatar}
                       />
                     ) : (
@@ -202,7 +202,7 @@ export default function WebRightPanel() {
               <View key={coach.id} style={styles.coachRow}>
                 {coach.avatarUrl ? (
                   <Image
-                    source={{ uri: `${getBaseUrl()}${coach.avatarUrl}` }}
+                    source={{ uri: resolveAvatarUrl(coach.avatarUrl) }}
                     style={styles.coachAvatar}
                   />
                 ) : (

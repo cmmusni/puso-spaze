@@ -40,7 +40,7 @@ import {
   apiAdminGenerateInviteCodes,
   apiAdminListInviteCodes,
   apiAdminSendInviteByEmail,
-  getBaseUrl,
+  resolveAvatarUrl,
 } from '../services/api';
 import type { DashboardStats } from '../services/api';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
@@ -350,7 +350,7 @@ export default function CoachDashboard() {
         {/* Image */}
         {type === 'post' && (item as Post).imageUrl && (
           <Image
-            source={{ uri: `${getBaseUrl()}${(item as Post).imageUrl}` }}
+            source={{ uri: resolveAvatarUrl((item as Post).imageUrl) }}
             style={s.reviewImage}
             resizeMode="cover"
           />

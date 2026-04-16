@@ -36,7 +36,7 @@ import { useUser } from "../hooks/useUser";
 import { useUserStore } from "../context/UserContext";
 import { validatePostContent } from "../utils/validators";
 import { POST_MAX_LENGTH } from "../../../packages/core/constants";
-import { apiSearchUsers, getBaseUrl } from "../services/api";
+import { apiSearchUsers, resolveAvatarUrl } from "../services/api";
 import {
   extractTrailingMentionQuery,
   replaceTrailingMention,
@@ -303,7 +303,7 @@ export default function PostScreen() {
                   </LinearGradient>
                 ) : avatarUrl ? (
                   <Image
-                    source={{ uri: `${getBaseUrl()}${avatarUrl}` }}
+                    source={{ uri: resolveAvatarUrl(avatarUrl) }}
                     style={styles.writerAvatar}
                   />
                 ) : (

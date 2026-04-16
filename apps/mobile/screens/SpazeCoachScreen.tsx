@@ -27,7 +27,7 @@ import {
   apiFetchCoaches,
   apiFetchConversations,
   apiGetOrCreateConversation,
-  getBaseUrl,
+  resolveAvatarUrl,
 } from "../services/api";
 import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
@@ -154,7 +154,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
         <View style={s.coachAvatarWrap}>
           {item.avatarUrl ? (
             <Image
-              source={{ uri: `${getBaseUrl()}${item.avatarUrl}` }}
+              source={{ uri: resolveAvatarUrl(item.avatarUrl) }}
               style={s.coachAvatarImg}
             />
           ) : (
@@ -222,7 +222,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
         <View style={s.convAvatarWrap}>
           {otherAvatar ? (
             <Image
-              source={{ uri: `${getBaseUrl()}${otherAvatar}` }}
+              source={{ uri: resolveAvatarUrl(otherAvatar) }}
               style={s.convAvatarImg}
             />
           ) : (

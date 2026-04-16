@@ -28,9 +28,9 @@ import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNotifications } from "../hooks/useNotifications";
-import { apiGetDashboardStats, getBaseUrl, type DashboardStats } from "../services/api";
+import { apiGetDashboardStats, resolveAvatarUrl, type DashboardStats } from "../services/api";
 import { validatePostContent } from "../utils/validators";
-import { POST_MAX_LENGTH } from "../../../packages/core/constants";
+import { POST_MAX_LENGTH, POST_MIN_LENGTH } from "../../../packages/core/constants";
 import { showAlert } from "../utils/alertPlatform";
 import PostCard from "../components/PostCard";
 import type { Post } from "../../../packages/types";
@@ -558,12 +558,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={handlePostReflection}
               activeOpacity={0.85}
-              disabled={composing || composeText.trim().length < 2}
+              disabled={composing || composeText.trim().length < POST_MIN_LENGTH}
               accessibilityRole="button"
               accessibilityLabel="Post"
               style={[
                 styles.composerSubmitBtn,
-                (composing || composeText.trim().length < 3) &&
+                (composing || composeText.trim().length < POST_MIN_LENGTH) &&
                   styles.composerSubmitDisabled,
               ]}
             >
@@ -767,7 +767,7 @@ export default function HomeScreen() {
             )}
             {avatarUrl ? (
               <Image
-                source={{ uri: `${getBaseUrl()}${avatarUrl}` }}
+                source={{ uri: resolveAvatarUrl(avatarUrl) }}
                 style={styles.topBarAvatar}
               />
             ) : (

@@ -44,7 +44,7 @@ import {
   apiDeletePost,
   apiUpdatePost,
   apiSearchUsers,
-  getBaseUrl,
+  resolveAvatarUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
@@ -709,7 +709,7 @@ export default function PostDetailScreen() {
           />
         ) : item.user?.avatarUrl ? (
           <Image
-            source={{ uri: `${getBaseUrl()}${item.user.avatarUrl}` }}
+            source={{ uri: resolveAvatarUrl(item.user.avatarUrl) }}
             style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
           />
         ) : (
@@ -919,7 +919,7 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
         {userAvatarUrl ? (
           <Image
-            source={{ uri: `${getBaseUrl()}${userAvatarUrl}` }}
+            source={{ uri: resolveAvatarUrl(userAvatarUrl) }}
             style={styles.headerAvatar}
           />
         ) : (
@@ -960,7 +960,7 @@ export default function PostDetailScreen() {
                     />
                   ) : post.user?.avatarUrl ? (
                     <Image
-                      source={{ uri: `${getBaseUrl()}${post.user.avatarUrl}` }}
+                      source={{ uri: resolveAvatarUrl(post.user.avatarUrl) }}
                       style={styles.postAvatar}
                     />
                   ) : (
@@ -1012,7 +1012,7 @@ export default function PostDetailScreen() {
                     onPress={() => setImageViewerVisible(true)}
                   >
                     <Image
-                      source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+                      source={{ uri: resolveAvatarUrl(post.imageUrl) }}
                       style={styles.postImage}
                       resizeMode="cover"
                     />
@@ -1187,7 +1187,7 @@ export default function PostDetailScreen() {
         <View style={styles.inputBar}>
           {userAvatarUrl ? (
             <Image
-              source={{ uri: `${getBaseUrl()}${userAvatarUrl}` }}
+              source={{ uri: resolveAvatarUrl(userAvatarUrl) }}
               style={styles.inputAvatar}
             />
           ) : (
@@ -1619,7 +1619,7 @@ export default function PostDetailScreen() {
               <Ionicons name="close" size={28} color="#fff" />
             </TouchableOpacity>
             <Image
-              source={{ uri: `${getBaseUrl()}${post.imageUrl}` }}
+              source={{ uri: resolveAvatarUrl(post.imageUrl) }}
               style={styles.imageViewerImage}
               resizeMode="contain"
             />
