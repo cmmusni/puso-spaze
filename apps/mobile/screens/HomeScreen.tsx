@@ -558,7 +558,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={handlePostReflection}
               activeOpacity={0.85}
-              disabled={composing || composeText.trim().length < 3}
+              disabled={composing || composeText.trim().length < 2}
               accessibilityRole="button"
               accessibilityLabel="Post"
               style={[
@@ -686,7 +686,10 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            onPress={() => navigation.navigate("Home")}
+            onPress={() => {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+              handleRefresh();
+            }}
             activeOpacity={0.7}
           >
             <Image

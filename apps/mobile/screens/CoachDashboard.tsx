@@ -519,21 +519,6 @@ export default function CoachDashboard() {
     <SafeAreaView style={[s.root, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-      {/* ── Top bar (mobile / narrow) ── */}
-      {!isWide && (
-        <View style={s.topBar}>
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            activeOpacity={0.7}
-            style={s.hamburger}
-          >
-            <Ionicons name="menu-outline" size={24} color={colors.heading} />
-          </TouchableOpacity>
-          <Text style={s.topBarTitle}>Coach Dashboard</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      )}
-
       <View style={s.mainRow}>
         {/* Left / Main content */}
         <ScrollView
@@ -874,22 +859,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontSize: 14,
     color: colors.onSurfaceVariant,
     fontFamily: fonts.bodyRegular,
-  },
-
-  // ── Top bar (mobile) ─────────────────────
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: colors.surfaceContainerLowest,
-  },
-  hamburger: { padding: 4 },
-  topBarTitle: {
-    fontSize: 16,
-    fontFamily: fonts.displayBold,
-    color: colors.onSurface,
   },
 
   // ── Greeting ─────────────────────────────
