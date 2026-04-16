@@ -5,7 +5,6 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
-import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 import { signToken } from '../utils/jwt';
 import { isReservedUsername } from './userController';
 
@@ -102,18 +101,6 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
             ...(coachEmail ? { email: coachEmail } : {}),
           },
         });
-
-    if (!existingUser) {
-      const context = extractNewUserAlertContext(req);
-      context.source = 'auth.redeem-invite';
-
-      void sendNewUserAlertEmail({
-        userId: user.id,
-        displayName: user.displayName,
-        role: user.role,
-        context,
-      });
-    }
 
     // 4. Mark the invite code as used
     await prisma.inviteCode.update({

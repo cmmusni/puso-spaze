@@ -60,6 +60,7 @@ export async function upsertReaction(req: Request, res: Response): Promise<void>
       reactorId: userId,
       reactorName: user.displayName,
       reactionType: type,
+      actorAvatarUrl: user.avatarUrl ?? null,
     }).catch((err) => console.error('Failed to send reaction notification:', err));
 
     res.status(201).json({ removed: false, reaction: { id: reaction.id, type: reaction.type } });

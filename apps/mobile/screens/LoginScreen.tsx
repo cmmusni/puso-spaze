@@ -910,7 +910,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 14,
-  },
+    outlineWidth: 0,
+    outlineStyle: 'none',
+  } as any,
   codeInput: {
     fontFamily: fonts.displayBold,
     letterSpacing: 4,

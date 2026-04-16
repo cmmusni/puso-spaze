@@ -151,3 +151,36 @@ export async function flagPost(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Failed to flag post.' });
   }
 }
+
+/**
+ * GET /api/coach/members?coachId=...
+ *
+ * Returns all USER-role accounts sorted newest-first.
+ * Used by the Coach Dashboard members panel.
+ */
+export async function getMembers(req: Request, res: Response): Promise<void> {
+  const coachId = req.query.coachId as string;
+
+  if (!(await verifyCoach(coachId))) {
+    res.status(403).json({ error: 'Access denied. PUSO Coach account required.' });
+    return;
+  }
+
+  try {
+    const members = await prisma.user.findMany({
+      where: { role: 'USER' },
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ members });
+  } catch (err) {
+    console.error('[CoachController] getMembers error:', err);
+    res.status(500).json({ error: 'Failed to fetch members.' });
+  }
+}

@@ -40,9 +40,10 @@ import {
   apiAdminGenerateInviteCodes,
   apiAdminListInviteCodes,
   apiAdminSendInviteByEmail,
+  apiGetMembers,
   resolveAvatarUrl,
 } from '../services/api';
-import type { DashboardStats } from '../services/api';
+import type { DashboardStats, MemberSummary } from '../services/api';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
 import type { Post, Comment, Conversation, RecoveryRequest, InviteCode } from '../../../packages/types';
 import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
@@ -107,6 +108,7 @@ export default function CoachDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([]);
+  const [members, setMembers] = useState<MemberSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
@@ -124,17 +126,19 @@ export default function CoachDashboard() {
     if (!userId) return;
     if (!silent) setLoading(true);
     try {
-      const [queue, dashStats, convos, recoveryRes] = await Promise.all([
+      const [queue, dashStats, convos, recoveryRes, membersRes] = await Promise.all([
         apiGetReviewQueue(userId),
         apiGetDashboardStats(),
         apiFetchConversations(userId),
         apiGetRecoveryRequests(userId),
+        apiGetMembers(userId),
       ]);
       setPosts(queue.posts);
       setComments(queue.comments);
       setStats(dashStats);
       setConversations(convos.conversations.slice(0, 3));
       setRecoveryRequests(recoveryRes.requests);
+      setMembers(membersRes);
 
       // Fetch invite codes for admin
       if (role === 'ADMIN') {
@@ -301,15 +305,24 @@ export default function CoachDashboard() {
     const tags = type === 'post' ? ((item as Post).tags ?? []) : [];
     const postRef = type === 'comment' ? (item as Comment).post : null;
     const isFlagged = item.moderationStatus === 'FLAGGED';
+    const initial = displayAuthor.charAt(0).toUpperCase();
+    const grad = avatarColors(initial);
 
     return (
       <View key={item.id} style={s.reviewCard}>
         {/* Header */}
         <View style={s.reviewHeader}>
           <View style={s.reviewAuthorRow}>
-            <View style={s.reviewAvatar}>
-              <Ionicons name="person-outline" size={16} color={colors.onSurfaceVariant} />
-            </View>
+            {!isAnonymous && item.user?.avatarUrl ? (
+              <Image
+                source={{ uri: resolveAvatarUrl(item.user.avatarUrl) }}
+                style={s.reviewAvatar}
+              />
+            ) : (
+              <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.reviewAvatar}>
+                <Text style={s.reviewAvatarInitial}>{initial}</Text>
+              </LinearGradient>
+            )}
             <View style={{ flex: 1 }}>
               <View style={s.authorStatusRow}>
                 <Text style={s.reviewAuthor}>{displayAuthor}</Text>
@@ -486,6 +499,52 @@ export default function CoachDashboard() {
           <Text style={s.goToMsgsText}>GO TO MESSAGES</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Members */}
+      <View style={s.membersCard}>
+        <View style={s.membersHeader}>
+          <Ionicons name="people-outline" size={18} color={colors.primary} />
+          <Text style={s.membersTitle}>Members</Text>
+          <Text style={s.membersBadge}>{members.length}</Text>
+        </View>
+        <ScrollView
+          style={s.membersScroll}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
+          {members.length === 0 ? (
+            <Text style={s.sentimentNote}>No members yet.</Text>
+          ) : (
+            members.map((member) => {
+              const memberInitial = member.displayName.charAt(0).toUpperCase();
+              const memberGrad = avatarColors(memberInitial);
+              return (
+                <View key={member.id} style={s.memberRow}>
+                  {member.avatarUrl ? (
+                    <Image
+                      source={{ uri: resolveAvatarUrl(member.avatarUrl) }}
+                      style={s.memberAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={memberGrad}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={s.memberAvatar}
+                    >
+                      <Text style={s.memberAvatarText}>{memberInitial}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={s.memberInfo}>
+                    <Text style={s.memberName} numberOfLines={1}>{member.displayName}</Text>
+                    <Text style={s.memberJoined}>Joined {formatRelativeTime(member.createdAt)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      </View>
     </View>
   );
 
@@ -505,13 +564,7 @@ export default function CoachDashboard() {
   const allItems = [
     ...posts.map(p => ({ ...p, _type: 'post' as const })),
     ...comments.map(c => ({ ...c, _type: 'comment' as const })),
-  ].sort((a, b) => {
-    // REVIEW items first, FLAGGED items last
-    const aFlagged = a.moderationStatus === 'FLAGGED' ? 1 : 0;
-    const bFlagged = b.moderationStatus === 'FLAGGED' ? 1 : 0;
-    if (aFlagged !== bFlagged) return aFlagged - bFlagged;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // ── Main render ───────────────────────────
 
@@ -991,6 +1044,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     backgroundColor: colors.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  reviewAvatarInitial: {
+    fontSize: 14,
+    fontFamily: fonts.displayBold,
+    color: '#fff',
   },
   reviewAuthor: {
     fontSize: 14,
@@ -1270,6 +1329,70 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodyBold,
     color: colors.primary,
     letterSpacing: 0.6,
+  },
+
+  // Members card
+  membersCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: 18,
+    ...ambientShadow,
+  },
+  membersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  membersTitle: {
+    fontSize: 16,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+    flex: 1,
+  },
+  membersBadge: {
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
+    color: colors.onSurfaceVariant,
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    overflow: 'hidden',
+  },
+  membersScroll: {
+    maxHeight: 280,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  memberAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  memberAvatarText: {
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+    color: '#fff',
+  },
+  memberInfo: { flex: 1 },
+  memberName: {
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+    color: colors.onSurface,
+  },
+  memberJoined: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    marginTop: 1,
   },
 
   // ── Recovery history ──────────────────────

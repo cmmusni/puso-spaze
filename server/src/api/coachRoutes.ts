@@ -7,13 +7,16 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
-import { getReviewQueue, moderatePost, moderateComment, flagPost } from '../controllers/coachController';
+import { getReviewQueue, moderatePost, moderateComment, flagPost, getMembers } from '../controllers/coachController';
 import { getRecoveryRequests, reviewRecoveryRequest } from '../controllers/recoveryController';
 
 const router = Router();
 
 // GET  /api/coach/review?coachId=...
 router.get('/review', requireAuth, getReviewQueue);
+
+// GET  /api/coach/members?coachId=...
+router.get('/members', requireAuth, getMembers);
 
 // PATCH /api/coach/posts/:id/moderate
 router.patch(

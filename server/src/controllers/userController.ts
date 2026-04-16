@@ -9,7 +9,6 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../config/db';
 import { uploadBuffer } from '../config/cloudinary';
-import { extractNewUserAlertContext, sendNewUserAlertEmail } from '../services/newUserAlertService';
 import { signToken } from '../utils/jwt';
 
 /** Username that auto-assigns ADMIN role on creation */
@@ -227,16 +226,6 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         ...(deviceId ? { deviceId } : {}),
         ...(isAdminUsername(displayName) ? { role: 'ADMIN' } : {}),
       },
-    });
-
-    const context = extractNewUserAlertContext(req);
-    context.source = 'users.create';
-
-    void sendNewUserAlertEmail({
-      userId: user.id,
-      displayName: user.displayName,
-      role: user.role,
-      context,
     });
 
     res.status(201).json({

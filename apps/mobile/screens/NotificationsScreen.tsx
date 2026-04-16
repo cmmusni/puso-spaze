@@ -13,6 +13,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
   TextInput,
   SectionList,
   Platform,
@@ -28,6 +29,7 @@ import {
   apiMarkNotificationRead, 
   apiMarkAllNotificationsRead,
   apiGetPostById,
+  resolveAvatarUrl,
 } from '../services/api';
 import type { Notification, Post } from '../../../packages/types';
 import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from '../constants/theme';
@@ -256,13 +258,20 @@ export default function NotificationsScreen() {
       >
         {/* Avatar with badge icon */}
         <View style={styles.avatarContainer}>
-          <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
-            <Ionicons
-              name={item.type === 'ENCOURAGEMENT' ? 'sparkles' : 'person'}
-              size={24}
-              color={item.type === 'ENCOURAGEMENT' ? colors.tertiary : colors.onSurfaceVariant}
+          {item.data?.actorAvatarUrl ? (
+            <Image
+              source={{ uri: resolveAvatarUrl(item.data.actorAvatarUrl) }}
+              style={[styles.avatar, { borderColor: colors.outlineVariant }]}
             />
-          </View>
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
+              <Ionicons
+                name={item.type === 'ENCOURAGEMENT' ? 'sparkles' : 'person'}
+                size={24}
+                color={item.type === 'ENCOURAGEMENT' ? colors.tertiary : colors.onSurfaceVariant}
+              />
+            </View>
+          )}
           <View style={[styles.avatarBadge, { backgroundColor: iconColor }]}>
             <Ionicons name={iconName} size={10} color="#FFFFFF" />
           </View>

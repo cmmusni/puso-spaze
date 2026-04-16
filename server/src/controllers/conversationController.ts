@@ -349,7 +349,7 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
       body: message.content.length > 100
         ? message.content.slice(0, 100) + '…'
         : message.content,
-      data: { conversationId, senderId },
+      data: { conversationId, senderId, actorAvatarUrl: sender.avatarUrl ?? null },
     }).catch((err) => console.error('[sendMessage] notification error:', err));
 
     // Send email notification to coach if a member sent the message

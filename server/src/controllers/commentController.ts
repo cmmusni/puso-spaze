@@ -39,7 +39,7 @@ export async function createComment(req: Request, res: Response): Promise<void> 
   if (!post) { res.status(404).json({ error: 'Post not found.' }); return; }
 
   // ── Check anonymous mode ──────────────────
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAnonymous: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAnonymous: true, avatarUrl: true } });
   if (!user) { res.status(404).json({ error: 'User not found.' }); return; }
   const commentIsAnonymous = user.isAnonymous;
   const anonDisplayName = commentIsAnonymous ? generateAnonUsername() : null;
@@ -79,6 +79,7 @@ export async function createComment(req: Request, res: Response): Promise<void> 
         commenterId: userId,
         commenterName: notifyName,
         commentPreview: content.trim(),
+        actorAvatarUrl: commentIsAnonymous ? null : (user.avatarUrl ?? null),
       }).catch((err) => console.error('Failed to send comment notification:', err));
 
       notifyMentionsInComment({

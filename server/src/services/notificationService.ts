@@ -142,6 +142,7 @@ export async function notifyReaction(params: {
   reactorId: string;
   reactorName: string;
   reactionType: string;
+  actorAvatarUrl?: string | null;
 }): Promise<void> {
   // Don't notify if user reacted to their own post
   if (params.postAuthorId === params.reactorId) return;
@@ -160,6 +161,7 @@ export async function notifyReaction(params: {
       postId: params.postId,
       reactorId: params.reactorId,
       reactionType: params.reactionType,
+      actorAvatarUrl: params.actorAvatarUrl ?? null,
     },
   });
 }
@@ -173,6 +175,7 @@ export async function notifyComment(params: {
   commenterId: string;
   commenterName: string;
   commentPreview: string;
+  actorAvatarUrl?: string | null;
 }): Promise<void> {
   // Don't notify if user commented on their own post
   if (params.postAuthorId === params.commenterId) return;
@@ -188,6 +191,7 @@ export async function notifyComment(params: {
     data: {
       postId: params.postId,
       commenterId: params.commenterId,
+      actorAvatarUrl: params.actorAvatarUrl ?? null,
     },
   });
 }

@@ -828,6 +828,20 @@ export async function apiGetDashboardStats(userId?: string): Promise<DashboardSt
   }
 }
 
+export interface MemberSummary {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+export async function apiGetMembers(coachId: string): Promise<MemberSummary[]> {
+  const { data } = await client.get<{ members: MemberSummary[] }>('/api/coach/members', {
+    params: { coachId },
+  });
+  return data.members;
+}
+
 // ── Journal endpoints ─────────────────────────
 
 /**
