@@ -3,6 +3,7 @@
 **Last Updated:** April 17, 2026
 
 ## Current Work Focus
+- Scroll-direction hide/show bars: top bar + bottom tab bar auto-hide on scroll down, reveal on scroll up
 - Refresh UX parity: native pull-to-refresh coverage + mobile web pull-to-refresh behavior
 - Streak system overhaul: visit-based streak counting + push reminders
 - Coach follow-up automation: pending chat reminders for unreplied member messages
@@ -12,6 +13,14 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Scroll-Direction Bar Auto-Hide (April 17, 2026)
+- **NEW HOOK**: `apps/mobile/hooks/useScrollBarVisibility.ts` — Zustand store holding `barsVisible` boolean shared between HomeScreen and BottomTabBar
+- **HOME SCREEN**: `handleScroll` now tracks scroll direction; hides top bar + signals BottomTabBar to slide down after 10px downward scroll; restores on upward scroll or scroll-to-top; bars reset to visible on screen blur
+- **BOTTOM TAB BAR**: Consumes `barsVisible` store, animates `translateY` to 80 on hide and back to 0 on show; changed container to `position: absolute` for proper animation on web+native
+- **POST CARD**: Mobile layout polish — full-bleed card at `borderRadius: 0`, `marginHorizontal: 0` on narrow screens; latest-comment strip updated with shadow, tighter spacing, and dot separator; comment text label removed when count is 0
+- **CONVERSATION CONTROLLER**: Updated to include new fields
+- **SCOPE**: Auto-hide only activates on mobile/narrow web; wide desktop (`isWide`) always shows bars
 
 ### PWA Input Focus Zoom Guard (April 17, 2026)
 - **BUG-017**: iPhone Safari/PWA auto-zoomed focused TextInputs under 16px

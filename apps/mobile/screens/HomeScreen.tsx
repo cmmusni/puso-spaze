@@ -36,6 +36,7 @@ import PostCard from "../components/PostCard";
 import type { Post } from "../../../packages/types";
 import WebRightPanel from "../components/WebRightPanel";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
+import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 
 type HomeNav = DrawerNavigationProp<MainDrawerParamList, "Home">;
 
@@ -148,10 +149,42 @@ export default function HomeScreen() {
   const [showFab, setShowFab] = useState(false);
   const composerBottomY = useRef(0);
 
+  // ── Scroll-direction bar visibility ──
+  const setBarsVisible = useScrollBarVisibility((s) => s.setBarsVisible);
+  const lastScrollY = useRef(0);
+  const topBarTranslateY = useRef(new Animated.Value(0)).current;
+  const barsShown = useRef(true);
+  const SCROLL_DIR_THRESHOLD = 10;
+  const [topBarHeight, setTopBarHeight] = useState(54);
+
+  const animateBars = useCallback((visible: boolean) => {
+    if (barsShown.current === visible) return;
+    barsShown.current = visible;
+    setBarsVisible(visible);
+    Animated.timing(topBarTranslateY, {
+      toValue: visible ? 0 : -topBarHeight - 10,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [setBarsVisible, topBarTranslateY, topBarHeight]);
+
   const handleScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
     const offsetY = e.nativeEvent.contentOffset.y;
     setShowFab(offsetY > composerBottomY.current);
-  }, []);
+
+    // Only hide/show bars on mobile / narrow web
+    if (isWide) return;
+
+    const delta = offsetY - lastScrollY.current;
+    if (offsetY <= 0) {
+      animateBars(true);
+    } else if (delta > SCROLL_DIR_THRESHOLD) {
+      animateBars(false);
+    } else if (delta < -SCROLL_DIR_THRESHOLD) {
+      animateBars(true);
+    }
+    lastScrollY.current = offsetY;
+  }, [animateBars, isWide]);
 
   // ── Search state ──
   const [searchText, setSearchText] = useState("");
@@ -209,15 +242,20 @@ export default function HomeScreen() {
   }, [route.params?.highlightPostId]);
 
   // Clear the highlight param when leaving the screen so it doesn't retrigger on back-navigation
+  // Also reset bar visibility so other screens always show bars
   useEffect(() => {
     const unsubscribe = navigation.addListener('blur', () => {
       if (route.params?.highlightPostId) {
         navigation.setParams({ highlightPostId: undefined });
         processedParamId.current = null;
       }
+      // Reset bars to visible when navigating away
+      barsShown.current = true;
+      setBarsVisible(true);
+      topBarTranslateY.setValue(0);
     });
     return unsubscribe;
-  }, [navigation, route.params?.highlightPostId]);
+  }, [navigation, route.params?.highlightPostId, setBarsVisible, topBarTranslateY]);
 
   useFocusEffect(
     useCallback(() => {
@@ -378,7 +416,15 @@ export default function HomeScreen() {
   const initial = displayName.charAt(0).toUpperCase();
 
   const listHeader = (
-    <View>
+    <View style={!isWide && !showRightPanel ? { paddingHorizontal: 20 } : undefined}>
+      {/* ── Error banner ── */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="warning-outline" size={14} color={colors.errorText} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {/* ── Greeting section ── */}
       <View style={styles.greetingSection}>
         <Text style={styles.greetingText}>
@@ -678,10 +724,11 @@ export default function HomeScreen() {
       />
 
       {/* ── Top bar ── */}
-      <View
+      <Animated.View
+        onLayout={(e) => setTopBarHeight(e.nativeEvent.layout.height)}
         style={[
           styles.topBar,
-          { backgroundColor: colors.surfaceContainerLowest },
+          { backgroundColor: colors.surfaceContainerLowest, transform: [{ translateY: topBarTranslateY }] },
         ]}
       >
         <View style={styles.topBarLeft}>
@@ -793,14 +840,7 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
-
-      {error && (
-        <View style={styles.errorBanner}>
-          <Ionicons name="warning-outline" size={14} color={colors.errorText} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+      </Animated.View>
 
       <View style={styles.contentRow}>
         <View style={styles.feedColumn}>
@@ -811,7 +851,7 @@ export default function HomeScreen() {
             renderItem={renderItem}
             contentContainerStyle={[
               styles.listContent,
-              { paddingHorizontal: isWide || showRightPanel ? 36 : 20 },
+              { paddingHorizontal: isWide || showRightPanel ? 36 : 0, paddingTop: topBarHeight },
             ]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={listHeader}
@@ -954,10 +994,15 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: colors.surfaceContainerLowest,
     gap: Platform.OS === "web" ? 12 : 8,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   hamburger: { padding: 4 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
-  topBarLogo: { width: 30, height: 30, borderRadius: 7 },
+  topBarLogo: { width: 30, height: 30 },
   searchBar: {
     flex: 1,
     flexDirection: "row",

@@ -6,65 +6,8 @@
 // ─────────────────────────────────────────────
 
 import { Request, Response } from 'express';
-import { Resend } from 'resend';
 import { prisma } from '../config/db';
-import { env } from '../config/env';
 import { createNotification } from '../services/notificationService';
-
-// ── Resend client (lazy singleton) ───
-let _resend: Resend | null = null;
-function getResend(): Resend {
-  if (!_resend) {
-    _resend = new Resend(env.RESEND_API_KEY);
-  }
-  return _resend;
-}
-
-/**
- * Sends an email notification to a coach when a member messages them.
- * Fire-and-forget — errors are logged but never block the response.
- */
-async function sendCoachEmailNotification(
-  coachId: string,
-  senderName: string,
-  messageContent: string,
-  conversationId: string
-): Promise<void> {
-  if (!env.RESEND_API_KEY) return; // Email not configured
-
-  const coach = await prisma.user.findUnique({
-    where: { id: coachId },
-    select: { email: true, displayName: true },
-  });
-
-  if (!coach?.email) return; // Coach has no email on file
-
-  const preview = messageContent.length > 200
-    ? messageContent.slice(0, 200) + '…'
-    : messageContent;
-
-  const resend = getResend();
-  await resend.emails.send({
-    from: 'PUSO Spaze <noreply@puso-spaze.org>',
-    to: coach.email,
-    subject: `💬 New message from ${senderName} — PUSO Spaze`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <h2 style="color:#A60550">💬 New Message</h2>
-        <p>Hi ${coach.displayName},</p>
-        <p><strong>${senderName}</strong> sent you a message on PUSO Spaze:</p>
-        <div style="background:#F3EFF6;border-radius:12px;padding:16px;margin:16px 0">
-          <p style="margin:0;color:#333;font-size:14px;white-space:pre-wrap">${preview}</p>
-        </div>
-        <a href="https://puso-spaze.org" style="display:inline-block;background:#A60550;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Open PUSO Spaze</a>
-        <hr style="border:none;border-top:1px solid #D8CCE8;margin:24px 0">
-        <p style="color:#7E638E;font-size:12px">— The PUSO Spaze Team</p>
-      </div>
-    `,
-  });
-
-  console.log(`[ConversationController] Email notification sent to coach ${coach.displayName} (${coach.email})`);
-}
 
 // ── GET /api/conversations/coaches ───────────
 // Returns all users with COACH or ADMIN role
@@ -351,12 +294,6 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
         : message.content,
       data: { conversationId, senderId, actorAvatarUrl: sender.avatarUrl ?? null },
     }).catch((err) => console.error('[sendMessage] notification error:', err));
-
-    // Send email notification to coach if a member sent the message
-    if (recipientId === conversation.coachId && sender.role === 'USER') {
-      sendCoachEmailNotification(recipientId, sender.displayName, message.content, conversationId)
-        .catch((err) => console.error('[sendMessage] email notification error:', err));
-    }
   }
 }
 

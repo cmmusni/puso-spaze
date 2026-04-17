@@ -4,18 +4,20 @@
 // Full-width bar with centered tab items
 // ─────────────────────────────────────────────
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors as defaultColors } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
+import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 
 interface Tab {
   key: string;
@@ -49,6 +51,16 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
   const colors = useThemeStore((s) => s.colors);
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const barsVisible = useScrollBarVisibility((s) => s.barsVisible);
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(translateY, {
+      toValue: barsVisible ? 0 : 80,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [barsVisible, translateY]);
 
   const visibleTabs = TABS.filter((tab) => {
     if (tab.coachOnly && !isCoach) return false;
@@ -57,7 +69,7 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.muted3, paddingBottom: Math.max(8, insets.bottom) }]}>
+    <Animated.View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.muted3, paddingBottom: Math.max(8, insets.bottom), transform: [{ translateY }] }]}>
       <View style={styles.inner}>
         {visibleTabs.map((tab) => {
           const active = currentRoute === tab.route;
@@ -97,7 +109,7 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
           );
         })}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -108,7 +120,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderTopColor: colors.muted3,
     paddingBottom: 8,
     paddingTop: 8,
-    ...(Platform.OS === "web" ? { position: "sticky" as any, bottom: 0, left: 0, right: 0, zIndex: 100 } : {}),
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
   inner: {
     flexDirection: "row",

@@ -410,6 +410,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
           post.pinned ? styles.cardPinned : null,
           styles.cardDefault,
           { backgroundColor: colors.card },
+          !isMedium && { borderRadius: 0, marginHorizontal: 0, marginBottom: 2 },
           isMedium && { padding: 24, marginBottom: 20 },
         ]}
       >
@@ -565,7 +566,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
                 color={colors.muted5}
               />
               <Text style={styles.footerCountMuted}>
-                {post.commentCount ? `${post.commentCount}` : "Comment"}
+                {post.commentCount ? `${post.commentCount}` : ""}
               </Text>
             </TouchableOpacity>
           </View>
@@ -614,34 +615,37 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
                   highlightCommentId: post.latestComment!.id,
                 });
               }}
-              style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}
+              style={[styles.latestCommentWrap, !isMedium && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, isMedium && styles.latestCommentWrapMd]}
             >
-              {cAvatarUrl ? (
-                <Image
-                  source={{ uri: resolveAvatarUrl(cAvatarUrl) }}
-                  style={[styles.commentAvatar, isMedium && { width: 28, height: 28, borderRadius: 14 }]}
-                />
-              ) : (
-              <LinearGradient
-                colors={cColorPair}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.commentAvatar, isMedium && { width: 28, height: 28, borderRadius: 14 }]}
-              >
-                <Text style={styles.commentAvatarText}>{cInitial}</Text>
-              </LinearGradient>
-              )}
-              <View style={styles.commentBody}>
-                <View style={styles.commentHeader}>
-                  <Text style={styles.commentAuthor} numberOfLines={1}>{cName}</Text>
-                  <Text style={styles.commentTime}>{cTime}</Text>
+              <View style={[styles.commentInner, isMedium && styles.commentInnerMd]}>
+                {cAvatarUrl ? (
+                  <Image
+                    source={{ uri: resolveAvatarUrl(cAvatarUrl) }}
+                    style={[styles.commentAvatar, isMedium && { width: 26, height: 26, borderRadius: 13 }]}
+                  />
+                ) : (
+                <LinearGradient
+                  colors={cColorPair}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.commentAvatar, isMedium && { width: 26, height: 26, borderRadius: 13 }]}
+                >
+                  <Text style={styles.commentAvatarText}>{cInitial}</Text>
+                </LinearGradient>
+                )}
+                <View style={styles.commentBody}>
+                  <View style={styles.commentHeader}>
+                    <Text style={styles.commentAuthor} numberOfLines={1}>{cName}</Text>
+                    <Text style={styles.commentTimeDot}>{"  \u00B7  "}</Text>
+                    <Text style={styles.commentTime}>{cTime}</Text>
+                  </View>
+                  <MentionText
+                    text={post.latestComment.content}
+                    baseStyle={styles.latestCommentText}
+                    mentionStyle={styles.mentionText}
+                    numberOfLines={2}
+                  />
                 </View>
-                <MentionText
-                  text={post.latestComment.content}
-                  baseStyle={styles.latestCommentText}
-                  mentionStyle={styles.mentionText}
-                  numberOfLines={2}
-                />
               </View>
             </TouchableOpacity>
           );
@@ -1257,29 +1261,56 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   latestCommentWrap: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginTop: 14,
-    paddingTop: 14,
-    backgroundColor: colors.surfaceContainerHigh,
+    alignItems: "stretch",
+    marginTop: 16,
+    backgroundColor: colors.surfaceContainerLow,
     marginHorizontal: -16,
     marginBottom: -16,
-    paddingHorizontal: 14,
-    paddingBottom: 16,
     borderBottomLeftRadius: radii.xl,
     borderBottomRightRadius: radii.xl,
+    overflow: "hidden",
+    shadowColor: colors.onSurface,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  latestCommentWrapMd: {
+    marginHorizontal: -24,
+    marginBottom: -24,
+    borderBottomLeftRadius: radii.xl,
+    borderBottomRightRadius: radii.xl,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  commentInner: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingTop: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+  },
+  commentInnerMd: {
+    gap: 10,
+    paddingTop: 12,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
   },
   commentAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,
   },
   commentAvatarText: {
     color: colors.onPrimary,
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fonts.displayBold,
   },
   commentBody: {
@@ -1289,24 +1320,27 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   commentHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
   },
   commentAuthor: {
-    fontSize: 13,
-    fontFamily: fonts.displaySemiBold,
+    fontSize: 12,
+    fontFamily: fonts.displayBold,
     color: colors.onSurface,
   },
+  commentTimeDot: {
+    fontSize: 10,
+    color: colors.muted4,
+  },
   commentTime: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.bodyRegular,
     color: colors.muted5,
   },
   latestCommentText: {
     flex: 1,
     color: colors.onSurfaceVariant,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.bodyRegular,
-    lineHeight: 18,
+    lineHeight: 17,
   },
   reactBtn: {
     flexDirection: "row",
