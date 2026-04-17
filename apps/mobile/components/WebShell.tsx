@@ -26,11 +26,23 @@ export default function WebShell({ children }: Props) {
         margin: 0;
         padding: 0;
         overflow: hidden;
+        -webkit-text-size-adjust: 100%;
       }
     `;
     document.head.appendChild(style);
 
     const supportsTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (supportsTouch) {
+      style.textContent += `
+        input,
+        textarea,
+        select,
+        [contenteditable="true"] {
+          font-size: 16px !important;
+        }
+      `;
+    }
+
     if (!supportsTouch) {
       return () => { document.head.removeChild(style); };
     }

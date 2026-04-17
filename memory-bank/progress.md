@@ -27,6 +27,7 @@
 - **Web deployment** — Vercel (frontend), Railway (server + database)
 - **Responsive UI** — Mobile-first design with breakpoints for tablet and wide web
 - **Refresh UX Parity** — Native pull-to-refresh coverage on major data screens (including Journal) plus web touch pull-to-refresh indicator/gesture with one-time splash skip on reload
+- **PWA Input Zoom Guard** — Touch-web TextInput controls are forced to 16px in WebShell to prevent iPhone Safari auto-zoom on focus
 - **User reporting** — `POST /api/posts/:postId/report` allows any user to flag content for review
 - **Deploy Agent** — Pre-deploy checklist with Step -1 memory bank update, 12 deployment validation checks
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests)

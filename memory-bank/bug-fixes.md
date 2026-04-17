@@ -187,6 +187,14 @@
 - **Files Changed**: `apps/mobile/public/sw.js`, `apps/mobile/navigation/AppNavigator.tsx`, `apps/mobile/screens/ChatScreen.tsx`, `apps/mobile/screens/PostDetailScreen.tsx`
 - **Pattern**: Web Deep-Link Drift — keep service-worker notification URLs, navigation linking config, and screen-level web fallbacks aligned. For protected PWA routes opened from push, never rely on route params alone; recover key IDs from the URL as a fallback.
 
+### BUG-017 — PWA zooms in when focusing TextInputs on iPhone
+- **Severity**: 🟡 Medium
+- **Date**: 2026-04-17
+- **Root Cause**: iPhone Safari and installed PWAs auto-zoom focused form controls when their rendered font size is below 16px. The app intentionally uses compact mobile-first typography, so many web-rendered `TextInput` controls fell below that threshold and triggered an unwanted zoom that users then had to manually undo.
+- **Fix**: Added a global touch-web CSS guard in `apps/mobile/components/WebShell.tsx` that forces `input`, `textarea`, `select`, and `[contenteditable="true"]` to render at `16px !important` on touch web only. Also set `-webkit-text-size-adjust: 100%` on the root layout. This prevents focus zoom without disabling pinch zoom globally.
+- **Files Changed**: `apps/mobile/components/WebShell.tsx`
+- **Pattern**: Mobile Safari Input Zoom — prefer a touch-web input font-size guard over restrictive viewport settings. Keep browser zoom available; just ensure focused form controls meet Safari's 16px threshold.
+
 ### BUG-007 revision — Nested JSON still returns 500
 - **Severity**: 🟡 Medium
 - **Date**: 2026-04-13

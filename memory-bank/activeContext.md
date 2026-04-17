@@ -13,6 +13,11 @@
 
 ## Recent Changes
 
+### PWA Input Focus Zoom Guard (April 17, 2026)
+- **BUG-017**: iPhone Safari/PWA auto-zoomed focused TextInputs under 16px
+- **WEB SHELL**: Added touch-web CSS guard to force `input`, `textarea`, `select`, and `[contenteditable=true]` to 16px; added `-webkit-text-size-adjust: 100%`
+- **TASK**: TASK004 created and completed
+
 ### PWA Notification Deep-Link Fix (April 17, 2026)
 - **BUG-016**: Web push notification taps opened blank/broken screens
 - **SW.JS**: Chat notifications now open `/chat/:conversationId`; post notifications open `/post/:postId?openedFrom=notifications&highlightCommentId=...`

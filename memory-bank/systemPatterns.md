@@ -106,6 +106,7 @@
 - Breakpoints: `isMedium` (≥600), `twoCol` (≥700), `isWide` (web ≥900)
 - Dynamic overrides via inline conditional styles
 - Web touch devices support custom pull-to-refresh in `WebShell.tsx`; refresh sets a one-time session flag to skip splash on immediate reload
+- Web touch input controls (`input`, `textarea`, `select`, `[contenteditable=true]`) are globally forced to 16px in `WebShell.tsx` to prevent iOS Safari PWA focus zoom
 
 ### Design System ("The Sacred Journal")
 - All tokens in `constants/theme.ts`

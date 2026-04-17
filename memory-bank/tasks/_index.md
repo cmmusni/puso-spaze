@@ -7,6 +7,7 @@
 _No pending tasks_
 
 ## Completed
+- [TASK004] PWA input focus zoom — Added global touch-web input font-size guard in WebShell (updated Apr 17)
 - [TASK003] PWA notification click blank screen — Fixed web push deep links for chat and post notifications (updated Apr 17)
 - [TASK002] Native pull-to-refresh audit — Added missing JournalScreen refresh; other main screens already covered (updated Apr 17)
 - Deploy agent Step -1 — Memory bank + AGENTS.md update before deployment
