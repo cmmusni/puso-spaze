@@ -3,6 +3,7 @@
 **Last Updated:** April 17, 2026
 
 ## Current Work Focus
+- Refresh UX parity: native pull-to-refresh coverage + mobile web pull-to-refresh behavior
 - Streak system overhaul: visit-based streak counting + push reminders
 - Coach follow-up automation: pending chat reminders for unreplied member messages
 - App entry polish: animated splash flow + refreshed icon/splash asset set
@@ -11,6 +12,12 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Pull-to-Refresh Parity + Web Refresh Flow (April 17, 2026)
+- **JOURNAL SCREEN**: Added `RefreshControl` to `JournalScreen` `ScrollView` using existing `refreshing` + `onRefresh` state/actions
+- **WEB SHELL**: Added touch pull-to-refresh indicator/gesture support on web touch devices (`WebShell.tsx`) with guardrails for form fields and nested scroll containers
+- **SPLASH HANDOFF**: Added one-time session key (`puso-skip-splash-once`) so manual pull-to-refresh reload on web skips the startup splash once
+- **TASK TRACKING**: Logged and completed native pull-to-refresh audit in `TASK002`
 
 ### Streak System Overhaul (April 17, 2026)
 - **SCHEMA**: Added `streakCount` (Int, default 0) and `lastStreakDate` (DateTime?) to User model
@@ -74,6 +81,7 @@
 ## Next Steps
 - Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET`, Cloudinary env vars)
 - Verify scheduler behavior in production logs (streak 9 PM PHT, pending chat every 15 min)
+- Validate pull-to-refresh UX on mobile web and iOS/Android devices (gesture threshold + splash skip-once behavior)
 - Complete Android APK build and test on physical tablet
 - Add functional tests for daily reflection, user stats, and security fixes to `quality/functional.test.ts`
 - Update QUALITY.md with new scenarios for daily reflections and Cloudinary uploads

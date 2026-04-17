@@ -105,6 +105,7 @@
 - Mobile-first styles in `StyleSheet.create()`
 - Breakpoints: `isMedium` (≥600), `twoCol` (≥700), `isWide` (web ≥900)
 - Dynamic overrides via inline conditional styles
+- Web touch devices support custom pull-to-refresh in `WebShell.tsx`; refresh sets a one-time session flag to skip splash on immediate reload
 
 ### Design System ("The Sacred Journal")
 - All tokens in `constants/theme.ts`

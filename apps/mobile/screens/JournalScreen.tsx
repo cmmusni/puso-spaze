@@ -19,6 +19,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   ScrollView,
+  RefreshControl,
   useWindowDimensions,
   NativeScrollEvent,
 } from "react-native";
@@ -775,6 +776,14 @@ export default function JournalScreen({ navigation }: any) {
       showsVerticalScrollIndicator={false}
       onScroll={handleComposeScroll}
       scrollEventThrottle={16}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
     >
       {/* Date header */}
       <Text style={st.todayLabel}>TODAY&apos;S REFLECTION</Text>

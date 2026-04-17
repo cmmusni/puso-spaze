@@ -8,7 +8,7 @@
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
 import CoachLoginScreen from '../screens/CoachLoginScreen';
@@ -30,6 +30,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // ── Global navigation ref (accessible outside React tree) ──
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
+const SKIP_SPLASH_SESSION_KEY = 'puso-skip-splash-once';
 
 // ── Linking configuration for deep links ─────
 const linking = {
@@ -75,7 +76,17 @@ export default function AppNavigator() {
   const isLoading = useUserStore((s) => s.isLoading);
   const { colors: themeColors } = useThemeStore();
   const [isReady, setIsReady] = React.useState(false);
-  const [showSplash, setShowSplash] = React.useState(true);
+  const [showSplash, setShowSplash] = React.useState(() => {
+    if (Platform.OS !== 'web') return true;
+    try {
+      const shouldSkip = window.sessionStorage.getItem(SKIP_SPLASH_SESSION_KEY) === '1';
+      if (shouldSkip) {
+        window.sessionStorage.removeItem(SKIP_SPLASH_SESSION_KEY);
+        return false;
+      }
+    } catch {}
+    return true;
+  });
 
   // ── Navigation guard: redirect to Login if not authenticated ──
   const checkAuth = React.useCallback(() => {
