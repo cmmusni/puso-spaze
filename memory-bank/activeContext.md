@@ -13,6 +13,14 @@
 
 ## Recent Changes
 
+### PWA Notification Deep-Link Fix (April 17, 2026)
+- **BUG-016**: Web push notification taps opened blank/broken screens
+- **SW.JS**: Chat notifications now open `/chat/:conversationId`; post notifications open `/post/:postId?openedFrom=notifications&highlightCommentId=...`
+- **APP NAVIGATOR**: Chat linking config updated to `chat/:conversationId?`
+- **CHAT SCREEN**: Recovers `conversationId` from web URL pathname when route params absent; shows safe fallback state instead of crashing
+- **POST DETAIL**: Fixed web URL regex from `/PostDetail/` to `/post/`; wired `highlightCommentId` query param
+- **TASK**: TASK003 created and completed
+
 ### Pull-to-Refresh Parity + Web Refresh Flow (April 17, 2026)
 - **JOURNAL SCREEN**: Added `RefreshControl` to `JournalScreen` `ScrollView` using existing `refreshing` + `onRefresh` state/actions
 - **WEB SHELL**: Added touch pull-to-refresh indicator/gesture support on web touch devices (`WebShell.tsx`) with guardrails for form fields and nested scroll containers

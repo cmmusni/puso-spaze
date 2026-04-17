@@ -36,12 +36,13 @@ self.addEventListener('notificationclick', (event) => {
   // Navigate to the relevant screen based on notification data
   let url = '/';
   if (data.postId) {
-    url = `/post/${data.postId}`;
+    const params = new URLSearchParams({ openedFrom: 'notifications' });
     if (data.commentId) {
-      url += `?commentId=${data.commentId}`;
+      params.set('highlightCommentId', data.commentId);
     }
+    url = `/post/${data.postId}?${params.toString()}`;
   } else if (data.conversationId) {
-    url = '/chat';
+    url = `/chat/${data.conversationId}`;
   } else if (data.screen === 'Home') {
     url = '/';
   } else if (data.screen === 'Journal') {
@@ -55,9 +56,12 @@ self.addEventListener('notificationclick', (event) => {
       // Focus an existing window if available
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.focus();
-          client.navigate(url);
-          return;
+          return client.navigate(url).then((navigatedClient) => {
+            if (navigatedClient && 'focus' in navigatedClient) {
+              return navigatedClient.focus();
+            }
+            return client.focus();
+          });
         }
       }
       // Otherwise open a new window

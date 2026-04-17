@@ -7,6 +7,7 @@
 _No pending tasks_
 
 ## Completed
+- [TASK003] PWA notification click blank screen — Fixed web push deep links for chat and post notifications (updated Apr 17)
 - [TASK002] Native pull-to-refresh audit — Added missing JournalScreen refresh; other main screens already covered (updated Apr 17)
 - Deploy agent Step -1 — Memory bank + AGENTS.md update before deployment
 - Full QA test suite — 100+ API tests in 18 sections (full-qa-pass.mjs)

@@ -47,12 +47,28 @@ const formatDateSeparator = (date: Date): string => {
 };
 
 export default function ChatScreen({ navigation, route }: any) {
-  const { conversationId, coachName, convUserId, convCoachId } = route.params as {
-    conversationId: string;
+  const routeParams = (route?.params ?? {}) as {
+    conversationId?: string;
     coachName?: string;
     convUserId?: string;
     convCoachId?: string;
   };
+  const webPathname =
+    Platform.OS === 'web'
+      ? String((globalThis as { location?: { pathname?: string } }).location?.pathname ?? '')
+      : '';
+  const webSearch =
+    Platform.OS === 'web'
+      ? String((globalThis as { location?: { search?: string } }).location?.search ?? '')
+      : '';
+  const webConversationId =
+    Platform.OS === 'web'
+      ? webPathname.match(/\/chat\/([^/?#]+)/i)?.[1]
+          ? decodeURIComponent(webPathname.match(/\/chat\/([^/?#]+)/i)![1])
+          : new URLSearchParams(webSearch).get('conversationId') ?? undefined
+      : undefined;
+  const conversationId = routeParams.conversationId ?? webConversationId;
+  const { coachName, convUserId, convCoachId } = routeParams;
   const { userId, role } = useUserStore();
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
@@ -73,6 +89,21 @@ export default function ChatScreen({ navigation, route }: any) {
   const [otherIsTyping, setOtherIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  if (!conversationId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontFamily: fonts.displayBold, fontSize: 20, color: colors.onSurface, marginBottom: 8 }}>
+            Conversation unavailable
+          </Text>
+          <Text style={{ fontFamily: fonts.bodyRegular, fontSize: 14, color: colors.onSurfaceVariant, textAlign: 'center' }}>
+            This notification did not include a valid conversation link.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // ── Animated dots for typing indicator ───
   const dot1 = useRef(new Animated.Value(0)).current;

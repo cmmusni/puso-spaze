@@ -181,13 +181,17 @@ export default function PostDetailScreen() {
   const webPostId =
     Platform.OS === "web"
       ? (() => {
-          const match = webPathname.match(/\/PostDetail\/([^/?#]+)/);
+          const match = webPathname.match(/\/post\/([^/?#]+)/i);
           return match?.[1] ? decodeURIComponent(match[1]) : undefined;
         })()
       : undefined;
   const queryOpenedFrom =
     Platform.OS === "web"
       ? new URLSearchParams(webSearch).get("openedFrom")
+      : undefined;
+  const queryHighlightCommentId =
+    Platform.OS === "web"
+      ? new URLSearchParams(webSearch).get("highlightCommentId")
       : undefined;
   const routePostId = route.params?.postId ?? webPostId;
   const [post, setPost] = useState<Post | null>(
@@ -392,12 +396,9 @@ export default function PostDetailScreen() {
     loadData();
   }, [loadData]);
 
-  // Highlight a specific comment when arriving from a notification
-  const queryCommentId =
-    Platform.OS === "web"
-      ? new URLSearchParams(webSearch).get("commentId")
-      : undefined;
-  const navHighlightId = route.params?.highlightCommentId ?? queryCommentId ?? undefined;
+  const queryCommentId = Platform.OS === "web" ? new URLSearchParams(webSearch).get("commentId") : null;
+  const navHighlightId = route.params?.highlightCommentId ?? queryHighlightCommentId ?? queryCommentId ?? null;
+
   useEffect(() => {
     if (!navHighlightId || commentsLoading || comments.length === 0) return;
     const idx = comments.findIndex((c) => c.id === navHighlightId);
@@ -451,7 +452,7 @@ export default function PostDetailScreen() {
           setMentionLoading(false);
         }
       }
-    }, 200);
+    }, 250);
 
     return () => {
       active = false;

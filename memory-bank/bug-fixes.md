@@ -179,6 +179,14 @@
 
 ## Batch 3 — Hardening Fixes (2026-04-13)
 
+### BUG-016 — PWA opens blank screen from push notification tap
+- **Severity**: 🟠 High
+- **Date**: 2026-04-17
+- **Root Cause**: Web push notification clicks used service-worker URLs that did not match the app's runtime expectations. MESSAGE notifications opened `/chat` without a `conversationId`, but `ChatScreen.tsx` requires that param to load messages. `PostDetailScreen.tsx` also had a stale web fallback that looked for `/PostDetail/...` instead of the actual `/post/...` URL used by the service worker and linking config. In PWA launches, those mismatches could leave the app on a blank or unusable screen.
+- **Fix**: (1) Updated `apps/mobile/public/sw.js` to open `/chat/:conversationId` for chat notifications and `/post/:postId?openedFrom=notifications&highlightCommentId=...` for post/comment notifications. (2) Updated `apps/mobile/navigation/AppNavigator.tsx` linking config so `Chat` accepts `chat/:conversationId?`. (3) Hardened `apps/mobile/screens/ChatScreen.tsx` to recover the conversation ID from the web URL when route params are absent and show a safe fallback state instead of crashing. (4) Fixed `apps/mobile/screens/PostDetailScreen.tsx` web URL parsing to recognize `/post/...` and query-string comment highlight parameters.
+- **Files Changed**: `apps/mobile/public/sw.js`, `apps/mobile/navigation/AppNavigator.tsx`, `apps/mobile/screens/ChatScreen.tsx`, `apps/mobile/screens/PostDetailScreen.tsx`
+- **Pattern**: Web Deep-Link Drift — keep service-worker notification URLs, navigation linking config, and screen-level web fallbacks aligned. For protected PWA routes opened from push, never rely on route params alone; recover key IDs from the URL as a fallback.
+
 ### BUG-007 revision — Nested JSON still returns 500
 - **Severity**: 🟡 Medium
 - **Date**: 2026-04-13

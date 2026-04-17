@@ -63,7 +63,12 @@ const linking = {
           Journal: 'journal',
           SpazeCoach: 'spaze-coach',
           SpazeConversations: 'conversations',
-          Chat: 'chat',
+          Chat: {
+            path: 'chat/:conversationId?',
+            parse: {
+              conversationId: (conversationId: string) => conversationId,
+            },
+          },
         },
       },
     },
