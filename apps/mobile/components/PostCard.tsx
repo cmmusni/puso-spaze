@@ -12,10 +12,12 @@ import {
   Modal,
   Animated,
   StyleSheet,
+  FlatList,
   type GestureResponderEvent,
   Image,
   ActivityIndicator,
   useWindowDimensions,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +32,7 @@ import type { RootStackParamList } from "../navigation/AppNavigator";
 import { PrayIcon, SupportIcon, LikeIcon } from "./ReactionIcons";
 import {
   apiGetReactions,
+  apiGetReactors,
   apiUpsertReaction,
   apiDeletePost,
   apiUpdatePost,
@@ -145,6 +148,28 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
   // ── Floating picker ───────────────────────────
   const [showPicker, setShowPicker] = useState(false);
   const pickerAnim = useRef(new Animated.Value(0)).current;
+
+  // ── Reactors modal ────────────────────────────
+  const [showReactors, setShowReactors] = useState(false);
+  const [reactorsTab, setReactorsTab] = useState<"ALL" | ReactionType>("ALL");
+  const [reactorsList, setReactorsList] = useState<
+    Array<{ type: string; user: { id: string; displayName: string; avatarUrl: string | null; role: string } }>
+  >([]);
+  const [reactorsLoading, setReactorsLoading] = useState(false);
+
+  const openReactors = async () => {
+    setReactorsTab("ALL");
+    setShowReactors(true);
+    setReactorsLoading(true);
+    try {
+      const data = await apiGetReactors(post.id);
+      setReactorsList(data.reactors);
+    } catch {
+      // silently fail
+    } finally {
+      setReactorsLoading(false);
+    }
+  };
 
   // ── 3-dot menu ────────────────────────────────
   const [showMenu, setShowMenu] = useState(false);
@@ -394,7 +419,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
             {post.userId === "system-encouragement-bot" ? (
               <Image
                 source={require("../assets/logo.png")}
-                style={[styles.avatar, isMedium && styles.avatarMd]}
+                style={[styles.avatar, isMedium && styles.avatarMd, { borderRadius: isMedium ? 10 : 8 }]}
               />
             ) : displayAvatarUrl ? (
               <Image
@@ -437,7 +462,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
                       styles.roleBadgeTextMember,
                     ]}>
                       {post.userId === "system-encouragement-bot" ? "PUSO AI" :
-                       post.user?.role === "COACH" ? "Spaze Coach" :
+                       post.user?.role === "COACH" ? "Coach" :
                        post.user?.role === "ADMIN" ? "ADMIN" :
                        ""}
                     </Text>
@@ -548,7 +573,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
           {/* Right side: overlapping reaction summary */}
           {topReactions.length > 0 && (
             <TouchableOpacity
-              onPress={openPicker}
+              onPress={openReactors}
               activeOpacity={0.75}
               style={styles.reactionSummary}
             >
@@ -580,7 +605,17 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
           const cTime = formatRelativeTime(post.latestComment!.createdAt);
           const cAvatarUrl = isOwnAnonComment ? currentUserAvatarUrl : (post.latestComment!.isAnonymous ? null : post.latestComment!.user?.avatarUrl);
           return (
-            <View style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => {
+                onPostPress?.(post.id);
+                navigation.navigate("PostDetail" as any, {
+                  postId: post.id,
+                  highlightCommentId: post.latestComment!.id,
+                });
+              }}
+              style={[styles.latestCommentWrap, isMedium && { marginHorizontal: -24, marginBottom: -24, paddingHorizontal: 20 }]}
+            >
               {cAvatarUrl ? (
                 <Image
                   source={{ uri: resolveAvatarUrl(cAvatarUrl) }}
@@ -608,7 +643,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
                   numberOfLines={2}
                 />
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })()}
       </TouchableOpacity>
@@ -885,6 +920,108 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      {/* ── Reactors modal ── */}
+      <Modal
+        visible={showReactors}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowReactors(false)}
+      >
+        <TouchableOpacity
+          style={styles.reactorsBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowReactors(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.reactorsSheet}>
+            <View style={styles.reactorsHandle} />
+            <Text style={styles.reactorsTitle}>Reactions</Text>
+
+            {/* Tabs */}
+            <View style={styles.reactorsTabRow}>
+              {(["ALL", ...REACTION_TYPES] as Array<"ALL" | ReactionType>).map((tab) => {
+                const isActive = reactorsTab === tab;
+                const count = tab === "ALL"
+                  ? reactorsList.length
+                  : reactorsList.filter((r) => r.type === tab).length;
+
+                if (count <= 0) return null;
+
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    activeOpacity={0.8}
+                    onPress={() => setReactorsTab(tab)}
+                    style={[styles.reactorsTab, isActive && styles.reactorsTabActive]}
+                  >
+                    {tab !== "ALL" && (
+                      <View style={styles.reactorsTabIcon}>
+                        {renderReactionIcon(tab as ReactionType, 11, colors.card)}
+                      </View>
+                    )}
+                    <Text style={[styles.reactorsTabText, isActive && styles.reactorsTabTextActive]}>
+                      {tab === "ALL" ? "All" : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                    </Text>
+                    {count > 0 && (
+                      <Text style={[styles.reactorsTabCount, isActive && styles.reactorsTabCountActive]}>
+                        {count}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* List */}
+            {reactorsLoading ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 32 }} />
+            ) : reactorsList.filter((r) => reactorsTab === "ALL" || r.type === reactorsTab).length === 0 ? (
+              <View style={styles.reactorsEmpty}>
+                <Ionicons name="heart-outline" size={32} color={colors.muted4} />
+                <Text style={styles.reactorsEmptyText}>No reactions yet</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={reactorsList.filter((r) => reactorsTab === "ALL" || r.type === reactorsTab)}
+                keyExtractor={(item, idx) => item.user.id + item.type + idx}
+                style={styles.reactorsList}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const initial = item.user.displayName.charAt(0).toUpperCase();
+                  const grad: [string, string] = [colors.primary, colors.secondary];
+                  return (
+                    <View style={styles.reactorRow}>
+                      <View style={styles.reactorAvatarWrap}>
+                        {item.user.avatarUrl ? (
+                          <Image
+                            source={{ uri: resolveAvatarUrl(item.user.avatarUrl) }}
+                            style={styles.reactorAvatar}
+                          />
+                        ) : (
+                          <LinearGradient
+                            colors={grad}
+                            style={styles.reactorAvatar}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                          >
+                            <Text style={styles.reactorInitial}>{initial}</Text>
+                          </LinearGradient>
+                        )}
+                        <View style={styles.reactorTypeBadge}>
+                          {renderReactionIcon(item.type as ReactionType, 9, colors.card)}
+                        </View>
+                      </View>
+                      <Text style={styles.reactorName} numberOfLines={1}>
+                        {item.user.displayName}
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 }
@@ -987,12 +1124,15 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   roleBadgeTextCoach: {
     color: colors.onPrimary,
+    lineHeight: 10,
   },
   roleBadgeTextAdmin: {
     color: colors.onPrimary,
+    lineHeight: 10,
   },
   roleBadgeTextMember: {
     color: colors.onSurfaceVariant,
+    lineHeight: 10,
   },
   subtitleRow: {
     flexDirection: "row",
@@ -1380,5 +1520,132 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     color: colors.onPrimary,
     fontSize: 14,
     fontFamily: fonts.bodySemiBold,
+  },
+
+  // ── Reactors modal ────────────────────────────
+  reactorsBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-end",
+  },
+  reactorsSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    maxHeight: "80%" as any,
+    ...ambientShadow,
+  },
+  reactorsHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.outline + "40",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  reactorsTitle: {
+    color: colors.onSurface,
+    fontSize: 18,
+    fontFamily: fonts.displayBold,
+    marginBottom: 12,
+  },
+  reactorsTabRow: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  reactorsTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerHigh,
+  },
+  reactorsTabActive: {
+    backgroundColor: colors.primary,
+  },
+  reactorsTabIcon: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactorsTabText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  reactorsTabTextActive: {
+    color: colors.onPrimary,
+  },
+  reactorsTabCount: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.muted4,
+  },
+  reactorsTabCountActive: {
+    color: colors.onPrimary + "CC",
+  },
+  reactorsList: {
+    maxHeight: 360,
+  },
+  reactorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  reactorAvatarWrap: {
+    width: 40,
+    height: 40,
+  },
+  reactorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactorInitial: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: fonts.displayBold,
+  },
+  reactorTypeBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactorName: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
+  },
+  reactorsEmpty: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 8,
+  },
+  reactorsEmptyText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    color: colors.muted4,
   },
 });

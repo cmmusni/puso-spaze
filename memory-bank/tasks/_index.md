@@ -1,7 +1,7 @@
 # Tasks Index
 
 ## In Progress
-- [TASK001] Android native build — Setting up via Expo EAS + Android Studio
+- [TASK001] Android native build — Setting up via Expo EAS + Android Studio (updated Apr 17)
 
 ## Pending
 _No pending tasks_

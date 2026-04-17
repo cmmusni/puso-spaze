@@ -16,14 +16,89 @@ export const ADMIN_USERNAME = 'admin';
 
 /** Usernames that cannot be registered by anyone */
 export const RESERVED_USERNAMES = [
+  // Brand & app identity
   'spaze-admin',
   'admin',
-  'coach',
-  'moderator',
-  'system',
-  'support',
   'puso',
   'puso-spaze',
+  'pusospaze',
+  'puso_spaze',
+  'spaze',
+
+  // Roles & staff
+  'coach',
+  'moderator',
+  'administrator',
+  'mod',
+  'staff',
+  'team',
+
+  // System & technical
+  'system',
+  'support',
+  'bot',
+  'chatbot',
+  'ai',
+  'assistant',
+  'api',
+  'server',
+  'root',
+  'null',
+  'undefined',
+  'anonymous',
+  'unknown',
+  'deleted',
+  'everyone',
+  'test',
+  'demo',
+  'debug',
+  'user',
+  'account',
+
+  // Trust & authority impersonation prevention
+  'official',
+  'verified',
+  'help',
+  'info',
+  'contact',
+  'developer',
+  'dev',
+  'founder',
+  'owner',
+  'ceo',
+
+  // App route / screen names (prevent confusion)
+  'login',
+  'signup',
+  'register',
+  'settings',
+  'profile',
+  'home',
+  'notifications',
+  'messages',
+  'journal',
+  'chat',
+  'recovery',
+  'invite',
+
+  // Faith-based impersonation prevention
+  'god',
+  'jesus',
+  'jesus-christ',
+  'christ',
+  'holyspirit',
+  'holy-spirit',
+  'bible',
+  'pastor',
+  'priest',
+  'reverend',
+
+  // Feature names
+  'hourly-hope',
+  'daily-reflection',
+  'encouragement',
+  'community',
+  'hope',
 ];
 
 /** Check if a displayName is reserved (case-insensitive) */
@@ -465,16 +540,78 @@ export async function getPin(req: Request, res: Response): Promise<void> {
  * Body: { pin: string } — 6-digit numeric PIN
  * Updates the user's PIN code. Must be unique across all users.
  */
-// ── GET /api/users/:userId/stats ──────────────
-export async function getUserStats(req: Request, res: Response): Promise<void> {
+// ── POST /api/users/:userId/record-visit ──────
+/**
+ * Records that the user visited the HomeScreen today.
+ * If they visited yesterday, streak increments. If they missed a day, streak resets to 1.
+ * If already visited today, returns the current streak unchanged.
+ */
+export async function recordVisit(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only record your own visit.' });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, streakCount: true, lastStreakDate: true },
+  });
   if (!user) {
     res.status(404).json({ error: 'User not found.' });
     return;
   }
 
-  const [reactionsGiven, commentsGiven, postCount, journalDates, postDates] = await Promise.all([
+  const todayMidnight = new Date();
+  todayMidnight.setUTCHours(0, 0, 0, 0);
+
+  const lastDate = user.lastStreakDate;
+  let newStreak: number;
+
+  if (lastDate) {
+    const lastMidnight = new Date(lastDate);
+    lastMidnight.setUTCHours(0, 0, 0, 0);
+    const diffMs = todayMidnight.getTime() - lastMidnight.getTime();
+    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+
+    if (diffDays === 0) {
+      // Already visited today — no change
+      res.json({ streak: user.streakCount });
+      return;
+    } else if (diffDays === 1) {
+      // Visited yesterday — continue streak
+      newStreak = user.streakCount + 1;
+    } else {
+      // Missed a day — reset streak
+      newStreak = 1;
+    }
+  } else {
+    // First ever visit
+    newStreak = 1;
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { streakCount: newStreak, lastStreakDate: todayMidnight, lastActiveAt: new Date() },
+    select: { streakCount: true },
+  });
+
+  res.json({ streak: updated.streakCount });
+}
+
+// ── GET /api/users/:userId/stats ──────────────
+export async function getUserStats(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, streakCount: true, lastStreakDate: true },
+  });
+  if (!user) {
+    res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+
+  const [reactionsGiven, commentsGiven, postCount, journalCount] = await Promise.all([
     prisma.reaction.count({
       where: {
         userId,
@@ -491,32 +628,32 @@ export async function getUserStats(req: Request, res: Response): Promise<void> {
     prisma.post.count({
       where: { userId, moderationStatus: 'SAFE' },
     }),
-    prisma.journal.findMany({
+    prisma.journal.count({
       where: { userId },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.post.findMany({
-      where: { userId, moderationStatus: 'SAFE' },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'desc' },
     }),
   ]);
 
   const encouragementsGiven = reactionsGiven + commentsGiven;
 
-  // Calculate streak: consecutive days with a journal or post, starting from today
-  const dates = new Set<string>();
-  journalDates.forEach((j) => dates.add(j.createdAt.toDateString()));
-  postDates.forEach((p) => dates.add(p.createdAt.toDateString()));
-  let streak = 0;
-  const d = new Date();
-  while (dates.has(d.toDateString())) {
-    streak++;
-    d.setDate(d.getDate() - 1);
+  // Streak: use stored value, but check if it's still valid (not expired)
+  let streak = user.streakCount;
+  if (user.lastStreakDate) {
+    const todayMidnight = new Date();
+    todayMidnight.setUTCHours(0, 0, 0, 0);
+    const lastMidnight = new Date(user.lastStreakDate);
+    lastMidnight.setUTCHours(0, 0, 0, 0);
+    const diffDays = Math.round((todayMidnight.getTime() - lastMidnight.getTime()) / (24 * 60 * 60 * 1000));
+    if (diffDays > 1) {
+      // Streak has expired — reset it
+      streak = 0;
+      await prisma.user.update({
+        where: { id: userId },
+        data: { streakCount: 0 },
+      });
+    }
   }
 
-  const totalReflections = postCount + journalDates.length;
+  const totalReflections = postCount + journalCount;
 
   res.json({ encouragementsGiven, totalReflections, streak });
 }

@@ -69,7 +69,7 @@ export default function WebRightPanel() {
       const coach = coaches.find((c) => c.id === coachId);
       navigation.navigate("Chat", {
         conversationId: res.conversation.id,
-        coachName: coach ? `Coach ${coach.displayName}` : undefined,
+        coachName: coach ? coach.displayName : undefined,
       });
     } catch {
       // silent — user can retry

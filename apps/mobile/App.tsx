@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────
 
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { Platform, View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -55,6 +55,16 @@ export default function App() {
     loadUser();
     loadTheme();
   }, [loadUser, loadTheme]);
+
+  // ── Inject apple-touch-icon link tag on web ──
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const link = document.createElement('link');
+      link.rel = 'apple-touch-icon';
+      link.href = '/apple-touch-icon.png';
+      document.head.appendChild(link);
+    }
+  }, []);
 
   if (!fontsLoaded) {
     return (

@@ -16,6 +16,9 @@
 - **1:1 Chat** — Conversations between users and coaches
 - **Daily Reflections** — AI-generated personalized biblical reflections (replaces Hourly Hope); cached per-day; personalized to user's recent emotional context; daily push notification reminders
 - **Dashboard Stats** — `GET /api/stats/dashboard` with totalMembers, dailyStories, onlineCount, trendingTags, dailyReflection; `GET /api/users/:userId/stats` with encouragementsGiven, totalReflections, streak
+- **Streak System** — Visit-based streak tracking: opening HomeScreen counts as daily activity; `POST /api/users/:userId/record-visit` bumps streak; streak resets to 0 if a day is missed; `streakReminderScheduler.ts` sends push notification 3 hours before midnight (PHT) to users at risk of losing their streak; notification navigates to HomeScreen on tap
+- **Pending Chat Reminders** — `pendingChatReminderScheduler.ts` checks every 15 minutes for member messages waiting over 1 hour and nudges coaches to respond
+- **Splash and Brand Assets** — Animated startup splash flow plus refreshed app/web icon assets integrated across Expo, web public files, and iOS app icon set
 - **Image Uploads** — Cloudinary-hosted (migrated from local disk to fix Railway ephemeral filesystem); avatar + post image upload; magic bytes validation for avatars
 - **Profile** — Avatar, anonymous toggle, notification settings, **PIN display/edit**
 - **Admin** — Invite code management, post pinning, content deletion, **device reset**

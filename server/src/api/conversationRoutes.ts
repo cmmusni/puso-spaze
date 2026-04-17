@@ -18,6 +18,7 @@ import {
   sendMessage,
   setTyping,
   getTyping,
+  deleteConversation,
 } from '../controllers/conversationController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
@@ -29,6 +30,17 @@ router.get('/coaches', getCoaches);
 
 // ── GET /api/conversations/all ─────────────
 router.get('/all', requireAuth, getAllConversations);
+
+// ── DELETE /api/conversations/:conversationId ──
+router.delete(
+  '/:conversationId',
+  requireAuth,
+  [
+    param('conversationId').isUUID().withMessage('conversationId must be a valid UUID'),
+    validate,
+  ],
+  deleteConversation
+);
 
 // ── GET /api/conversations ─────────────────
 router.get(

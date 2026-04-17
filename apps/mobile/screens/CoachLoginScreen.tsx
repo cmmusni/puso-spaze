@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
 
   // ── Logo ────────────────────────────────────
   logoContainer: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 64, height: 64 },
+  logo: { width: 64, height: 64, borderRadius: 14 },
 
   // ── Title ───────────────────────────────────
   title: {

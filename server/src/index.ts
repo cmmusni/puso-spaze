@@ -19,6 +19,8 @@ import journalRoutes from './api/journalRoutes';
 import conversationRoutes from './api/conversationRoutes';
 import recoveryRoutes from './api/recoveryRoutes';
 import { startReflectionReminderScheduler } from './services/reflectionReminderScheduler';
+import { startStreakReminderScheduler } from './services/streakReminderScheduler';
+import { startPendingChatReminderScheduler } from './services/pendingChatReminderScheduler';
 import { getDailyReflection, getPersonalisedDailyReflection } from './services/dailyReflectionService';
 import { deepStripNullBytes, stripNullBytes } from './utils/sanitize';
 
@@ -210,6 +212,12 @@ async function main() {
 
   // Start the daily reflection reminder scheduler
   startReflectionReminderScheduler();
+
+  // Start the streak reminder scheduler (3h before midnight PHT)
+  startStreakReminderScheduler();
+
+  // Start the pending chat reminder scheduler (every 15 min)
+  startPendingChatReminderScheduler();
 
   app.listen(env.PORT, '0.0.0.0', () => {
     console.log(

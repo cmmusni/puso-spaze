@@ -35,6 +35,7 @@ import { PrayIcon, SupportIcon, LikeIcon } from "../components/ReactionIcons";
 import {
   apiGetPostById,
   apiGetReactions,
+  apiGetReactors,
   apiUpsertReaction,
   apiGetComments,
   apiCreateComment,
@@ -45,6 +46,7 @@ import {
   apiUpdatePost,
   apiSearchUsers,
   apiFlagComment,
+  apiFlagPost,
   resolveAvatarUrl,
 } from "../services/api";
 import { useUser } from "../hooks/useUser";
@@ -65,7 +67,7 @@ import type {
 } from "../../../packages/types";
 
 type PostDetailRouteProp = RouteProp<
-  { PostDetail: { postId?: string; post?: Post; openedFrom?: "notifications" } },
+  { PostDetail: { postId?: string; post?: Post; openedFrom?: "notifications"; highlightCommentId?: string } },
   "PostDetail"
 >;
 
@@ -111,6 +113,37 @@ const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
   blessed: { emoji: "\u2728", label: "Blessed" },
   loved: { emoji: "\u2764\uFE0F", label: "Loved" },
 };
+
+/** Subtle highlight pulse for a newly posted comment */
+function CommentHighlightWrap({ children, active }: { children: React.ReactNode; active: boolean }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!active) return;
+    Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 0, useNativeDriver: false }),
+      Animated.timing(anim, { toValue: 0, duration: 1500, useNativeDriver: false }),
+    ]).start();
+  }, [active]);
+
+  const bgColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["transparent", defaultColors.secondary + "1E"],
+  });
+
+  const accentColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["transparent", defaultColors.secondary + "99"],
+  });
+
+  if (!active) return <>{children}</>;
+
+  return (
+    <Animated.View style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -2, paddingHorizontal: 2, borderLeftWidth: 2, borderLeftColor: accentColor }}>
+      {children}
+    </Animated.View>
+  );
+}
 
 const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
   "heart",
@@ -203,6 +236,10 @@ export default function PostDetailScreen() {
   const [mentionLoading, setMentionLoading] = useState(false);
   const [isCommentMultiline, setIsCommentMultiline] = useState(false);
 
+  // ── Highlight newly posted comment ─────────────
+  const [highlightCommentId, setHighlightCommentId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Reply state ───────────────────────────────
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
 
@@ -221,6 +258,35 @@ export default function PostDetailScreen() {
   // ── Floating reaction picker ──────────────────
   const [showPicker, setShowPicker] = useState(false);
   const pickerAnim = useRef(new Animated.Value(0)).current;
+
+  // ── Reactors modal ────────────────────────────
+  type ReactorsTab = "ALL" | ReactionType;
+  const [showReactors, setShowReactors] = useState(false);
+  const [reactorsTab, setReactorsTab] = useState<ReactorsTab>("ALL");
+  const [reactorsList, setReactorsList] = useState<
+    Array<{ type: string; user: { id: string; displayName: string; avatarUrl: string | null; role: string } }>
+  >([]);
+  const [reactorsLoading, setReactorsLoading] = useState(false);
+
+  const openReactors = useCallback(async () => {
+    setReactorsTab("ALL");
+    setShowReactors(true);
+    setReactorsLoading(true);
+    try {
+      const targetPostId = post?.id ?? routePostId;
+      if (!targetPostId) return;
+      const data = await apiGetReactors(targetPostId);
+      setReactorsList(data.reactors);
+    } catch {
+      // silently fail — modal shows empty state
+    } finally {
+      setReactorsLoading(false);
+    }
+  }, [post?.id, routePostId]);
+
+  const filteredReactors = reactorsTab === "ALL"
+    ? reactorsList
+    : reactorsList.filter((r) => r.type === reactorsTab);
 
   const closePicker = () => {
     Animated.timing(pickerAnim, {
@@ -325,6 +391,30 @@ export default function PostDetailScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Highlight a specific comment when arriving from a notification
+  const queryCommentId =
+    Platform.OS === "web"
+      ? new URLSearchParams(webSearch).get("commentId")
+      : undefined;
+  const navHighlightId = route.params?.highlightCommentId ?? queryCommentId ?? undefined;
+  useEffect(() => {
+    if (!navHighlightId || commentsLoading || comments.length === 0) return;
+    const idx = comments.findIndex((c) => c.id === navHighlightId);
+    if (idx === -1) return;
+    // Scroll to the comment then highlight it
+    setTimeout(() => {
+      try {
+        flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.3 });
+      } catch {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }
+      setHighlightCommentId(navHighlightId);
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+      highlightTimer.current = setTimeout(() => setHighlightCommentId(null), 3500);
+    }, 150);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navHighlightId, commentsLoading, comments.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -457,6 +547,10 @@ export default function PostDetailScreen() {
             () => flatListRef.current?.scrollToEnd({ animated: true }),
             150,
           );
+          // Highlight the newly posted comment
+          setHighlightCommentId(comment.id);
+          if (highlightTimer.current) clearTimeout(highlightTimer.current);
+          highlightTimer.current = setTimeout(() => setHighlightCommentId(null), 3500);
         }
       }
     } catch {
@@ -687,10 +781,7 @@ export default function PostDetailScreen() {
     const rawName = isOwnAnonymousComment
       ? (username ?? item.user?.displayName ?? "Anonymous")
       : (item.user?.displayName ?? "Anonymous");
-    const name =
-      !isOwnAnonymousComment && (item.user?.role === "COACH" || item.user?.role === "ADMIN")
-        ? `Coach ${rawName}`
-        : rawName;
+    const name = rawName;
     const commentAvatarUrl = isOwnAnonymousComment ? avatarUrl : item.user?.avatarUrl;
     const initial = item.isAnonymous && !isOwnAnonymousComment ? "?" : name.charAt(0).toUpperCase();
     const avatarGrad = avatarColors(initial);
@@ -712,29 +803,22 @@ export default function PostDetailScreen() {
         {item.userId === "system-encouragement-bot" ? (
           <Image
             source={require("../assets/logo.png")}
+            style={[styles.commentAvatar, isReply && styles.commentAvatarReply, { borderRadius: isReply ? 6 : 8 }]}
+          />
+        ) : commentAvatarUrl ? (
+          <Image
+            source={{ uri: resolveAvatarUrl(commentAvatarUrl) }}
             style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
           />
         ) : (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => (navigation as any).navigate("Profile", { userId: item.userId })}
+          <LinearGradient
+            colors={avatarGrad}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
           >
-            {commentAvatarUrl ? (
-              <Image
-                source={{ uri: resolveAvatarUrl(commentAvatarUrl) }}
-                style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
-              />
-            ) : (
-              <LinearGradient
-                colors={avatarGrad}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
-              >
-                <Text style={styles.commentAvatarInitial}>{initial}</Text>
-              </LinearGradient>
-            )}
-          </TouchableOpacity>
+            <Text style={styles.commentAvatarInitial}>{initial}</Text>
+          </LinearGradient>
         )}
 
         <View style={styles.commentBody}>
@@ -905,7 +989,11 @@ export default function PostDetailScreen() {
   };
 
   const renderComment: ListRenderItem<Comment> = ({ item }) => {
-    return <>{renderCommentItem(item)}</>;
+    return (
+      <CommentHighlightWrap active={item.id === highlightCommentId}>
+        {renderCommentItem(item)}
+      </CommentHighlightWrap>
+    );
   };
 
   const totalReactions = Object.values(counts).reduce(
@@ -1021,6 +1109,7 @@ export default function PostDetailScreen() {
           data={comments}
           keyExtractor={(c) => c.id}
           renderItem={renderComment}
+          extraData={highlightCommentId}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
@@ -1032,7 +1121,7 @@ export default function PostDetailScreen() {
                   {post.userId === SYSTEM_USER_ID ? (
                     <Image
                       source={require("../assets/logo.png")}
-                      style={styles.postAvatar}
+                      style={[styles.postAvatar, { borderRadius: 11 }]}
                     />
                   ) : postAvatarUrl ? (
                     <Image
@@ -1052,7 +1141,7 @@ export default function PostDetailScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={styles.postNameRow}>
                       <Text style={styles.postAuthorName}>{displayName}</Text>
-                      {(post.userId === userId || role === "ADMIN") && (
+                      {(post.userId === userId || role === "ADMIN" || role === "COACH") && (
                         <TouchableOpacity
                           activeOpacity={0.7}
                           style={styles.postMenuBtn}
@@ -1153,7 +1242,11 @@ export default function PostDetailScreen() {
 
                   {/* Reaction summary — overlapping icons + total */}
                   {topReactions.length > 0 && (
-                    <View style={styles.reactionSummary}>
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={openReactors}
+                      style={styles.reactionSummary}
+                    >
                       <View style={styles.reactionEmojiStack}>
                         {topReactions.map((type, i) => (
                           <View
@@ -1168,7 +1261,7 @@ export default function PostDetailScreen() {
                         ))}
                       </View>
                       <Text style={styles.reactionSummaryText}>{totalReactions}</Text>
-                    </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
@@ -1368,6 +1461,7 @@ export default function PostDetailScreen() {
                 </View>
               </TouchableOpacity>
             )}
+            {(!!userId && (selectedComment?.userId === userId || role === "ADMIN")) && (
             <TouchableOpacity
               style={styles.menuOptionBtn}
               activeOpacity={0.8}
@@ -1381,6 +1475,38 @@ export default function PostDetailScreen() {
                 <Text style={styles.menuOptionSub}>Permanently remove this comment</Text>
               </View>
             </TouchableOpacity>
+            )}
+            {(role === "COACH" || role === "ADMIN") && selectedComment?.moderationStatus !== "FLAGGED" && (
+              <TouchableOpacity
+                style={styles.menuOptionBtn}
+                activeOpacity={0.8}
+                onPress={async () => {
+                  if (!selectedComment?.id || !userId) return;
+                  const commentToFlag = selectedComment;
+                  closeCommentMenu();
+                  const confirmed = await showConfirm(
+                    "Flag Comment",
+                    "Flag this comment as inappropriate? It will be hidden from the feed."
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await apiFlagComment(commentToFlag.id, userId);
+                    await loadData();
+                    showAlert("Flagged", "Comment has been flagged and hidden.");
+                  } catch (err: any) {
+                    showAlert("Error", err?.response?.data?.error ?? "Could not flag comment.");
+                  }
+                }}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.warningText + "20" }]}>
+                  <Ionicons name="flag-outline" size={18} color={colors.warningText} />
+                </View>
+                <View style={styles.menuOptionInfo}>
+                  <Text style={[styles.menuOptionText, { color: colors.warningText }]}>Flag comment</Text>
+                  <Text style={styles.menuOptionSub}>Report as inappropriate content</Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.menuCancelBtn}
               activeOpacity={0.8}
@@ -1614,20 +1740,54 @@ export default function PostDetailScreen() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={styles.menuOptionBtn}
-              activeOpacity={0.8}
-              onPress={handleDeletePost}
-            >
-              <View style={[styles.menuIconCircle, { backgroundColor: colors.errorBg }]}>
-                <Ionicons name="trash-outline" size={18} color={colors.errorText} />
-              </View>
-              <View style={styles.menuOptionInfo}>
-                <Text style={[styles.menuOptionText, { color: colors.errorText }]}>Delete post</Text>
-                <Text style={styles.menuOptionSub}>Permanently remove this post</Text>
-              </View>
-            </TouchableOpacity>
 
+
+            {(role === "COACH" || role === "ADMIN") && post?.moderationStatus !== "FLAGGED" && (
+              <TouchableOpacity
+                style={styles.menuOptionBtn}
+                activeOpacity={0.8}
+                onPress={async () => {
+                  if (!post?.id || !userId) return;
+                  setPostMenuVisible(false);
+                  const confirmed = await showConfirm(
+                    "Flag Post",
+                    "Flag this post as inappropriate? It will be hidden from the feed."
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await apiFlagPost(post.id, userId);
+                    await refreshPostDetail();
+                    showAlert("Flagged", "Post has been flagged and hidden.");
+                  } catch (err: any) {
+                    showAlert("Error", err?.response?.data?.error ?? "Could not flag post.");
+                  }
+                }}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.warningText + "20" }]}>
+                  <Ionicons name="flag-outline" size={18} color={colors.warningText} />
+                </View>
+                <View style={styles.menuOptionInfo}>
+                  <Text style={[styles.menuOptionText, { color: colors.warningText }]}>Flag post</Text>
+                  <Text style={styles.menuOptionSub}>Report as inappropriate content</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {(post?.userId === userId || role === "ADMIN") && (
+              <TouchableOpacity
+                style={styles.menuOptionBtn}
+                activeOpacity={0.8}
+                onPress={handleDeletePost}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.errorBg }]}>
+                  <Ionicons name="trash-outline" size={18} color={colors.errorText} />
+                </View>
+                <View style={styles.menuOptionInfo}>
+                  <Text style={[styles.menuOptionText, { color: colors.errorText }]}>Delete post</Text>
+                  <Text style={styles.menuOptionSub}>Permanently remove this post</Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.menuCancelBtn}
               activeOpacity={0.8}
@@ -1722,6 +1882,110 @@ export default function PostDetailScreen() {
           </View>
         </Modal>
       )}
+
+      {/* ── Reactors modal ── */}
+      <Modal
+        visible={showReactors}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowReactors(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowReactors(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.reactorsSheet}
+          >
+            <View style={styles.menuHandle} />
+            <Text style={styles.menuTitle}>Reactions</Text>
+
+            {/* Tab row */}
+            <View style={styles.reactorsTabRow}>
+              {(["ALL", ...REACTION_TYPES] as Array<"ALL" | ReactionType>).map((tab) => {
+                const isActive = reactorsTab === tab;
+                const tabCount = tab === "ALL"
+                  ? reactorsList.length
+                  : reactorsList.filter((r) => r.type === tab).length;
+                if (tabCount <= 0) return null;
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    activeOpacity={0.8}
+                    onPress={() => setReactorsTab(tab)}
+                    style={[styles.reactorsTab, isActive && styles.reactorsTabActive]}
+                  >
+                    {tab !== "ALL" && (
+                      <View style={styles.reactorsTabIcon}>
+                        {renderReactionIcon(tab as ReactionType, 11, colors.card)}
+                      </View>
+                    )}
+                    <Text style={[styles.reactorsTabText, isActive && styles.reactorsTabTextActive]}>
+                      {tab === "ALL" ? "All" : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                    </Text>
+                    {tabCount > 0 && (
+                      <Text style={[styles.reactorsTabCount, isActive && styles.reactorsTabCountActive]}>
+                        {tabCount}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* List */}
+            {reactorsLoading ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 32 }} />
+            ) : filteredReactors.length === 0 ? (
+              <View style={styles.reactorsEmpty}>
+                <Ionicons name="heart-outline" size={32} color={colors.muted4} />
+                <Text style={styles.reactorsEmptyText}>No reactions yet</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredReactors}
+                keyExtractor={(item, idx) => item.user.id + item.type + idx}
+                style={styles.reactorsList}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => {
+                  const initial = item.user.displayName.charAt(0).toUpperCase();
+                  const avatarColors: [string, string] = [colors.primary, colors.secondary];
+                  return (
+                    <View style={styles.reactorRow}>
+                      <View style={styles.reactorAvatarWrap}>
+                        {item.user.avatarUrl ? (
+                          <Image
+                            source={{ uri: resolveAvatarUrl(item.user.avatarUrl) }}
+                            style={styles.reactorAvatar}
+                          />
+                        ) : (
+                          <LinearGradient
+                            colors={avatarColors}
+                            style={styles.reactorAvatar}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                          >
+                            <Text style={styles.reactorInitial}>{initial}</Text>
+                          </LinearGradient>
+                        )}
+                        <View style={styles.reactorTypeBadge}>
+                          {renderReactionIcon(item.type as ReactionType, 9, colors.card)}
+                        </View>
+                      </View>
+                      <Text style={styles.reactorName} numberOfLines={1}>
+                        {item.user.displayName}
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1752,7 +2016,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  headerLogo: { width: 28, height: 28 },
+  headerLogo: { width: 28, height: 28, borderRadius: 6 },
   headerTitle: {
     fontSize: 18,
     fontFamily: fonts.displayBold,
@@ -2457,6 +2721,115 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // ── Reactors modal ────────────────────────
+  reactorsSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    maxHeight: "80%",
+    ...ambientShadow,
+  },
+  reactorsTabRow: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  reactorsTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerHigh,
+  },
+  reactorsTabActive: {
+    backgroundColor: colors.primary,
+  },
+  reactorsTabIcon: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactorsTabText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
+  reactorsTabTextActive: {
+    color: colors.onPrimary,
+  },
+  reactorsTabCount: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.muted4,
+  },
+  reactorsTabCountActive: {
+    color: colors.onPrimary + "CC",
+  },
+  reactorsList: {
+    maxHeight: 360,
+  },
+  reactorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  reactorAvatarWrap: {
+    width: 40,
+    height: 40,
+    position: "relative",
+  },
+  reactorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactorInitial: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: fonts.displayBold,
+  },
+  reactorTypeBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactorName: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurface,
+  },
+  reactorsEmpty: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 8,
+  },
+  reactorsEmptyText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    color: colors.muted4,
   },
 
   // ── Image viewer modal ────────────────────

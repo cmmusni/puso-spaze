@@ -28,7 +28,7 @@ import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNotifications } from "../hooks/useNotifications";
-import { apiGetDashboardStats, resolveAvatarUrl, type DashboardStats } from "../services/api";
+import { apiGetDashboardStats, apiRecordVisit, resolveAvatarUrl, type DashboardStats } from "../services/api";
 import { validatePostContent } from "../utils/validators";
 import { POST_MAX_LENGTH, POST_MIN_LENGTH } from "../../../packages/core/constants";
 import { showAlert } from "../utils/alertPlatform";
@@ -104,11 +104,16 @@ function HighlightWrap({ children, flatListRef }: { children: React.ReactNode; f
 
   const bgColor = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["transparent", defaultColors.primaryContainer + "50"],
+    outputRange: ["transparent", defaultColors.secondary + "1E"],
+  });
+
+  const accentColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["transparent", defaultColors.secondary + "99"],
   });
 
   return (
-    <Animated.View ref={viewRef as any} style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -4, paddingHorizontal: 4 }}>
+    <Animated.View ref={viewRef as any} style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -2, paddingHorizontal: 2, borderLeftWidth: 2, borderLeftColor: accentColor }}>
       {children}
     </Animated.View>
   );
@@ -219,7 +224,13 @@ export default function HomeScreen() {
       fetchPosts(searchQuery || undefined);
       refreshUnreadCount();
       loadStats();
-    }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats]),
+      // Record HomeScreen visit for streak tracking
+      if (userId) {
+        apiRecordVisit(userId).catch((err: any) =>
+          console.warn('[HomeScreen] streak record-visit failed:', err)
+        );
+      }
+    }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats, userId]),
   );
 
   // Highlight last-viewed post when returning from PostDetailScreen
@@ -946,7 +957,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   hamburger: { padding: 4 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
-  topBarLogo: { width: 30, height: 30 },
+  topBarLogo: { width: 30, height: 30, borderRadius: 7 },
   searchBar: {
     flex: 1,
     flexDirection: "row",

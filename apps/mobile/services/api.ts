@@ -283,6 +283,17 @@ export async function apiGetUserStats(
 }
 
 /**
+ * POST /api/users/:userId/record-visit
+ * Records that the user visited the HomeScreen today (for streak tracking).
+ */
+export async function apiRecordVisit(
+  userId: string
+): Promise<{ streak: number }> {
+  const { data } = await client.post(`/api/users/${userId}/record-visit`);
+  return data;
+}
+
+/**
  * PATCH /api/users/:userId/pin
  * Updates the user's PIN code.
  */
@@ -442,6 +453,16 @@ export async function apiGetReactions(
     `/api/posts/${postId}/reactions`,
     { params: userId ? { userId } : undefined }
   );
+  return data;
+}
+
+export async function apiGetReactors(
+  postId: string,
+  type?: string
+): Promise<{ reactors: Array<{ type: string; createdAt: string; user: { id: string; displayName: string; avatarUrl: string | null; role: string } }> }> {
+  const { data } = await client.get(`/api/posts/${postId}/reactions/reactors`, {
+    params: type ? { type } : undefined,
+  });
   return data;
 }
 
@@ -955,6 +976,14 @@ export async function apiFetchConversations(userId: string): Promise<GetConversa
 export async function apiFetchAllConversations(): Promise<GetConversationsResponse> {
   const { data } = await client.get<GetConversationsResponse>('/api/conversations/all');
   return data;
+}
+
+/**
+ * DELETE /api/conversations/:conversationId
+ * Admin-only: deletes a conversation and all its messages.
+ */
+export async function apiDeleteConversation(conversationId: string): Promise<void> {
+  await client.delete(`/api/conversations/${conversationId}`);
 }
 
 /**

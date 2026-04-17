@@ -37,8 +37,17 @@ self.addEventListener('notificationclick', (event) => {
   let url = '/';
   if (data.postId) {
     url = `/post/${data.postId}`;
+    if (data.commentId) {
+      url += `?commentId=${data.commentId}`;
+    }
   } else if (data.conversationId) {
     url = '/chat';
+  } else if (data.screen === 'Home') {
+    url = '/';
+  } else if (data.screen === 'Journal') {
+    url = '/journal';
+  } else if (data.screen === 'Notifications') {
+    url = '/notifications';
   }
 
   event.waitUntil(

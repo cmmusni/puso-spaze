@@ -207,9 +207,13 @@ function handleNotificationNavigation(data: any): void {
     nav.navigate('MainDrawer', { screen: target });
   } else if (data?.postId) {
     // REACTION or COMMENT notification → open the post
+    const params: any = { postId: data.postId, openedFrom: 'notifications' };
+    if (data.commentId) {
+      params.highlightCommentId = data.commentId;
+    }
     nav.navigate('MainDrawer', {
       screen: 'PostDetail',
-      params: { postId: data.postId, openedFrom: 'notifications' },
+      params,
     });
   } else {
     // ENCOURAGEMENT / SYSTEM → open notifications screen

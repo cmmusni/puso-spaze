@@ -171,6 +171,7 @@ export async function notifyReaction(params: {
  */
 export async function notifyComment(params: {
   postId: string;
+  commentId: string;
   postAuthorId: string;
   commenterId: string;
   commenterName: string;
@@ -190,6 +191,7 @@ export async function notifyComment(params: {
     body: `${params.commenterName}: ${params.commentPreview.substring(0, 50)}${params.commentPreview.length > 50 ? '...' : ''}`,
     data: {
       postId: params.postId,
+      commentId: params.commentId,
       commenterId: params.commenterId,
       actorAvatarUrl: params.actorAvatarUrl ?? null,
     },
@@ -340,5 +342,43 @@ export async function notifySystem(params: {
     }
   } catch (error) {
     console.error('❌ Failed to notify system:', error);
+  }
+}
+
+/**
+ * Notifies all coaches when a post or comment is flagged by AI moderation.
+ */
+export async function notifyCoachesOfFlaggedContent(params: {
+  contentType: 'post' | 'comment';
+  contentId: string;
+  postId: string;
+  contentPreview: string;
+  authorId: string;
+}): Promise<void> {
+  try {
+    const coaches = await prisma.user.findMany({
+      where: { role: { in: ['COACH', 'ADMIN'] } },
+      select: { id: true },
+    });
+
+    if (coaches.length === 0) return;
+
+    const coachIds = coaches.map((c) => c.id);
+    const label = params.contentType === 'post' ? 'Post' : 'Comment';
+    const preview = params.contentPreview.substring(0, 80) + (params.contentPreview.length > 80 ? '...' : '');
+
+    await notifySystem({
+      userIds: coachIds,
+      title: `⚠️ Flagged ${label}`,
+      body: `A ${params.contentType} was flagged by moderation: "${preview}"`,
+      data: {
+        postId: params.postId,
+        contentId: params.contentId,
+        contentType: params.contentType,
+        screen: 'CoachDashboard',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Failed to notify coaches of flagged content:', error);
   }
 }

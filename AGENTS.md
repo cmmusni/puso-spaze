@@ -63,7 +63,7 @@ apps/mobile/          — Expo/React Native universal app (web + iOS + Android)
 
 server/               — Express + Prisma + PostgreSQL
   src/controllers/    — Route handlers (post, comment, user, reaction, admin, coach, journal, notification, conversation, auth, recovery)
-  src/services/       — Business logic (moderation, biblicalEncouragement, dailyReflection, reflectionReminder, notifications, mentions)
+  src/services/       — Business logic (moderation, biblicalEncouragement, dailyReflection, reflectionReminder, streakReminder, pendingChatReminder, notifications, mentions)
   src/config/         — env.ts (env vars), db.ts (Prisma client), cloudinary.ts (image hosting)
   src/middlewares/    — Logger, validation, requireAuth (JWT)
   src/utils/          — jwt.ts, sanitize.ts, generateAnonUsername, validateImageMagicBytes
@@ -96,6 +96,8 @@ User Input → Client Validation → API Request → Express Router
 4. **Device binding + PIN auth**: Usernames are bound to device IDs. Users get a unique 6-digit PIN for cross-device login. Locked-out users can submit recovery requests reviewed by coaches.
 5. **JWT auth**: All write endpoints require JWT Bearer tokens (7-day expiry). Read endpoints are public.
 6. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
+7. **Visit-based streaks**: Streaks are updated from Home screen visits (`POST /api/users/:userId/record-visit`) rather than inferred from posting/journal activity; reminders are sent before local day-end.
+8. **Coach response nudges**: Pending member messages trigger coach reminders every 15 minutes once a 1-hour reply threshold is crossed.
 
 ## Known Quirks
 

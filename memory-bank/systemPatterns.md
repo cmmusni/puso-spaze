@@ -88,6 +88,11 @@
 - **Fallbacks**: Curated static reflections used when `OPENAI_API_KEY` is missing
 - **Dashboard integration**: Daily reflection served via `GET /api/stats/dashboard` (personalized when userId query param provided)
 
+### Engagement Reminder Schedulers
+- **streakReminderScheduler.ts** runs daily at 1:00 PM UTC (9:00 PM PHT) to warn users whose streak is at risk
+- **pendingChatReminderScheduler.ts** runs every 15 minutes to remind coaches when member messages are waiting over 1 hour
+- Streak reminders deep-link to Home (`data.screen = Home`); pending chat reminders deep-link to the conversation (`data.conversationId`)
+
 ### Security Middleware Stack
 - **Null byte stripping**: Global middleware strips `\u0000` from `req.body` (deep recursive) and `req.query` values
 - **JSON depth limiting**: Rejects payloads with nesting >10 levels (400 error)

@@ -7,7 +7,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import multer from 'multer';
-import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, getPin, updatePin, getUserStats } from '../controllers/userController';
+import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, getPin, updatePin, getUserStats, recordVisit } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
 import { isValidImageBuffer } from '../utils/validateImageMagicBytes';
@@ -164,6 +164,16 @@ router.get(
     validate,
   ],
   getPin
+);
+
+router.post(
+  '/:userId/record-visit',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  recordVisit
 );
 
 router.get(

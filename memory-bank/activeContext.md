@@ -3,11 +3,35 @@
 **Last Updated:** April 17, 2026
 
 ## Current Work Focus
+- Streak system overhaul: visit-based streak counting + push reminders
+- Coach follow-up automation: pending chat reminders for unreplied member messages
+- App entry polish: animated splash flow + refreshed icon/splash asset set
 - Pre-deployment documentation update (memory bank + AGENTS.md sync)
 - Deploy agent enhanced with Step -1 (memory bank update before deploy)
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Streak System Overhaul (April 17, 2026)
+- **SCHEMA**: Added `streakCount` (Int, default 0) and `lastStreakDate` (DateTime?) to User model
+- **MIGRATION**: `20260417083314_add_streak_fields`
+- **NEW ENDPOINT**: `POST /api/users/:userId/record-visit` — records HomeScreen visit, increments streak if consecutive day, resets to 1 if gap
+- **UPDATED**: `getUserStats` — now returns stored `streakCount` instead of computing from post/journal dates; auto-resets if expired (>1 day gap)
+- **CLIENT**: `apiRecordVisit()` in `services/api.ts`; called from HomeScreen's `useFocusEffect`
+- **SCHEDULER**: `streakReminderScheduler.ts` — cron at 9 PM PHT (1 PM UTC), sends push to users with active streaks who haven't visited today
+- **NOTIFICATION**: Streak reminder sends `data: { screen: 'Home' }` → clicking navigates to HomeScreen (native via `handleNotificationNavigation`, web via `sw.js`)
+- **SW.JS**: Added `data.screen` handling for Home/Journal/Notifications routes
+
+### Pending Chat Reminder Scheduler (April 17, 2026)
+- **NEW SERVICE**: `server/src/services/pendingChatReminderScheduler.ts`
+- **LOGIC**: Runs every 15 minutes, checks conversations where the latest message came from a member and is older than 1 hour, then notifies the assigned coach
+- **ANTI-SPAM**: Uses in-memory `remindedSet` keyed by `conversationId:messageId` to avoid duplicate reminders for the same waiting message
+- **STARTUP**: Registered in `server/src/index.ts` alongside reflection/streak schedulers
+
+### Splash + Branding Asset Refresh (April 17, 2026)
+- **NEW SCREEN**: `apps/mobile/screens/SplashScreen.tsx` with animated logo, glow, tagline, and auto-transition
+- **NAVIGATION**: `AppNavigator` now overlays splash on app startup before handing off to auth/main flow
+- **ASSETS**: Updated app/web icon set and splash assets (`assets/`, `public/`, iOS app icon)
 
 ### Deploy Agent Enhancement (April 17, 2026)
 - **UPDATED**: `.github/agents/deploy.agent.md` — added Step -1: mandatory memory bank & AGENTS.md update before any git/deploy actions
@@ -49,6 +73,7 @@
 
 ## Next Steps
 - Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET`, Cloudinary env vars)
+- Verify scheduler behavior in production logs (streak 9 PM PHT, pending chat every 15 min)
 - Complete Android APK build and test on physical tablet
 - Add functional tests for daily reflection, user stats, and security fixes to `quality/functional.test.ts`
 - Update QUALITY.md with new scenarios for daily reflections and Cloudinary uploads

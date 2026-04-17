@@ -487,11 +487,14 @@ export default function JournalScreen({ navigation }: any) {
   //  R E N D E R
   // ═══════════════════════════════════════════
 
-  // ── sidePanel (inline JSX, not a component) ──
-  const sidePanelContent = (
-    <ScrollView style={st.sidePanel} showsVerticalScrollIndicator={false}>
-      <Text style={st.sidePanelTitle}>Your Journey</Text>
+  // ── Chart width (responsive) ────────────────
+  const chartWidth = showSidePanel
+    ? 280
+    : Math.min(width - 112, 400); // account for padding + card padding
 
+  // ── Journey cards (shared between side panel & inline) ──
+  const journeyCards = (
+    <>
       {/* Calendar */}
       <View style={st.sideCard}>
         <View style={st.calHeader}>
@@ -616,7 +619,7 @@ export default function JournalScreen({ navigation }: any) {
                   ),
                 }],
               }}
-              width={280}
+              width={chartWidth}
               height={180}
               yAxisLabel=""
               yAxisSuffix=""
@@ -699,6 +702,14 @@ export default function JournalScreen({ navigation }: any) {
             : "Start journaling daily to build your streak!"}
         </Text>
       </LinearGradient>
+    </>
+  );
+
+  // ── sidePanel (wide screens only) ─────────
+  const sidePanelContent = (
+    <ScrollView style={st.sidePanel} showsVerticalScrollIndicator={false}>
+      <Text style={st.sidePanelTitle}>Your Journey</Text>
+      {journeyCards}
     </ScrollView>
   );
 
@@ -877,6 +888,14 @@ export default function JournalScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
       </View>
+
+      {/* Journey section (inline on mobile / small web) */}
+      {!showSidePanel && (
+        <View style={st.inlineJourney}>
+          <Text style={st.inlineJourneyTitle}>Your Journey</Text>
+          {journeyCards}
+        </View>
+      )}
 
       {/* Past entries */}
       {journals.length > 0 && (
@@ -1113,6 +1132,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     minHeight: 200,
     padding: 0,
     zIndex: 1,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   ruledLines: {
     position: "absolute",
@@ -1179,6 +1199,18 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     color: colors.onPrimary,
     textAlign: "center",
     lineHeight: 16,
+  },
+
+  // ── Inline journey (mobile / small web) ────
+  inlineJourney: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  inlineJourneyTitle: {
+    fontSize: 18,
+    fontFamily: fonts.displaySemiBold,
+    color: colors.onSurface,
+    marginBottom: 16,
   },
 
   // ── Past entries ──────────────────────────
@@ -1520,6 +1552,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceVariant,
     marginBottom: spacing.md,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   modalSectionLabel: {
     fontSize: 14,
@@ -1559,6 +1592,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     minHeight: 200,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   modalCharCount: {
     fontSize: 12,

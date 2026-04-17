@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
-import { createNotification } from '../services/notificationService';
+import { createNotification, notifyCoachesOfFlaggedContent } from '../services/notificationService';
 
 // ── Helpers ───────────────────────────────────
 
@@ -195,6 +195,15 @@ export async function flagPost(req: Request, res: Response): Promise<void> {
       data: { postId: post.id, screen: 'Home' },
     }).catch(() => {});
 
+    // Notify all other coaches
+    notifyCoachesOfFlaggedContent({
+      contentType: 'post',
+      contentId: post.id,
+      postId: post.id,
+      contentPreview: post.content,
+      authorId: post.userId,
+    }).catch(() => {});
+
     res.json({ post: updatedPost, message: 'Post flagged successfully.' });
   } catch (err) {
     console.error('[CoachController] flagPost error:', err);
@@ -237,6 +246,15 @@ export async function flagComment(req: Request, res: Response): Promise<void> {
       title: 'Comment Flagged',
       body: 'Your comment was flagged by a coach for review. Please ensure your messages follow community guidelines.',
       data: { postId: comment.postId, commentId: comment.id, screen: 'Home' },
+    }).catch(() => {});
+
+    // Notify all other coaches
+    notifyCoachesOfFlaggedContent({
+      contentType: 'comment',
+      contentId: comment.id,
+      postId: comment.postId,
+      contentPreview: comment.content,
+      authorId: comment.userId,
     }).catch(() => {});
 
     res.json({ comment: updatedComment, message: 'Comment flagged successfully.' });

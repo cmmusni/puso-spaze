@@ -92,7 +92,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
       const coach = coaches.find((c: any) => c.id === coachId);
       navigation.navigate("Chat", {
         conversationId: res.conversation.id,
-        coachName: coach ? `Coach ${coach.displayName}` : undefined,
+        coachName: coach ? coach.displayName : undefined,
       });
     } catch (err) {
       console.error("Failed to start conversation:", err);

@@ -800,6 +800,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 64,
     height: 64,
+    borderRadius: 14,
   },
 
   // ── Title & Tagline ─────────────────────────

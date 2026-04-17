@@ -21,9 +21,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
-import { apiFetchAllConversations, getBaseUrl, resolveAvatarUrl } from "../services/api";
+import { apiFetchAllConversations, apiDeleteConversation, getBaseUrl, resolveAvatarUrl } from "../services/api";
 import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
+import { showConfirm } from "../utils/alertPlatform";
 import type { Conversation } from "../../../packages/types";
 
 export default function SpazeConversationsScreen({ navigation }: any) {
@@ -34,6 +35,8 @@ export default function SpazeConversationsScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
 
   const isWide = Platform.OS === "web" && width >= 900;
+
+  const isAdmin = role === 'ADMIN';
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +70,20 @@ export default function SpazeConversationsScreen({ navigation }: any) {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  const handleDeleteConversation = useCallback(async (convId: string, memberName: string, coachName: string) => {
+    const confirmed = await showConfirm(
+      'Delete Conversation',
+      `Delete conversation between ${memberName} and ${coachName}? This will permanently remove all messages.`
+    );
+    if (!confirmed) return;
+    try {
+      await apiDeleteConversation(convId);
+      setConversations((prev) => prev.filter((c) => c.id !== convId));
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  }, []);
 
   // ── Block render for non-coaches ─────────
 
@@ -131,6 +148,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
     const time = lastMsg ? formatTime(lastMsg.createdAt) : formatTime(item.updatedAt);
     const msgCount = item.messageCount ?? 0;
     const isMyConversation = item.userId === userId || item.coachId === userId;
+    const isPending = !lastMsg || lastMsg.senderId !== item.coachId;
 
     return (
       <TouchableOpacity
@@ -210,6 +228,12 @@ export default function SpazeConversationsScreen({ navigation }: any) {
                 </Text>
               </View>
             )}
+            {isPending && (
+              <View style={[s.pendingBadge, { backgroundColor: colors.surfaceContainerHigh }]}>
+                <Ionicons name="time-outline" size={10} color={colors.tertiary} />
+                <Text style={[s.pendingBadgeText, { color: colors.tertiary }]}>Pending</Text>
+              </View>
+            )}
             {isMyConversation && (
               <View style={[s.myBadge, { backgroundColor: colors.secondaryFixed }]}>
                 <Text style={[s.myBadgeText, { color: colors.onSecondaryFixed }]}>You</Text>
@@ -219,6 +243,19 @@ export default function SpazeConversationsScreen({ navigation }: any) {
         </View>
 
         <Ionicons name="chevron-forward" size={16} color={colors.muted3} style={{ marginLeft: 4 }} />
+
+        {isAdmin && (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation?.();
+              handleDeleteConversation(item.id, memberName, coachName);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={s.deleteBtn}
+          >
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   };
@@ -312,11 +349,6 @@ export default function SpazeConversationsScreen({ navigation }: any) {
             {/* ── Stats row ── */}
             <View style={s.statsRow}>
               <View style={[s.statCard, { backgroundColor: colors.surfaceContainerLowest }]}>
-                <Ionicons name="chatbubbles" size={18} color={colors.primary} />
-                <Text style={[s.statNumber, { color: colors.onSurface }]}>{conversations.length}</Text>
-                <Text style={[s.statLabel, { color: colors.muted5 }]}>Active Chats</Text>
-              </View>
-              <View style={[s.statCard, { backgroundColor: colors.surfaceContainerLowest }]}>
                 <Ionicons name="people" size={18} color={colors.secondary} />
                 <Text style={[s.statNumber, { color: colors.onSurface }]}>
                   {new Set(conversations.map((c) => c.userId)).size}
@@ -329,6 +361,13 @@ export default function SpazeConversationsScreen({ navigation }: any) {
                   {new Set(conversations.map((c) => c.coachId)).size}
                 </Text>
                 <Text style={[s.statLabel, { color: colors.muted5 }]}>Coaches</Text>
+              </View>
+              <View style={[s.statCard, { backgroundColor: colors.surfaceContainerLowest }]}>
+                <Ionicons name="chatbubbles" size={18} color={colors.primary} />
+                <Text style={[s.statNumber, { color: colors.onSurface }]}>
+                  {conversations.filter((c) => !c.lastMessage || c.lastMessage.senderId !== c.coachId).length}
+                </Text>
+                <Text style={[s.statLabel, { color: colors.muted5 }]}>Pending Chats</Text>
               </View>
             </View>
 
@@ -583,6 +622,18 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.bodyRegular,
   },
+  pendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  pendingBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+  },
   myBadge: {
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -591,6 +642,10 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   myBadgeText: {
     fontSize: 10,
     fontFamily: fonts.bodySemiBold,
+  },
+  deleteBtn: {
+    marginLeft: 4,
+    padding: 4,
   },
 
   // ── Empty ─────────────────────────────────

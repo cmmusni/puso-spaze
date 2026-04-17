@@ -18,12 +18,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
 import { apiFetchMessages, apiSendMessage, apiSetTyping, apiGetTyping } from "../services/api";
-import { colors as defaultColors, fonts, radii, spacing } from "../constants/theme";
+import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
 import type { Message } from "../../../packages/types";
@@ -31,6 +32,19 @@ import type { Message } from "../../../packages/types";
 const POLL_INTERVAL = 5000;
 const TYPING_POLL_INTERVAL = 2000;
 const TYPING_DEBOUNCE_MS = 800;
+
+// ── Date separator helper ───────────────────
+const formatDateSeparator = (date: Date): string => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diff = today.getTime() - msgDay.getTime();
+  const dayMs = 86400000;
+  if (diff < dayMs) return "Today";
+  if (diff < dayMs * 2) return "Yesterday";
+  if (diff < dayMs * 7) return date.toLocaleDateString([], { weekday: "long" });
+  return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+};
 
 export default function ChatScreen({ navigation, route }: any) {
   const { conversationId, coachName, convUserId, convCoachId } = route.params as {
@@ -44,6 +58,8 @@ export default function ChatScreen({ navigation, route }: any) {
   const isDark = useThemeStore((s) => s.isDark);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isCoach = role === "COACH" || role === "ADMIN";
+  const { width } = useWindowDimensions();
+  const isWide = Platform.OS === "web" && width >= 600;
 
   // Coach viewing a conversation they're not a participant in → read-only
   const isReadOnly = isCoach && !!convUserId && !!convCoachId
@@ -54,7 +70,6 @@ export default function ChatScreen({ navigation, route }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [isMultiline, setIsMultiline] = useState(false);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,7 +166,6 @@ export default function ChatScreen({ navigation, route }: any) {
       });
       setMessages((prev) => [...prev, res.message]);
       setText("");
-      setIsMultiline(false);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -165,10 +179,8 @@ export default function ChatScreen({ navigation, route }: any) {
   // ── Get header label from first message ───
   const getHeaderLabel = () => {
     if (messages.length === 0) return coachName ?? "Chat";
-    // Find the other participant
     const otherMsg = messages.find((m) => m.senderId !== userId);
     if (otherMsg?.sender?.displayName) return otherMsg.sender.displayName;
-    // Fallback: show first message sender, then route param, then generic
     return messages[0]?.sender?.displayName ?? coachName ?? "Chat";
   };
 
@@ -176,84 +188,129 @@ export default function ChatScreen({ navigation, route }: any) {
     return name ? name.charAt(0).toUpperCase() : "?";
   };
 
+  // ── Should show date separator ────────────
+  const shouldShowDateSeparator = (index: number): boolean => {
+    if (index === 0) return true;
+    const curr = new Date(messages[index].createdAt);
+    const prev = new Date(messages[index - 1].createdAt);
+    return curr.toDateString() !== prev.toDateString();
+  };
+
+  // ── Is last in group (same sender, consecutive) ──
+  const isLastInGroup = (index: number): boolean => {
+    if (index === messages.length - 1) return true;
+    return messages[index + 1]?.senderId !== messages[index].senderId;
+  };
+
+  const isFirstInGroup = (index: number): boolean => {
+    if (index === 0) return true;
+    if (shouldShowDateSeparator(index)) return true;
+    return messages[index - 1]?.senderId !== messages[index].senderId;
+  };
+
   // ── Render message bubble ─────────────────
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isMine = item.senderId === userId;
     const isCoachMessage = item.sender?.role === "COACH" || item.sender?.role === "ADMIN";
-    const showSender =
-      index === 0 || messages[index - 1]?.senderId !== item.senderId;
+    const first = isFirstInGroup(index);
+    const last = isLastInGroup(index);
+    const showDate = shouldShowDateSeparator(index);
     const time = new Date(item.createdAt).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     });
 
+    // Bubble corner radii for grouped messages (messenger-style tail)
+    const bubbleRadius = {
+      borderTopLeftRadius: isMine ? 20 : (first ? 20 : 6),
+      borderTopRightRadius: isMine ? (first ? 20 : 6) : 20,
+      borderBottomLeftRadius: isMine ? 20 : (last ? 4 : 6),
+      borderBottomRightRadius: isMine ? (last ? 4 : 6) : 20,
+    };
+
     return (
-      <View
-        style={[
-          styles.messageRow,
-          isMine ? styles.messageRowMine : styles.messageRowOther,
-        ]}
-      >
-        {/* Avatar for other's messages */}
-        {!isMine && showSender && (
-          <View style={styles.msgAvatarWrap}>
-            <LinearGradient
-              colors={[colors.primaryContainer, colors.secondary]}
-              style={styles.msgAvatar}
-            >
-              <Text style={styles.msgAvatarText}>
-                {getInitial(item.sender?.displayName)}
-              </Text>
-            </LinearGradient>
+      <>
+        {/* ── Date separator ── */}
+        {showDate && (
+          <View style={styles.dateSeparator}>
+            <View style={styles.dateLine} />
+            <Text style={styles.dateText}>
+              {formatDateSeparator(new Date(item.createdAt))}
+            </Text>
+            <View style={styles.dateLine} />
           </View>
         )}
-        {!isMine && !showSender && <View style={styles.msgAvatarSpacer} />}
 
-        <View style={{ maxWidth: "75%" }}>
-          {showSender && (
-            <Text
-              style={[
-                styles.senderName,
-                isMine ? styles.senderNameMine : styles.senderNameOther,
-              ]}
-            >
-              {item.sender?.displayName ?? "Unknown"}
-              {isCoachMessage && !isMine && (
-                <Text style={styles.coachBadgeInline}> · Coach</Text>
-              )}
-            </Text>
+        <View
+          style={[
+            styles.messageRow,
+            isMine ? styles.messageRowMine : styles.messageRowOther,
+            !last && styles.messageRowGrouped,
+          ]}
+        >
+          {/* Avatar — only on last message in group for other's messages */}
+          {!isMine && last && (
+            <View style={styles.msgAvatarWrap}>
+              <LinearGradient
+                colors={[colors.primaryContainer, colors.secondary]}
+                style={styles.msgAvatar}
+              >
+                <Text style={styles.msgAvatarText}>
+                  {getInitial(item.sender?.displayName)}
+                </Text>
+              </LinearGradient>
+            </View>
           )}
-          <View
-            style={[
-              styles.bubble,
-              isMine ? styles.bubbleMine : styles.bubbleOther,
-            ]}
-          >
-            <Text
+          {!isMine && !last && <View style={styles.msgAvatarSpacer} />}
+
+          <View style={styles.bubbleColumn}>
+            {/* Sender name — only on first message in group */}
+            {first && !isMine && (
+              <Text style={styles.senderNameOther}>
+                {item.sender?.displayName ?? "Unknown"}
+                {isCoachMessage && (
+                  <Text style={styles.coachBadgeInline}> · Coach</Text>
+                )}
+              </Text>
+            )}
+
+            <View
               style={[
-                styles.bubbleText,
-                isMine ? styles.bubbleTextMine : styles.bubbleTextOther,
+                styles.bubble,
+                isMine ? styles.bubbleMine : styles.bubbleOther,
+                bubbleRadius,
               ]}
             >
-              {item.content}
-            </Text>
+              <Text
+                style={[
+                  styles.bubbleText,
+                  isMine ? styles.bubbleTextMine : styles.bubbleTextOther,
+                ]}
+              >
+                {item.content}
+              </Text>
+            </View>
+
+            {/* Timestamp — only on last message in group */}
+            {last && (
+              <Text
+                style={[
+                  styles.msgTime,
+                  isMine ? styles.msgTimeMine : styles.msgTimeOther,
+                ]}
+              >
+                {time}
+              </Text>
+            )}
           </View>
-          <Text
-            style={[
-              styles.msgTime,
-              isMine ? styles.msgTimeMine : styles.msgTimeOther,
-            ]}
-          >
-            {time}
-          </Text>
         </View>
-      </View>
+      </>
     );
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "light-content"} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Top bar ── */}
       <LinearGradient
@@ -264,19 +321,39 @@ export default function ChatScreen({ navigation, route }: any) {
       >
         <TouchableOpacity
           onPress={() => navigation.navigate(isCoach ? "SpazeConversations" : "SpazeCoach")}
-          style={styles.topBarBtn}
+          style={styles.backBtn}
+          activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color={colors.onPrimary} />
+          <Ionicons name="chevron-back" size={24} color={colors.onPrimary} />
         </TouchableOpacity>
-        <View style={styles.topBarCenter}>
+
+        {/* Avatar + name left-aligned (messenger-style) */}
+        <View style={styles.topBarAvatar}>
+          <LinearGradient
+            colors={["rgba(255,255,255,0.25)", "rgba(255,255,255,0.1)"]}
+            style={styles.topBarAvatarCircle}
+          >
+            <Text style={styles.topBarAvatarText}>
+              {getInitial(getHeaderLabel())}
+            </Text>
+          </LinearGradient>
+        </View>
+        <View style={styles.topBarInfo}>
           <Text style={styles.topBarTitle} numberOfLines={1}>
             {getHeaderLabel()}
           </Text>
-          {isCoach && (
+          {isCoach ? (
             <Text style={styles.topBarSubtitle}>All coaches can see this</Text>
+          ) : (
+            <View style={styles.topBarOnlineRow}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.topBarSubtitle}>Coach</Text>
+            </View>
           )}
         </View>
-        <View style={styles.topBarBtn} />
+
+        {/* Action button placeholder */}
+        <View style={styles.topBarAction} />
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -290,21 +367,16 @@ export default function ChatScreen({ navigation, route }: any) {
           </View>
         ) : (
           <>
-            {/* ── Transparency banner ── */}
-            {/* <View style={styles.transparencyBanner}>
-              <Ionicons name="eye-outline" size={14} color={colors.muted5} />
-              <Text style={styles.transparencyText}>
-                All coaches can view this conversation for your safety and support.
-              </Text>
-            </View> */}
-
             {/* ── Messages ── */}
             <FlatList
               ref={flatListRef}
               data={messages}
               keyExtractor={(item) => item.id}
               renderItem={renderMessage}
-              contentContainerStyle={styles.messageList}
+              contentContainerStyle={[
+                styles.messageList,
+                isWide && styles.messageListWide,
+              ]}
               showsVerticalScrollIndicator={false}
               refreshing={refreshing}
               onRefresh={onRefresh}
@@ -313,22 +385,37 @@ export default function ChatScreen({ navigation, route }: any) {
               }}
               ListEmptyComponent={
                 <View style={styles.emptyChat}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.muted3} />
-                  <Text style={styles.emptyChatText}>
+                  <View style={styles.emptyChatIcon}>
+                    <Ionicons name="chatbubbles-outline" size={40} color={colors.secondary} />
+                  </View>
+                  <Text style={styles.emptyChatTitle}>
                     Start the conversation
+                  </Text>
+                  <Text style={styles.emptyChatSub}>
+                    Send a message to begin chatting
                   </Text>
                 </View>
               }
               ListFooterComponent={
                 otherIsTyping ? (
                   <View style={styles.typingRow}>
+                    <View style={styles.typingAvatarWrap}>
+                      <LinearGradient
+                        colors={[colors.primaryContainer, colors.secondary]}
+                        style={styles.typingAvatar}
+                      >
+                        <Text style={styles.typingAvatarText}>
+                          {getInitial(getHeaderLabel())}
+                        </Text>
+                      </LinearGradient>
+                    </View>
                     <View style={styles.typingBubble}>
                       {[dot1, dot2, dot3].map((dot, i) => (
                         <Animated.View
                           key={i}
                           style={[
                             styles.typingDot,
-                            { opacity: dot, transform: [{ translateY: dot.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] },
+                            { opacity: dot, transform: [{ translateY: dot.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) }] },
                           ]}
                         />
                       ))}
@@ -347,19 +434,19 @@ export default function ChatScreen({ navigation, route }: any) {
                 </Text>
               </View>
             ) : (
-              <View style={styles.inputBar}>
+              <View style={[styles.inputBar, isWide && styles.inputBarWide]}>
                 <View style={styles.inputWrap}>
                   <TextInput
-                    style={styles.textInput}
-                    placeholder="Type a message..."
+                    style={[
+                      styles.textInput,
+                      !text.includes('\n') && { height: 22 },
+                    ]}
+                    placeholder="Message..."
                     placeholderTextColor={colors.placeholder}
                     value={text}
                     onChangeText={handleTextChange}
                     maxLength={2000}
-                    multiline={isMultiline}
-                    onSubmitEditing={() => {
-                      if (!isMultiline) handleSend();
-                    }}
+                    multiline
                     blurOnSubmit={false}
                     {...(Platform.OS === 'web' ? {
                       onKeyPress: (e: any) => {
@@ -367,10 +454,6 @@ export default function ChatScreen({ navigation, route }: any) {
                         if (nativeEvent.key === 'Enter' && (nativeEvent.metaKey || nativeEvent.ctrlKey)) {
                           e.preventDefault();
                           handleSend();
-                        } else if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey && !isMultiline) {
-                          // Plain Enter in single-line mode switches to multiline
-                          e.preventDefault();
-                          setIsMultiline(true);
                         }
                       },
                     } : {})}
@@ -379,17 +462,24 @@ export default function ChatScreen({ navigation, route }: any) {
                 <TouchableOpacity
                   onPress={handleSend}
                   disabled={!text.trim() || sending}
-                  style={[
-                    styles.sendBtn,
-                    (!text.trim() || sending) && styles.sendBtnDisabled,
-                  ]}
-                  activeOpacity={0.75}
+                  activeOpacity={0.7}
                 >
-                  {sending ? (
-                    <ActivityIndicator size="small" color={colors.onPrimary} />
-                  ) : (
-                    <Ionicons name="send" size={18} color={colors.onPrimary} />
-                  )}
+                  <LinearGradient
+                    colors={
+                      !text.trim() || sending
+                        ? [colors.muted3, colors.muted3]
+                        : [colors.primaryContainer, colors.secondary]
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.sendBtn}
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={colors.onPrimary} />
+                    ) : (
+                      <Ionicons name="send" size={17} color={colors.onPrimary} />
+                    )}
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
@@ -407,34 +497,66 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ── Top bar ─────────────────────────────
+  // ── Top bar (messenger-style: avatar + name left-aligned) ──
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 14) + 12 : 12,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 10,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 14) + 10 : 10,
   },
-  topBarBtn: {
-    width: 40,
-    height: 40,
+  backBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+  },
+  topBarAvatar: {
+    marginLeft: 4,
+    marginRight: 10,
+  },
+  topBarAvatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  topBarCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
-  topBarTitle: {
-    fontSize: 17,
+  topBarAvatarText: {
+    fontSize: 15,
     fontFamily: fonts.displayBold,
     color: colors.onPrimary,
+  },
+  topBarInfo: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  topBarTitle: {
+    fontSize: 16,
+    fontFamily: fonts.displayBold,
+    color: colors.onPrimary,
+  },
+  topBarOnlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 1,
+  },
+  onlineDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#4ADE80",
   },
   topBarSubtitle: {
     fontSize: 11,
     fontFamily: fonts.bodyRegular,
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 1,
+    color: "rgba(255,255,255,0.65)",
+  },
+  topBarAction: {
+    width: 36,
+    height: 36,
   },
 
   loadingWrap: {
@@ -443,36 +565,44 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     justifyContent: "center",
   },
 
-  // ── Transparency banner ───────────────────
-  transparencyBanner: {
+  // ── Date separator ────────────────────────
+  dateSeparator: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    ...(Platform.OS === "web"
-      ? { maxWidth: 680, alignSelf: "center" as any, width: "100%" as any, borderRadius: radii.sm }
-      : {}),
+    marginVertical: 16,
+    paddingHorizontal: 8,
   },
-  transparencyText: {
-    fontSize: 12,
-    fontFamily: fonts.bodyRegular,
-    color: colors.muted5,
+  dateLine: {
     flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.muted1,
+  },
+  dateText: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.muted4,
+    paddingHorizontal: 12,
+    letterSpacing: 0.3,
   },
 
   // ── Messages ──────────────────────────────
   messageList: {
-    padding: spacing.md,
-    paddingBottom: spacing.sm,
-    ...(Platform.OS === "web"
-      ? { maxWidth: 680, alignSelf: "center" as any, width: "100%" as any }
-      : {}),
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    flexGrow: 1,
+  },
+  messageListWide: {
+    maxWidth: 680,
+    alignSelf: "center" as any,
+    width: "100%" as any,
   },
   messageRow: {
     flexDirection: "row",
-    marginBottom: 6,
+    marginBottom: 3,
+  },
+  messageRowGrouped: {
+    marginBottom: 2,
   },
   messageRowMine: {
     justifyContent: "flex-end",
@@ -481,62 +611,59 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     justifyContent: "flex-start",
   },
 
-  // Avatar
+  // Avatar (bottom of group, messenger-style)
   msgAvatarWrap: {
     marginRight: 8,
     alignSelf: "flex-end",
+    marginBottom: 18,
   },
   msgAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   msgAvatarText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: fonts.displayBold,
     color: colors.onPrimary,
   },
   msgAvatarSpacer: {
-    width: 38,
+    width: 36,
+  },
+
+  // Bubble column
+  bubbleColumn: {
+    maxWidth: "75%",
   },
 
   // Sender name
-  senderName: {
-    fontSize: 12,
-    fontFamily: fonts.bodySemiBold,
-    marginBottom: 2,
-  },
-  senderNameMine: {
-    color: colors.muted4,
-    textAlign: "right",
-  },
   senderNameOther: {
-    color: colors.muted5,
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.muted4,
+    marginBottom: 3,
     marginLeft: 4,
   },
   coachBadgeInline: {
-    fontSize: 11,
-    fontFamily: fonts.bodyRegular,
+    fontSize: 10,
+    fontFamily: fonts.bodyMedium,
     color: colors.secondary,
   },
 
-  // Bubble
+  // Bubble — organic rounded shapes
   bubble: {
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.lg,
+    paddingVertical: 9,
     maxWidth: "100%",
   },
   bubbleMine: {
     backgroundColor: colors.primaryContainer,
-    borderBottomRightRadius: 4,
   },
   bubbleOther: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.muted1,
   },
   bubbleText: {
@@ -551,74 +678,113 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     color: colors.onSurface,
   },
 
-  // Time
+  // Time (only shown on last in group)
   msgTime: {
     fontSize: 10,
     fontFamily: fonts.bodyRegular,
     color: colors.muted4,
-    marginTop: 2,
+    marginTop: 3,
+    marginBottom: 6,
   },
   msgTimeMine: {
     textAlign: "right",
+    marginRight: 2,
   },
   msgTimeOther: {
     marginLeft: 4,
   },
 
-  // ── Empty ─────────────────────────────────
+  // ── Empty state ───────────────────────────
   emptyChat: {
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 80,
+    paddingTop: 100,
   },
-  emptyChatText: {
-    fontSize: 15,
-    fontFamily: fonts.bodyMedium,
-    color: colors.muted5,
-    marginTop: spacing.sm,
+  emptyChatIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceContainerLow,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+  },
+  emptyChatTitle: {
+    fontSize: 17,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+    marginBottom: 4,
+  },
+  emptyChatSub: {
+    fontSize: 13,
+    fontFamily: fonts.bodyRegular,
+    color: colors.muted4,
   },
 
-  // ── Typing indicator ──────────────────────
+  // ── Typing indicator (with mini avatar) ───
   typingRow: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    alignItems: "flex-start",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingBottom: spacing.xs,
+    marginTop: 2,
+  },
+  typingAvatarWrap: {
+    marginRight: 8,
+    marginBottom: 2,
+  },
+  typingAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typingAvatarText: {
+    fontSize: 9,
+    fontFamily: fonts.displayBold,
+    color: colors.onPrimary,
   },
   typingBubble: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radii.xl,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderBottomLeftRadius: 4,
   },
   typingDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.onSurfaceVariant,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.muted4,
   },
 
   // ── Input bar ─────────────────────────────
   inputBar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === "ios" ? 24 : 10,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    paddingBottom: Platform.OS === "ios" ? 24 : 8,
+    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.muted1,
+  },
+  inputBarWide: {
+    maxWidth: 680,
+    alignSelf: "center" as any,
+    width: "100%" as any,
   },
   inputWrap: {
     flex: 1,
     backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radii.xl,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: Platform.OS === "ios" ? 10 : 6,
+    paddingVertical: Platform.OS === "ios" ? 10 : 8,
     marginRight: 8,
-    minHeight: 42,
+    minHeight: 44,
     maxHeight: 120,
     justifyContent: "center",
   },
@@ -627,17 +793,14 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     color: colors.onSurface,
     maxHeight: 100,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
   },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primaryContainer,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-  },
-  sendBtnDisabled: {
-    opacity: 0.4,
   },
   readOnlyBar: {
     flexDirection: "row",

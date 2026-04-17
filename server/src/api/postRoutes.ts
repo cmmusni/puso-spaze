@@ -15,7 +15,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { body, param } from 'express-validator';
 import multer from 'multer';
 import { createPost, getPosts, getPostById, deletePost, updatePost, reportPost } from '../controllers/postController';
-import { upsertReaction, getReactions } from '../controllers/reactionController';
+import { upsertReaction, getReactions, getReactors } from '../controllers/reactionController';
 import { createComment, getComments, deleteComment, updateComment, upsertCommentReaction } from '../controllers/commentController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
@@ -131,6 +131,7 @@ router.patch(
 
 // ── Reactions ──────────────────────────────
 router.get('/:postId/reactions', getReactions);
+router.get('/:postId/reactions/reactors', getReactors);
 router.post('/:postId/reactions', requireAuth, upsertReaction);
 
 // ── Report (user-facing flag) ──────────────

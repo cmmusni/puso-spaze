@@ -360,6 +360,33 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
   }
 }
 
+// ── DELETE /api/conversations/:conversationId ──
+// Admin-only: deletes a conversation and all its messages.
+export async function deleteConversation(req: Request, res: Response): Promise<void> {
+  const { conversationId } = req.params;
+
+  if (req.user?.role !== 'ADMIN') {
+    res.status(403).json({ error: 'Only admins can delete conversations.' });
+    return;
+  }
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+  });
+  if (!conversation) {
+    res.status(404).json({ error: 'Conversation not found.' });
+    return;
+  }
+
+  // Delete messages first, then the conversation
+  await prisma.$transaction([
+    prisma.message.deleteMany({ where: { conversationId } }),
+    prisma.conversation.delete({ where: { id: conversationId } }),
+  ]);
+
+  res.json({ ok: true });
+}
+
 // ── In-memory typing store ───────────────────
 // key: `${conversationId}:${userId}` → expiry timestamp (ms)
 const typingStore = new Map<string, number>();

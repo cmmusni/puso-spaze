@@ -10,7 +10,7 @@ import { notifyMentionsInPost } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { stripHtmlTags } from '../utils/sanitize';
 import { uploadBuffer } from '../config/cloudinary';
-import { createNotification } from '../services/notificationService';
+import { createNotification, notifyCoachesOfFlaggedContent } from '../services/notificationService';
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -80,6 +80,16 @@ export async function createPost(req: Request, res: Response): Promise<void> {
 
   const flagged = moderationStatus === 'FLAGGED';
   const underReview = moderationStatus === 'REVIEW';
+
+  if (flagged) {
+    notifyCoachesOfFlaggedContent({
+      contentType: 'post',
+      contentId: post.id,
+      postId: post.id,
+      contentPreview: content,
+      authorId: userId,
+    }).catch((err) => console.error('Failed to notify coaches of flagged post:', err));
+  }
 
   if (moderationStatus === 'SAFE') {
     // QUALITY.md Scenario 4: Use anonDisplayName for anonymous posts

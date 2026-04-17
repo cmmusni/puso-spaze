@@ -103,3 +103,33 @@ export async function getReactions(req: Request, res: Response): Promise<void> {
 
   res.json({ counts, userReaction });
 }
+
+// ── GET /api/posts/:postId/reactions/reactors ──
+export async function getReactors(req: Request, res: Response): Promise<void> {
+  const { postId } = req.params;
+  const { type } = req.query as { type?: string };
+
+  const where: { postId: string; type?: ReactionType } = { postId };
+  if (type && Object.values(ReactionType).includes(type as ReactionType)) {
+    where.type = type as ReactionType;
+  }
+
+  const reactions = await prisma.reaction.findMany({
+    where,
+    select: {
+      type: true,
+      createdAt: true,
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+          role: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  res.json({ reactors: reactions });
+}

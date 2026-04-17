@@ -205,10 +205,14 @@ export default function NotificationsScreen() {
     if (postId) {
       try {
         const { post } = await apiGetPostById(postId);
-        navigation.navigate('PostDetail', {
+        const navParams: any = {
           postId: post.id,
           openedFrom: 'notifications',
-        });
+        };
+        if (notification.data?.commentId) {
+          navParams.highlightCommentId = notification.data.commentId;
+        }
+        navigation.navigate('PostDetail', navParams);
       } catch (error) {
         console.error('Failed to fetch post:', error);
         Alert.alert('Error', 'Could not load this post. It may have been removed.');

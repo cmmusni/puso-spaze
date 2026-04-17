@@ -8,11 +8,12 @@
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
 import CoachLoginScreen from '../screens/CoachLoginScreen';
 import MainDrawerNavigator from './MainDrawerNavigator';
+import SplashScreen from '../screens/SplashScreen';
 import { useUserStore } from '../context/UserContext';
 import { colors } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
@@ -74,6 +75,7 @@ export default function AppNavigator() {
   const isLoading = useUserStore((s) => s.isLoading);
   const { colors: themeColors } = useThemeStore();
   const [isReady, setIsReady] = React.useState(false);
+  const [showSplash, setShowSplash] = React.useState(true);
 
   // ── Navigation guard: redirect to Login if not authenticated ──
   const checkAuth = React.useCallback(() => {
@@ -134,7 +136,8 @@ export default function AppNavigator() {
   }, [isReady, checkAuth]);
 
   return (
-    <NavigationContainer
+    <View style={{ flex: 1 }}>
+      <NavigationContainer
       ref={navigationRef}
       linking={linking}
       fallback={
@@ -202,5 +205,12 @@ export default function AppNavigator() {
         />
       </Stack.Navigator>
     </NavigationContainer>
+
+    {showSplash && (
+      <View style={StyleSheet.absoluteFill}>
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      </View>
+    )}
+    </View>
   );
 }

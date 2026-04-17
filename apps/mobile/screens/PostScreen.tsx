@@ -743,7 +743,7 @@ const createStyles = (colors: typeof defaultColors) =>
       alignItems: "center",
       gap: 8,
     },
-    headerLogo: { width: 28, height: 28 },
+    headerLogo: { width: 28, height: 28, borderRadius: 6 },
     headerTitle: {
       fontSize: 18,
       fontFamily: fonts.displayBold,

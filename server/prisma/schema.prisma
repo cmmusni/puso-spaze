@@ -34,6 +34,8 @@ model User {
   email                String?  // Coach email address (from invite code)
   avatarUrl            String?  // Profile picture URL
   notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
+  streakCount          Int      @default(0)     // Consecutive days the user opened the HomeScreen
+  lastStreakDate       DateTime?                 // Date (midnight UTC) of last streak-qualifying visit
   createdAt            DateTime @default(now())
   lastActiveAt         DateTime @default(now())
 

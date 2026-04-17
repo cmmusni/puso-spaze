@@ -419,48 +419,73 @@ export default function CoachDashboard() {
     );
   };
 
+  // ── Community Sentiment (shared between inline + right panel) ──
+
+  const sentimentSummary = (() => {
+    const tags = stats?.trendingTags ?? [];
+    const total = stats?.totalMembers ?? 0;
+    const online = stats?.onlineCount ?? 0;
+    const stories = stats?.dailyStories ?? 0;
+
+    if (tags.length === 0) {
+      if (total === 0) return 'No community activity yet. Share something to get started!';
+      return 'No trending topics yet. The community is warming up.';
+    }
+
+    const topTag = tags[0].tag;
+    const activePct = total > 0 ? Math.round((online / total) * 100) : 0;
+
+    if (activePct >= 50) return `The community is buzzing today — #${topTag} is leading the conversation with ${activePct}% of members active.`;
+    if (stories >= 10) return `Lots of sharing today! #${topTag} is the top topic across ${stories} posts.`;
+    if (tags.length >= 3) return `The community is expressing a mix of emotions — #${topTag} leads, followed by #${tags[1].tag} and #${tags[2].tag}.`;
+    if (tags.length === 2) return `#${topTag} and #${tags[1].tag} are on the community's heart today.`;
+    return `#${topTag} is what the community is feeling today.`;
+  })();
+
+  const sentimentCard = (
+    <View style={s.sentimentCard}>
+      <View style={s.sentimentHeader}>
+        <Ionicons name="analytics-outline" size={20} color={colors.primary} />
+        <Text style={s.sentimentTitle}>Community Sentiment</Text>
+      </View>
+      {(stats?.trendingTags ?? []).length > 0 ? (
+        <>
+          {(() => {
+            const tags = (stats?.trendingTags ?? []).slice(0, 3);
+            const maxCount = Math.max(...tags.map((t) => t.count), 1);
+            return tags.map((item) => {
+              const tc = getTagColor(item.tag);
+              const pct = Math.round((item.count / maxCount) * 100);
+              return (
+                <View key={item.tag} style={s.sentimentRow}>
+                  <Text style={[s.sentimentTag, { color: tc.text }]}>#{item.tag}</Text>
+                  <View style={s.sentimentBarBg}>
+                    <LinearGradient
+                      colors={[tc.text, tc.text + '99']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[s.sentimentBarFill, { width: `${pct}%` as any }]}
+                    />
+                  </View>
+                  <Text style={s.sentimentPct}>{pct}%</Text>
+                </View>
+              );
+            });
+          })()}
+          <Text style={s.sentimentNote}>{sentimentSummary}</Text>
+        </>
+      ) : (
+        <Text style={s.sentimentNote}>{sentimentSummary}</Text>
+      )}
+    </View>
+  );
+
   // ── Right sidebar (wide only) ─────────────
 
   const rightPanel = (
     <View style={s.rightPanel}>
       {/* Community Sentiment */}
-      <View style={s.sentimentCard}>
-        <View style={s.sentimentHeader}>
-          <Ionicons name="analytics-outline" size={20} color={colors.primary} />
-          <Text style={s.sentimentTitle}>Community Sentiment</Text>
-        </View>
-        {(stats?.trendingTags ?? []).length > 0 ? (
-          <>
-            {(() => {
-              const tags = (stats?.trendingTags ?? []).slice(0, 3);
-              const maxCount = Math.max(...tags.map((t) => t.count), 1);
-              return tags.map((item) => {
-                const tc = getTagColor(item.tag);
-                const pct = Math.round((item.count / maxCount) * 100);
-                return (
-                  <View key={item.tag} style={s.sentimentRow}>
-                    <Text style={[s.sentimentTag, { color: tc.text }]}>#{item.tag}</Text>
-                    <View style={s.sentimentBarBg}>
-                      <LinearGradient
-                        colors={[tc.text, tc.text + '99']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[s.sentimentBarFill, { width: `${pct}%` as any }]}
-                      />
-                    </View>
-                    <Text style={s.sentimentPct}>{pct}%</Text>
-                  </View>
-                );
-              });
-            })()}
-            <Text style={s.sentimentNote}>
-              The PUSO community is active and thriving today.
-            </Text>
-          </>
-        ) : (
-          <Text style={s.sentimentNote}>No trending tags yet.</Text>
-        )}
-      </View>
+      {sentimentCard}
 
       {/* Support Chats */}
       <View style={s.chatsCard}>
@@ -624,6 +649,9 @@ export default function CoachDashboard() {
               colors.danger,
             )}
           </ScrollView>
+
+          {/* ── Community Sentiment (mobile / narrow web) ── */}
+          {!isWide && <View style={s.sentimentInline}>{sentimentCard}</View>}
 
           {/* ── Coach Dashboard ── */}
           <View style={s.queueHeader}>
@@ -1199,6 +1227,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     paddingVertical: 20,
     paddingRight: 24,
     gap: 16,
+  },
+
+  // Sentiment inline (mobile / narrow web)
+  sentimentInline: {
+    marginBottom: 24,
   },
 
   // Sentiment card
