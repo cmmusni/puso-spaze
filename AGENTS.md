@@ -57,7 +57,7 @@ apps/mobile/          — Expo/React Native universal app (web + iOS + Android)
   components/         — Shared UI (PostCard, WebSidebar, BottomTabBar, etc.)
   services/api.ts     — API client (Axios-based)
   context/            — UserContext (Zustand), ThemeContext
-  hooks/              — usePosts, useUser, useNotifications
+  hooks/              — usePosts, useUser, useNotifications, shared UI state hooks
   constants/theme.ts  — Design tokens (colors, fonts, spacing, shadows)
   navigation/         — Drawer navigator + web layout wrapper
 
@@ -98,6 +98,8 @@ User Input → Client Validation → API Request → Express Router
 6. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
 7. **Visit-based streaks**: Streaks are updated from Home screen visits (`POST /api/users/:userId/record-visit`) rather than inferred from posting/journal activity; reminders are sent before local day-end.
 8. **Coach response nudges**: Pending member messages trigger coach reminders every 15 minutes once a 1-hour reply threshold is crossed.
+9. **Profile enrichment**: Users can maintain richer profile data including banner image, bio, and public contact fields; client state persists these fields locally and syncs via dedicated user endpoints.
+10. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
 
 ## Known Quirks
 
@@ -106,9 +108,11 @@ User Input → Client Validation → API Request → Express Router
 - `JWT_SECRET` has a hardcoded default in dev — must be overridden in production (startup warning logged)
 - Encouragement system refactored: `encouragementScheduler.ts` replaced by `biblicalEncouragementService.ts`, `dailyReflectionService.ts`, and `reflectionReminderScheduler.ts`
 - File uploads: All images uploaded to Cloudinary. Avatar uploads validate magic bytes; post image uploads use header-based MIME check only (Scenario 8)
+- Banner uploads reuse the avatar-style multipart image flow and Cloudinary storage pathing
 - Anonymous mode leaks real `displayName` in notification payloads (Scenario 4)
 - Device ownership check is bypassable by omitting `deviceId` — mitigated by JWT auth + PIN (Scenario 5)
 - `getPosts`, `getComments`, `getJournals`, `getConversations`, `getMessages` have no pagination limits (Scenario 10)
+- `GET /api/journals/public` is intentionally unauthenticated and capped to recent entries; visibility depends entirely on `journals.isPublic`
 - Coach review queue exists (`GET /api/coach/review`) but has no automated escalation for stale REVIEW posts (Scenario 7)
 - Notification delivery is fire-and-forget — push failures are logged but not retried (Scenario 9)
 - PIN login has no rate limiting — brute-force risk for 6-digit PINs (Scenario 11)

@@ -62,12 +62,13 @@ export async function getJournalById(req: Request, res: Response): Promise<void>
 
 // ── POST /api/journals ───────────────────────
 export async function createJournal(req: Request, res: Response): Promise<void> {
-  const { userId, title: rawTitle, content: rawContent, mood, tags } = req.body as {
+  const { userId, title: rawTitle, content: rawContent, mood, tags, isPublic } = req.body as {
     userId: string;
     title: string;
     content: string;
     mood?: string;
     tags?: string[];
+    isPublic?: boolean;
   };
   // BUG-006 fix: Strip HTML tags from journal title and content
   const title = stripHtmlTags(rawTitle ?? '');
@@ -86,6 +87,7 @@ export async function createJournal(req: Request, res: Response): Promise<void> 
       content,
       mood: mood ?? null,
       tags: tags ?? [],
+      isPublic: isPublic === true,
     },
     include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
@@ -96,12 +98,13 @@ export async function createJournal(req: Request, res: Response): Promise<void> 
 // ── PATCH /api/journals/:journalId ───────────
 export async function updateJournal(req: Request, res: Response): Promise<void> {
   const { journalId } = req.params;
-  const { userId, title, content, mood, tags } = req.body as {
+  const { userId, title, content, mood, tags, isPublic } = req.body as {
     userId: string;
     title?: string;
     content?: string;
     mood?: string;
     tags?: string[];
+    isPublic?: boolean;
   };
 
   const existing = await prisma.journal.findUnique({ where: { id: journalId } });
@@ -121,6 +124,7 @@ export async function updateJournal(req: Request, res: Response): Promise<void> 
   if (content !== undefined) data.content = stripHtmlTags(content);
   if (mood !== undefined) data.mood = mood ?? null;
   if (tags !== undefined) data.tags = tags ?? [];
+  if (isPublic !== undefined) data.isPublic = isPublic === true;
 
   const journal = await prisma.journal.update({
     where: { id: journalId },
@@ -149,4 +153,17 @@ export async function deleteJournal(req: Request, res: Response): Promise<void> 
   await prisma.journal.delete({ where: { id: journalId } });
 
   res.json({ success: true, message: 'Journal entry deleted.' });
+}
+
+// ── GET /api/journals/public ─────────────────
+export async function getPublicJournals(req: Request, res: Response): Promise<void> {
+  const { userId } = req.query as { userId?: string };
+  const journals = await prisma.journal.findMany({
+    where: { isPublic: true, ...(userId ? { userId } : {}) },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
+  });
+
+  res.json({ journals });
 }

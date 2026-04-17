@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import {
   View,
   Text,
@@ -19,7 +20,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   ScrollView,
-  RefreshControl,
+  Switch,
   useWindowDimensions,
   NativeScrollEvent,
 } from "react-native";
@@ -175,12 +176,22 @@ export default function JournalScreen({ navigation }: any) {
   const [content, setContent] = useState("");
   const [mood, setMood] = useState<string | null>(null);
   const [sessionType, setSessionType] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // ── FAB visibility — hide while write card is on screen ──
   const [showFab, setShowFab] = useState(false);
   const writeCardBottomY = useRef(0);
   const composeScrollRef = useRef<ScrollView>(null);
+
+  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
+  const scrollToTopRef = useRef(scrollToTopTrigger);
+  useEffect(() => {
+    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+      composeScrollRef.current?.scrollTo({ y: 0, animated: true });
+    }
+    scrollToTopRef.current = scrollToTopTrigger;
+  }, [scrollToTopTrigger]);
 
   const handleComposeScroll = useCallback(
     (e: { nativeEvent: NativeScrollEvent }) => {
@@ -196,6 +207,7 @@ export default function JournalScreen({ navigation }: any) {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editMood, setEditMood] = useState<string | null>(null);
+  const [editIsPublic, setEditIsPublic] = useState(false);
 
   // ── Calendar state ────────────────────────
   const [calYear, setCalYear] = useState(new Date().getFullYear());
@@ -376,10 +388,12 @@ export default function JournalScreen({ navigation }: any) {
         title,
         content: content.trim(),
         mood: mood ?? undefined,
+        isPublic,
       });
       setContent("");
       setMood(null);
       setSessionType(null);
+      setIsPublic(false);
       await fetchJournals();
       setHighlightedId(created.id);
       setTimeout(() => {
@@ -409,6 +423,7 @@ export default function JournalScreen({ navigation }: any) {
     setEditTitle(journal.title);
     setEditContent(journal.content);
     setEditMood(journal.mood ?? null);
+    setEditIsPublic(journal.isPublic === true);
     setModalVisible(true);
   };
 
@@ -422,6 +437,7 @@ export default function JournalScreen({ navigation }: any) {
         title: editTitle.trim(),
         content: editContent.trim(),
         mood: editMood ?? undefined,
+        isPublic: editIsPublic,
       });
       setModalVisible(false);
       fetchJournals();
@@ -755,13 +771,21 @@ export default function JournalScreen({ navigation }: any) {
         <Text style={st.entryContent} numberOfLines={2}>
           {item.content}
         </Text>
-        {item.mood && (
-          <View style={st.entryMoodChip}>
-            <Text style={st.entryMoodChipText}>
-              {MOODS.find((m) => m.key === item.mood)?.label ?? item.mood}
-            </Text>
-          </View>
-        )}
+        <View style={st.entryFooter}>
+          {item.mood && (
+            <View style={st.entryMoodChip}>
+              <Text style={st.entryMoodChipText}>
+                {MOODS.find((m) => m.key === item.mood)?.label ?? item.mood}
+              </Text>
+            </View>
+          )}
+          {item.isPublic && (
+            <View style={st.entryPublicBadge}>
+              <Ionicons name="globe-outline" size={11} color={colors.primary} />
+              <Text style={st.entryPublicBadgeText}>Public</Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
       </View>
     );
@@ -776,14 +800,6 @@ export default function JournalScreen({ navigation }: any) {
       showsVerticalScrollIndicator={false}
       onScroll={handleComposeScroll}
       scrollEventThrottle={16}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
     >
       {/* Date header */}
       <Text style={st.todayLabel}>TODAY&apos;S REFLECTION</Text>
@@ -877,6 +893,26 @@ export default function JournalScreen({ navigation }: any) {
               : sessionType === "evening"
                 ? "EVENING SESSION"
                 : "SESSION"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Public toggle */}
+        <TouchableOpacity
+          onPress={() => setIsPublic(!isPublic)}
+          style={[st.actionChip, isPublic ? st.actionChipActive : undefined]}
+        >
+          <Ionicons
+            name={isPublic ? "globe" : "globe-outline"}
+            size={14}
+            color={isPublic ? colors.onSecondaryFixed : colors.onSurfaceVariant}
+          />
+          <Text
+            style={[
+              st.actionChipText,
+              isPublic ? st.actionChipTextActive : undefined,
+            ]}
+          >
+            {isPublic ? "PUBLIC" : "PRIVATE"}
           </Text>
         </TouchableOpacity>
 
@@ -1044,6 +1080,32 @@ export default function JournalScreen({ navigation }: any) {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+
+              <View style={st.publicToggleRow}>
+                <View style={st.publicToggleLabel}>
+                  <Ionicons
+                    name={editIsPublic ? "globe" : "lock-closed-outline"}
+                    size={18}
+                    color={editIsPublic ? colors.primary : colors.onSurfaceVariant}
+                  />
+                  <View>
+                    <Text style={st.publicToggleTitle}>
+                      {editIsPublic ? "Public Entry" : "Private Entry"}
+                    </Text>
+                    <Text style={st.publicToggleHint}>
+                      {editIsPublic
+                        ? "Visible to the community"
+                        : "Only you can see this"}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={editIsPublic}
+                  onValueChange={setEditIsPublic}
+                  trackColor={{ false: colors.surfaceVariant, true: colors.primaryContainer }}
+                  thumbColor={editIsPublic ? colors.primary : colors.muted3}
+                />
+              </View>
 
               <TextInput
                 style={st.modalContentInput}
@@ -1275,6 +1337,27 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.bodySemiBold,
     color: colors.onSecondaryFixed,
+  },
+  entryFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  entryPublicBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    marginTop: 8,
+  },
+  entryPublicBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.primary,
   },
 
   // ── Side panel ────────────────────────────
@@ -1592,6 +1675,31 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   modalMoodLabelActive: {
     color: colors.onSecondaryFixed,
     fontFamily: fonts.bodySemiBold,
+  },
+  publicToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  publicToggleLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  publicToggleTitle: {
+    fontSize: 14,
+    fontFamily: fonts.displaySemiBold,
+    color: colors.onSurface,
+  },
+  publicToggleHint: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
   },
   modalContentInput: {
     fontSize: 16,

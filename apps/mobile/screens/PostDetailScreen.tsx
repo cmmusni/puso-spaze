@@ -82,7 +82,7 @@ type PostDetailRouteProp = RouteProp<
     PostDetail: {
       postId?: string;
       post?: Post;
-      openedFrom?: "notifications";
+      openedFrom?: "notifications" | "profile";
       highlightCommentId?: string;
     };
   },
@@ -253,6 +253,10 @@ export default function PostDetailScreen() {
   const handleBackPress = () => {
     if (openedFromNotifications) {
       navigation.navigate("Notifications" as never);
+      return;
+    }
+    if (openedFrom === "profile") {
+      (navigation as any).navigate("Profile");
       return;
     }
     // Navigate to Home with the post ID so it highlights/scrolls to it

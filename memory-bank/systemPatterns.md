@@ -135,6 +135,21 @@
 - `GET /api/coach/members` — view all platform members
 - Moderation actions send notifications to the content author
 
+### Profile Enrichment
+- User model supports richer public profile fields: `bannerUrl`, `bio`, `phone`, `contactEmail`, `facebook`, `instagram`, `linkedin`, `twitter`, `tiktok`, `youtube`
+- New user endpoints:
+  - `POST /api/users/:userId/banner` (multipart image upload)
+  - `PATCH /api/users/:userId/bio`
+  - `GET /api/users/:userId/contacts`
+  - `PATCH /api/users/:userId/contacts`
+- Client store persists banner/bio/contacts for session continuity
+
+### Public Journal Sharing
+- Journal model includes `isPublic` (default false)
+- `POST /api/journals` and `PATCH /api/journals/:journalId` accept optional `isPublic`
+- `GET /api/journals/public` returns latest public journal entries (optional `userId` filter, no auth)
+- Private journal endpoints still require ownership checks
+
 ## Component Relationships
 - `AppNavigator` → Auth stack (`Login`, `CoachLogin`) or `MainDrawer`
 - `MainDrawerNavigator` → All app screens wrapped with `withTabs()`

@@ -18,6 +18,7 @@ import {
   createJournal,
   updateJournal,
   deleteJournal,
+  getPublicJournals,
 } from '../controllers/journalController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
@@ -34,6 +35,10 @@ router.get(
   ],
   getJournals
 );
+
+// ── GET /api/journals/public ────────────────
+// Public feed — no auth required
+router.get('/public', getPublicJournals);
 
 // ── GET /api/journals/:journalId ───────────
 router.get(
@@ -70,6 +75,10 @@ router.post(
       .optional()
       .isArray({ max: 10 })
       .withMessage('tags must be an array of up to 10 items'),
+    body('isPublic')
+      .optional()
+      .isBoolean()
+      .withMessage('isPublic must be a boolean'),
     validate,
   ],
   createJournal
@@ -101,6 +110,10 @@ router.patch(
       .optional()
       .isArray({ max: 10 })
       .withMessage('tags must be an array of up to 10 items'),
+    body('isPublic')
+      .optional()
+      .isBoolean()
+      .withMessage('isPublic must be a boolean'),
     validate,
   ],
   updateJournal

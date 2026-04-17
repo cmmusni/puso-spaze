@@ -194,9 +194,9 @@ const styles = useMemo(() => createStyles(colors), [colors]);
 
 ```ts
 const { width } = useWindowDimensions();
-const isMedium = width >= 600;   // Tablet / medium web
-const twoCol   = width >= 700;   // Two-column layouts
-const isWide   = Platform.OS === 'web' && width >= 900; // Wide web
+const isWide   = width >= 900;                  // Wide web / desktop
+const isMedium = width < 900 && width >= 600;    // Tablet / medium web
+const isSmall  = width < 600;                    // Mobile
 ```
 
 - Font scaling: Mobile (heading 17-19px, body 11-12px) → `isMedium` (heading 20-24px, body 12px)

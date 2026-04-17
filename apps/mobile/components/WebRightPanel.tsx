@@ -32,7 +32,7 @@ const DAILY_GRACE_QUOTES = [
   "You are stronger than you know, braver than you believe.",
 ];
 
-export default function WebRightPanel() {
+export default function WebRightPanel({ topBarHeight = 54 }: { topBarHeight?: number }) {
   const { username, userId, role } = useUser();
   const isCoach = role === 'COACH' || role === 'ADMIN';
   const navigation = useNavigation<any>();
@@ -82,7 +82,7 @@ export default function WebRightPanel() {
   const graceQuote = DAILY_GRACE_QUOTES[new Date().getDate() % DAILY_GRACE_QUOTES.length];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { paddingTop: topBarHeight + 24 }]} showsVerticalScrollIndicator={false}>
       {/* Trending Reflections */}
       <View style={styles.panelCard}>
         <View style={styles.cardHeader}>
@@ -245,7 +245,6 @@ export default function WebRightPanel() {
 const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   container: {
     maxWidth: 400,
-    paddingTop: 24,
     paddingRight: 24,
     paddingBottom: 16,
     backgroundColor: colors.background,

@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 17, 2026
+**Last Updated:** April 18, 2026
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -20,7 +20,7 @@
 - **Pending Chat Reminders** — `pendingChatReminderScheduler.ts` checks every 15 minutes for member messages waiting over 1 hour and nudges coaches to respond
 - **Splash and Brand Assets** — Animated startup splash flow plus refreshed app/web icon assets integrated across Expo, web public files, and iOS app icon set
 - **Image Uploads** — Cloudinary-hosted (migrated from local disk to fix Railway ephemeral filesystem); avatar + post image upload; magic bytes validation for avatars
-- **Profile** — Avatar, anonymous toggle, notification settings, **PIN display/edit**
+- **Profile** — Avatar, anonymous toggle, notification settings, **PIN display/edit**, plus persisted banner/bio/contact fields in user store and API
 - **Admin** — Invite code management, post pinning, content deletion, **device reset**
 - **Security** — Magic bytes validation for avatars, MIME allowlist, JWT auth, IDOR protection on all user-scoped endpoints, XSS sanitization (posts, comments, journals), null byte injection prevention, JSON depth limiting, payload size limiting
 - **Dark Mode** — Theme toggle with persistence
@@ -43,6 +43,8 @@
 
 ## What's Left to Build
 - Android APK build (in progress — EAS build + Android Studio)
+- Validate and finalize profile expansion (banner upload, bio editing, contacts CRUD)
+- Validate and finalize public journal sharing feed (`GET /api/journals/public` + `isPublic` create/update flow)
 - iOS build and testing
 - Performance optimization for large post feeds
 - Offline support / caching

@@ -261,6 +261,44 @@ export async function apiUploadAvatar(
 }
 
 /**
+ * POST /api/users/:userId/banner
+ * Uploads a profile banner image. Returns { bannerUrl }.
+ */
+export async function apiUploadBanner(
+  userId: string,
+  imageUri: string
+): Promise<{ bannerUrl: string }> {
+  const formData = new FormData();
+
+  if (Platform.OS === 'web') {
+    const blob = await fetch(imageUri).then((r) => r.blob());
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[blob.type] ?? 'jpg';
+    formData.append('image', blob, `banner.${ext}`);
+  } else {
+    const uriParts = imageUri.split('.');
+    const ext = uriParts[uriParts.length - 1]?.toLowerCase() ?? 'jpg';
+    const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+    const mimeType = mimeMap[ext] ?? 'image/jpeg';
+    formData.append('image', {
+      uri: imageUri,
+      name: `banner.${ext}`,
+      type: mimeType,
+    } as any);
+  }
+
+  const response = await fetch(`${BASE_URL}/api/users/${userId}/banner`, {
+    method: 'POST',
+    body: formData,
+    headers: _authToken ? { Authorization: `Bearer ${_authToken}` } : undefined,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to upload banner');
+  }
+  return response.json();
+}
+
+/**
  * GET /api/users/:userId/pin
  * Returns the user's current PIN code.
  */
@@ -277,7 +315,7 @@ export async function apiGetPin(
  */
 export async function apiGetUserStats(
   userId: string
-): Promise<{ encouragementsGiven: number; totalReflections: number; streak: number }> {
+): Promise<{ encouragementsGiven: number; totalReflections: number; streak: number; createdAt?: string }> {
   const { data } = await client.get(`/api/users/${userId}/stats`);
   return data;
 }
@@ -302,6 +340,41 @@ export async function apiUpdatePin(
   pin: string
 ): Promise<{ success: boolean; pin: string }> {
   const { data } = await client.patch(`/api/users/${userId}/pin`, { pin });
+  return data;
+}
+
+/**
+ * PATCH /api/users/:userId/bio
+ * Updates the user's About Me bio text.
+ */
+export async function apiUpdateBio(
+  userId: string,
+  bio: string
+): Promise<{ success: boolean; bio: string }> {
+  const { data } = await client.patch(`/api/users/${userId}/bio`, { bio });
+  return data;
+}
+
+/**
+ * GET /api/users/:userId/contacts
+ * Returns the user's public contact fields.
+ */
+export async function apiGetContacts(
+  userId: string
+): Promise<{ contacts: import('../../../packages/types').ContactInfo }> {
+  const { data } = await client.get(`/api/users/${userId}/contacts`);
+  return data;
+}
+
+/**
+ * PATCH /api/users/:userId/contacts
+ * Updates the user's public contact fields.
+ */
+export async function apiUpdateContacts(
+  userId: string,
+  contacts: import('../../../packages/types').ContactInfo
+): Promise<{ success: boolean; contacts: import('../../../packages/types').ContactInfo }> {
+  const { data } = await client.patch(`/api/users/${userId}/contacts`, contacts);
   return data;
 }
 
@@ -944,6 +1017,17 @@ export async function apiDeleteJournal(
     `/api/journals/${journalId}`,
     { data: { userId } }
   );
+  return data;
+}
+
+/**
+ * GET /api/journals/public
+ * Returns public journal entries. Pass userId to filter to a specific user.
+ */
+export async function apiFetchPublicJournals(userId?: string): Promise<GetJournalsResponse> {
+  const { data } = await client.get<GetJournalsResponse>('/api/journals/public', {
+    params: userId ? { userId } : undefined,
+  });
   return data;
 }
 

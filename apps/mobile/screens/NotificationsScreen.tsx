@@ -3,7 +3,7 @@
 // Display user notifications with read/unread states
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import {
 import type { Notification, Post } from '../../../packages/types';
 import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
+import { useScrollBarVisibility } from '../hooks/useScrollBarVisibility';
 
 type NavigationType = DrawerNavigationProp<any>;
 
@@ -132,6 +133,18 @@ export default function NotificationsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 900;
+  const isMedium = width >= 600;
+  const isSmall = width < 600;
+  const sectionListRef = useRef<SectionList<Notification, { title: string; data: Notification[] }>>(null);
+  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
+  const scrollToTopRef = useRef(scrollToTopTrigger);
+
+  useEffect(() => {
+    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+      sectionListRef.current?.scrollToLocation({ sectionIndex: 0, itemIndex: 0, animated: true, viewOffset: 0 });
+    }
+    scrollToTopRef.current = scrollToTopTrigger;
+  }, [scrollToTopTrigger]);
 
   const loadNotifications = useCallback(async () => {
     if (!userId) return;
@@ -257,7 +270,7 @@ export default function NotificationsScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.notificationCard}
+        style={[styles.notificationCard, isSmall && styles.notificationCardSmall, isMedium && styles.notificationCardMd]}
         onPress={() => handleNotificationPress(item)}
         activeOpacity={0.7}
       >
@@ -266,33 +279,33 @@ export default function NotificationsScreen() {
           {item.data?.actorAvatarUrl ? (
             <Image
               source={{ uri: resolveAvatarUrl(item.data.actorAvatarUrl) }}
-              style={[styles.avatar, { borderColor: colors.outlineVariant }]}
+              style={[styles.avatar, { borderColor: colors.outlineVariant }, isSmall && styles.avatarSmall]}
             />
           ) : (
-            <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
+            <View style={[styles.avatar, { backgroundColor: avatarBg }, isSmall && styles.avatarSmall]}>
               <Ionicons
                 name={item.type === 'ENCOURAGEMENT' ? 'sparkles' : 'person'}
-                size={24}
+                size={isSmall ? 20 : 24}
                 color={item.type === 'ENCOURAGEMENT' ? colors.tertiary : colors.onSurfaceVariant}
               />
             </View>
           )}
-          <View style={[styles.avatarBadge, { backgroundColor: iconColor }]}>
-            <Ionicons name={iconName} size={10} color="#FFFFFF" />
+          <View style={[styles.avatarBadge, { backgroundColor: iconColor }, isSmall && styles.avatarBadgeSmall]}>
+            <Ionicons name={iconName} size={isSmall ? 8 : 10} color="#FFFFFF" />
           </View>
         </View>
 
         {/* Content */}
         <View style={styles.content}>
-          <Text style={[styles.bodyText, !item.read && styles.bodyTextUnread]} numberOfLines={2}>
-            <Text style={styles.titleBold}>{item.title}</Text>
+          <Text style={[styles.bodyText, !item.read && styles.bodyTextUnread, isSmall && styles.bodyTextSmall]} numberOfLines={2}>
+            <Text style={[styles.titleBold, isSmall && styles.titleBoldSmall]}>{item.title}</Text>
             {' '}{item.body}
           </Text>
-          <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
+          <Text style={[styles.time, isSmall && styles.timeSmall]}>{formatRelativeTime(item.createdAt)}</Text>
         </View>
 
         {/* Unread dot */}
-        {!item.read && <View style={styles.unreadDot} />}
+        {!item.read && <View style={[styles.unreadDot, isSmall && styles.unreadDotSmall]} />}
       </TouchableOpacity>
     );
   };
@@ -309,9 +322,9 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, isWide && styles.centeredContent]}>
+        <View style={[styles.header, isWide && styles.centeredContent, isSmall && styles.headerSmall]}>
           <View style={styles.headerTitleRow}>
-            <Text style={[styles.headerTitle, { color: colors.onSurface }]}>Notifications</Text>
+            <Text style={[styles.headerTitle, { color: colors.onSurface }, isSmall && styles.headerTitleSmall]}>Notifications</Text>
           </View>
         </View>
         <View style={styles.loadingContainer}>
@@ -326,12 +339,12 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, isWide && styles.centeredContent]}>
+      <View style={[styles.header, isWide && styles.centeredContent, isSmall && styles.headerSmall]}>
         <View style={styles.headerTitleRow}>
-          <Text style={[styles.headerTitle, { color: colors.onSurface }]}>Notifications</Text>
+          <Text style={[styles.headerTitle, { color: colors.onSurface }, isSmall && styles.headerTitleSmall]}>Notifications</Text>
           {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount} New</Text>
+            <View style={[styles.badge, isSmall && styles.badgeSmall]}>
+              <Text style={[styles.badgeText, isSmall && styles.badgeTextSmall]}>{unreadCount} New</Text>
             </View>
           )}
           <View style={{ flex: 1 }} />
@@ -339,10 +352,10 @@ export default function NotificationsScreen() {
 
         {/* Search + actions row */}
         <View style={styles.searchRow}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={16} color={colors.placeholder} />
+          <View style={[styles.searchContainer, isSmall && styles.searchContainerSmall]}>
+            <Ionicons name="search-outline" size={isSmall ? 14 : 16} color={colors.placeholder} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, isSmall && styles.searchInputSmall]}
               placeholder="Search notification history..."
               placeholderTextColor={colors.placeholder}
               value={searchQuery}
@@ -350,17 +363,17 @@ export default function NotificationsScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-            <Ionicons name="options-outline" size={20} color={colors.onSurfaceVariant} />
+          <TouchableOpacity style={[styles.iconButton, isSmall && styles.iconButtonSmall]} activeOpacity={0.7}>
+            <Ionicons name="options-outline" size={isSmall ? 18 : 20} color={colors.onSurfaceVariant} />
           </TouchableOpacity>
 
           {unreadCount > 0 && (
             <TouchableOpacity
-              style={styles.iconButton}
+              style={[styles.iconButton, isSmall && styles.iconButtonSmall]}
               onPress={markAllAsRead}
               activeOpacity={0.7}
             >
-              <Ionicons name="checkmark-done-outline" size={20} color={colors.onSurfaceVariant} />
+              <Ionicons name="checkmark-done-outline" size={isSmall ? 18 : 20} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
           )}
         </View>
@@ -387,11 +400,12 @@ export default function NotificationsScreen() {
         </View>
       ) : (
         <SectionList
+          ref={sectionListRef}
           sections={sections}
           renderItem={renderNotification}
           renderSectionHeader={renderSectionHeader}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, isSmall && styles.listSmall]}
           stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
@@ -420,6 +434,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
+  headerSmall: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -430,6 +449,10 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.displayBold,
     color: colors.onSurface,
   },
+  headerTitleSmall: {
+    fontSize: 24,
+    marginBottom: 0,
+  },
   badge: {
     marginLeft: 10,
     paddingHorizontal: 12,
@@ -437,10 +460,18 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.primary,
   },
+  badgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
   badgeText: {
     fontSize: 12,
     fontFamily: fonts.bodySemiBold,
     color: '#FFFFFF',
+  },
+  badgeTextSmall: {
+    fontSize: 10,
   },
 
   // Search row
@@ -459,12 +490,21 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     height: 40,
     gap: 8,
   },
+  searchContainerSmall: {
+    height: 36,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
   searchInput: {
     flex: 1,
     fontSize: 14,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurface,
     paddingVertical: 0,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
+  },
+  searchInputSmall: {
+    fontSize: 13,
   },
   iconButton: {
     width: 40,
@@ -473,6 +513,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     backgroundColor: colors.surfaceContainerHigh,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconButtonSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
 
   // Section headers
@@ -545,6 +590,10 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     paddingBottom: 80,
     ...(Platform.OS === 'web' ? { maxWidth: 900, alignSelf: 'center' as any, width: '100%' as any } : {}),
   },
+  listSmall: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: 70,
+  },
 
   // Notification card
   notificationCard: {
@@ -559,6 +608,14 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 12,
     elevation: 2,
+  },
+  notificationCardSmall: {
+    padding: 10,
+    borderRadius: 16,
+    marginBottom: 6,
+  },
+  notificationCardMd: {
+    padding: 16,
   },
 
   // Avatar
@@ -575,6 +632,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.outlineVariant,
   },
+  avatarSmall: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
   avatarBadge: {
     position: 'absolute',
     bottom: -2,
@@ -586,6 +648,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.surfaceContainerLowest,
+  },
+  avatarBadgeSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
   },
 
   // Content
@@ -601,15 +668,26 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   bodyTextUnread: {
     color: colors.onSurface,
   },
+  bodyTextSmall: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   titleBold: {
     fontFamily: fonts.bodyBold,
     color: colors.onSurface,
+  },
+  titleBoldSmall: {
+    fontSize: 13,
   },
   time: {
     fontSize: 12,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurfaceVariant,
     marginTop: 4,
+  },
+  timeSmall: {
+    fontSize: 11,
+    marginTop: 2,
   },
 
   // Unread dot
@@ -619,5 +697,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.primary,
     marginLeft: 10,
+  },
+  unreadDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 8,
   },
 });

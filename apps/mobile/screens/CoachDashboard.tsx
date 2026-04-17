@@ -3,7 +3,7 @@
 // PUSO Coach review dashboard — Sacred Journal design
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import type { DrawerNavigationProp } from '@react-navigation/drawer';
 
 import { colors as defaultColors, fonts, radii, ambientShadow } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
+import { useScrollBarVisibility } from '../hooks/useScrollBarVisibility';
 import { useUserStore } from '../context/UserContext';
 import {
   apiGetReviewQueue,
@@ -78,7 +79,7 @@ function avatarColors(ch: string): [string, string] {
   return gradients[ch.charCodeAt(0) % gradients.length];
 }
 
-const TAG_COLORS: Record<string, { bg: string; text: string }> = {
+const TAG_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
   struggling: { bg: '#FDEEF0', text: '#A60550' },
   encouragement: { bg: '#EEF5EE', text: '#22854A' },
   prayer: { bg: '#F0EEFF', text: '#371FA9' },
@@ -86,9 +87,18 @@ const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   default: { bg: '#F1EBF9', text: '#7D45A2' },
 };
 
-function getTagColor(tag: string) {
+const TAG_COLORS_DARK: Record<string, { bg: string; text: string }> = {
+  struggling: { bg: '#3A1520', text: '#FF8090' },
+  encouragement: { bg: '#1A2E1A', text: '#60D080' },
+  prayer: { bg: '#1E1A38', text: '#A090FF' },
+  gratitude: { bg: '#3A2E1A', text: '#F0C060' },
+  default: { bg: '#2A1E3A', text: '#C89BE8' },
+};
+
+function getTagColor(tag: string, isDark = false) {
+  const palette = isDark ? TAG_COLORS_DARK : TAG_COLORS_LIGHT;
   const key = tag.replace('#', '').toLowerCase();
-  return TAG_COLORS[key] ?? TAG_COLORS.default;
+  return palette[key] ?? palette.default;
 }
 
 // ─────────────────────────────────────────────
@@ -98,10 +108,20 @@ export default function CoachDashboard() {
   const { userId, username, role } = useUserStore();
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
-  const s = useMemo(() => createStyles(colors), [colors]);
+  const s = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const isNarrow = width < 500;
+
+  const mainScrollRef = useRef<ScrollView>(null);
+  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
+  const scrollToTopRef = useRef(scrollToTopTrigger);
+  useEffect(() => {
+    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+      mainScrollRef.current?.scrollTo({ y: 0, animated: true });
+    }
+    scrollToTopRef.current = scrollToTopTrigger;
+  }, [scrollToTopTrigger]);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -285,7 +305,7 @@ export default function CoachDashboard() {
   ) => (
     <View style={s.statCard}>
       <View style={s.statTop}>
-        <View style={[s.statIconWrap, { backgroundColor: iconBg + '18' }]}>
+        <View style={[s.statIconWrap, { backgroundColor: iconBg + (isDark ? '30' : '18') }]}>
           <Ionicons name={icon} size={22} color={iconBg} />
         </View>
         {badge && (
@@ -346,7 +366,7 @@ export default function CoachDashboard() {
           {tags.length > 0 && (
             <View style={s.tagsRow}>
               {tags.slice(0, 2).map((tag) => {
-                const tc = getTagColor(tag);
+                const tc = getTagColor(tag, isDark);
                 return (
                   <View key={tag} style={[s.tagBadge, { backgroundColor: tc.bg }]}>
                     <Text style={[s.tagText, { color: tc.text }]}>#{tag.toUpperCase()}</Text>
@@ -454,7 +474,7 @@ export default function CoachDashboard() {
             const tags = (stats?.trendingTags ?? []).slice(0, 3);
             const maxCount = Math.max(...tags.map((t) => t.count), 1);
             return tags.map((item) => {
-              const tc = getTagColor(item.tag);
+              const tc = getTagColor(item.tag, isDark);
               const pct = Math.round((item.count / maxCount) * 100);
               return (
                 <View key={item.tag} style={s.sentimentRow}>
@@ -600,6 +620,7 @@ export default function CoachDashboard() {
       <View style={s.mainRow}>
         {/* Left / Main content */}
         <ScrollView
+          ref={mainScrollRef}
           style={s.scrollArea}
           contentContainerStyle={s.scrollContent}
           refreshControl={
@@ -784,7 +805,7 @@ export default function CoachDashboard() {
               {/* Send invite by email */}
               <View style={s.inviteCard}>
                 <View style={s.inviteCardHeader}>
-                  <View style={[s.inviteIconWrap, { backgroundColor: colors.primary + '18' }]}>
+                  <View style={[s.inviteIconWrap, { backgroundColor: colors.primary + (isDark ? '30' : '18') }]}>
                     <Ionicons name="mail-outline" size={20} color={colors.primary} />
                   </View>
                   <Text style={s.inviteCardTitle}>Send Invite by Email</Text>
@@ -822,7 +843,7 @@ export default function CoachDashboard() {
               {/* Generate code */}
               <View style={s.inviteCard}>
                 <View style={s.inviteCardHeader}>
-                  <View style={[s.inviteIconWrap, { backgroundColor: colors.secondary + '18' }]}>
+                  <View style={[s.inviteIconWrap, { backgroundColor: colors.secondary + (isDark ? '30' : '18') }]}>
                     <Ionicons name="key-outline" size={20} color={colors.secondary} />
                   </View>
                   <Text style={s.inviteCardTitle}>Generate Invite Code</Text>
@@ -889,7 +910,7 @@ export default function CoachDashboard() {
                           <Text style={[s.inviteStatusText, { color: colors.muted5 }]}>Used</Text>
                         </View>
                       ) : (
-                        <View style={[s.inviteStatusBadge, { backgroundColor: colors.safe + '20' }]}>
+                        <View style={[s.inviteStatusBadge, { backgroundColor: colors.safe + (isDark ? '35' : '20') }]}>
                           <Text style={[s.inviteStatusText, { color: colors.safe }]}>Available</Text>
                         </View>
                       )}
@@ -911,7 +932,7 @@ export default function CoachDashboard() {
 // ─────────────────────────────────────────────
 // Styles – Sacred Journal light design
 // ─────────────────────────────────────────────
-const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
+const createStyles = (colors: typeof defaultColors, isDark = false) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -970,10 +991,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   statCard: {
     minWidth: 160,
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
     borderRadius: radii.xl,
     padding: 18,
-    ...ambientShadow,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
   },
   statTop: {
     flexDirection: 'row',
@@ -1047,11 +1070,13 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // ── Review card ──────────────────────────
   reviewCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
     borderRadius: radii.xl,
     padding: 18,
     marginBottom: 12,
-    ...ambientShadow,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
   },
   reviewHeader: {
     flexDirection: 'row',
@@ -1093,7 +1118,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: colors.danger + '15',
+    backgroundColor: colors.danger + (isDark ? '30' : '15'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.sm,
@@ -1170,7 +1195,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.danger,
-    backgroundColor: colors.danger + '10',
+    backgroundColor: colors.danger + (isDark ? '25' : '10'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1236,10 +1261,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // Sentiment card
   sentimentCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
     borderRadius: radii.xl,
     padding: 18,
-    ...ambientShadow,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
   },
   sentimentHeader: {
     flexDirection: 'row',
@@ -1291,10 +1318,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // Chats card
   chatsCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
     borderRadius: radii.xl,
     padding: 18,
-    ...ambientShadow,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
   },
   chatsHeader: {
     flexDirection: 'row',
@@ -1366,10 +1395,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // Members card
   membersCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
     borderRadius: radii.xl,
     padding: 18,
-    ...ambientShadow,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
   },
   membersHeader: {
     flexDirection: 'row',
@@ -1459,11 +1490,13 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // ── Invite Coaches (admin) ────────────────
   inviteCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
     borderRadius: radii.xl,
     padding: 18,
     marginBottom: 12,
-    ...ambientShadow,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
   },
   inviteCardHeader: {
     flexDirection: 'row',

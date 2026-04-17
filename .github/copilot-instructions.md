@@ -10,9 +10,9 @@ Every screen must be responsive across mobile, tablet, and web. Use `useWindowDi
 
 ```ts
 const { width } = useWindowDimensions();
-const isMedium = width >= 600;   // Tablet / medium web
-const twoCol   = width >= 700;   // Two-column layouts
-const isWide   = Platform.OS === 'web' && width >= 900; // Wide web
+const isWide   = width >= 900;                  // Wide web / desktop
+const isMedium = width < 900 && width >= 600;    // Tablet / medium web
+const isSmall  = width < 600;                    // Mobile
 ```
 
 - **Mobile-first styles**: Default stylesheet values target the smallest screens (compact padding, smaller fonts, wrapped layouts).

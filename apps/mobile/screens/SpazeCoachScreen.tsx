@@ -5,7 +5,7 @@
 // Coaches: see all conversations across all users
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ import {
 } from "../services/api";
 import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
+import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import type { CoachProfile, Conversation } from "../../../packages/types";
 
 const DEFAULT_SPECIALTIES = ["Wellness", "Support"];
@@ -43,6 +44,16 @@ export default function SpazeCoachScreen({ navigation }: any) {
   const isCoach = role === "COACH" || role === "ADMIN";
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 900;
+
+  const flatListRef = useRef<FlatList>(null);
+  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
+  const scrollToTopRef = useRef(scrollToTopTrigger);
+  useEffect(() => {
+    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+    scrollToTopRef.current = scrollToTopTrigger;
+  }, [scrollToTopTrigger]);
 
   const [coaches, setCoaches] = useState<CoachProfile[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -185,13 +196,13 @@ export default function SpazeCoachScreen({ navigation }: any) {
           ))}
         </View>
         {isStarting ? (
-          <View style={[s.coachMsgBtn, { backgroundColor: colors.primary }]}>
+          <View style={[s.coachMsgBtn, { backgroundColor: colors.secondary }]}>
             <ActivityIndicator size="small" color={colors.onPrimary} />
           </View>
         ) : (
-          <View style={[s.coachMsgBtn, { backgroundColor: colors.primary }]}>
-            <Ionicons name="chatbubble" size={13} color={colors.onPrimary} />
-            <Text style={[s.coachMsgBtnText, { color: colors.onPrimary }]}>Message</Text>
+          <View style={[s.coachMsgBtn, { backgroundColor: colors.secondary }]}>
+            <Ionicons name="chatbubble-ellipses" size={18} color={colors.onPrimary} />
+            <Text style={[s.coachMsgBtnText, { color: colors.onPrimary }]}>Message Coach</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -285,6 +296,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
       />
 
       <FlatList
+        ref={flatListRef}
         data={conversations}
         keyExtractor={(item) => item.id}
         renderItem={renderConversationCard}

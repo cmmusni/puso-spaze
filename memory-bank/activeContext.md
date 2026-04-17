@@ -1,8 +1,11 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 17, 2026
+**Last Updated:** April 18, 2026
 
 ## Current Work Focus
+- Profile expansion: banner uploads, editable bio, and saved contact fields
+- Journal sharing controls: private/public toggle and public journal feed endpoint
+- Mobile UX refinements: notifications responsive polish and shared scroll-to-top trigger
 - Scroll-direction hide/show bars: top bar + bottom tab bar auto-hide on scroll down, reveal on scroll up
 - Refresh UX parity: native pull-to-refresh coverage + mobile web pull-to-refresh behavior
 - Streak system overhaul: visit-based streak counting + push reminders
@@ -13,6 +16,25 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Profile, Contacts, and Public Journal Expansion (April 18, 2026)
+- **SCHEMA**: Added user profile/contact fields: `bannerUrl`, `bio`, `phone`, `contactEmail`, `facebook`, `instagram`, `linkedin`, `twitter`, `tiktok`, `youtube`
+- **SCHEMA**: Added `journals.isPublic` (default `false`) for optional public sharing
+- **MIGRATIONS**:
+  - `20260417173529_add_banner_url`
+  - `20260417183236_add_journal_is_public`
+  - `20260417184654_add_bio`
+  - `20260417185940_add_contact_fields`
+- **USER API**: Added `POST /api/users/:userId/banner`, `PATCH /api/users/:userId/bio`, `GET /api/users/:userId/contacts`, `PATCH /api/users/:userId/contacts`
+- **JOURNAL API**: Added `GET /api/journals/public` (no auth), and `isPublic` support in create/update routes + controller
+- **SHARED TYPES**: `packages/types/index.ts` now includes `ContactInfo`, user contact/profile fields, and `Journal.isPublic`
+- **CLIENT STORE/API**: `UserContext` persists `bannerUrl`, `bio`, and `contacts`; API layer updated to consume new user/journal fields
+- **UI SCOPE**: `ProfileScreen.tsx` significantly expanded (new profile/social/contact surfaces) and linked to new backend fields
+
+### Notifications + Shared Scroll Trigger (April 18, 2026)
+- **HOOK**: `useScrollBarVisibility` now includes `scrollToTopTrigger` and `triggerScrollToTop()`
+- **NOTIFICATIONS SCREEN**: Added `SectionList` ref + trigger-based scroll-to-top handling
+- **RESPONSIVE POLISH**: Notifications UI now applies mobile-specific sizing for card spacing, avatar/badge sizes, header, search row, and unread indicators
 
 ### Scroll-Direction Bar Auto-Hide (April 17, 2026)
 - **NEW HOOK**: `apps/mobile/hooks/useScrollBarVisibility.ts` — Zustand store holding `barsVisible` boolean shared between HomeScreen and BottomTabBar

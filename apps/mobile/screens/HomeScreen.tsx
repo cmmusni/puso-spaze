@@ -151,6 +151,7 @@ export default function HomeScreen() {
 
   // ── Scroll-direction bar visibility ──
   const setBarsVisible = useScrollBarVisibility((s) => s.setBarsVisible);
+  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
   const lastScrollY = useRef(0);
   const topBarTranslateY = useRef(new Animated.Value(0)).current;
   const barsShown = useRef(true);
@@ -185,6 +186,16 @@ export default function HomeScreen() {
     }
     lastScrollY.current = offsetY;
   }, [animateBars, isWide]);
+
+  // ── Scroll to top when active tab is re-tapped ──
+  const scrollToTopRef = useRef(scrollToTopTrigger);
+  useEffect(() => {
+    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      animateBars(true);
+    }
+    scrollToTopRef.current = scrollToTopTrigger;
+  }, [scrollToTopTrigger, animateBars]);
 
   // ── Search state ──
   const [searchText, setSearchText] = useState("");
@@ -428,8 +439,7 @@ export default function HomeScreen() {
       {/* ── Greeting section ── */}
       <View style={styles.greetingSection}>
         <Text style={styles.greetingText}>
-          {getGreeting()},{isCoach ? " Coach " : " "}
-          {displayName}.
+          {getGreeting()}, {displayName}.
         </Text>
         <Text style={styles.greetingSub}>
           Welcome to your safe space. What's on your heart today?
@@ -437,37 +447,6 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Push notification permission banner (web only) ── */}
-      {showPushBanner && (
-        <View style={styles.pushBanner}>
-          <View style={styles.pushBannerContent}>
-            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pushBannerTitle}>Enable notifications</Text>
-              <Text style={styles.pushBannerText}>
-                Get notified when someone reacts or comments on your posts.
-              </Text>
-            </View>
-          </View>
-          <View style={styles.pushBannerActions}>
-            <TouchableOpacity
-              onPress={() => setPushBannerDismissed(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.pushBannerDismiss}>Not now</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={async () => {
-                await requestWebPushPermission();
-                setPushBannerDismissed(true);
-              }}
-              activeOpacity={0.8}
-              style={styles.pushBannerEnableBtn}
-            >
-              <Text style={styles.pushBannerEnableText}>Enable</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
 
       {/* ── Daily Reflection card ── */}
       {stats.dailyReflection && (
@@ -909,7 +888,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {showRightPanel && <WebRightPanel />}
+        {showRightPanel && <WebRightPanel topBarHeight={topBarHeight} />}
       </View>
 
       {/* ── Feeling picker modal ── */}
@@ -975,6 +954,58 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* ── Push notification prompt modal (web only) ── */}
+      <Modal
+        visible={showPushBanner}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setPushBannerDismissed(true)}
+      >
+        <View style={styles.pushModalBackdrop}>
+          <View style={[styles.pushModalSheet, { backgroundColor: colors.surfaceContainerLowest }]}>
+            <View style={styles.pushModalIconWrap}>
+              <LinearGradient
+                colors={[colors.secondary, colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.pushModalIcon}
+              >
+                <Ionicons name="notifications" size={32} color={colors.onPrimary} />
+              </LinearGradient>
+            </View>
+            <Text style={styles.pushModalTitle}>Stay in the Loop</Text>
+            <Text style={styles.pushModalText}>
+              Get notified when someone reacts, comments, or sends you a message of encouragement.
+            </Text>
+            <TouchableOpacity
+              onPress={async () => {
+                await requestWebPushPermission();
+                setPushBannerDismissed(true);
+              }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={[colors.secondary, colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.pushModalEnableBtn}
+              >
+                <Ionicons name="notifications-outline" size={18} color={colors.onPrimary} />
+                <Text style={styles.pushModalEnableText}>Enable Notifications</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setPushBannerDismissed(true)}
+              activeOpacity={0.7}
+              style={styles.pushModalDismissBtn}
+            >
+              <Text style={styles.pushModalDismissText}>Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1002,7 +1033,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
   hamburger: { padding: 4 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
-  topBarLogo: { width: 30, height: 30 },
+  topBarLogo: { width: 30, height: 30, borderRadius: 7 },
   searchBar: {
     flex: 1,
     flexDirection: "row",
@@ -1104,59 +1135,74 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     lineHeight: 24,
   },
 
-  // ── Push notification banner ──
-  pushBanner: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
+  // ── Push notification modal ──
+  pushModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  pushModalSheet: {
+    borderRadius: radii.xl,
+    padding: spacing.xl,
+    maxWidth: 380,
+    width: '100%' as any,
+    alignItems: 'center' as any,
     ...ambientShadow,
-    borderWidth: 1,
-    borderColor: colors.outline + '26',
   },
-  pushBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
+  pushModalIconWrap: {
+    marginBottom: spacing.lg,
   },
-  pushBannerTitle: {
-    fontSize: 14,
+  pushModalIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center' as any,
+    justifyContent: 'center' as any,
+  },
+  pushModalTitle: {
+    fontSize: 22,
     fontFamily: fonts.displayBold,
     color: colors.onSurface,
-    marginBottom: 2,
+    textAlign: 'center' as any,
+    marginBottom: spacing.sm,
   },
-  pushBannerText: {
-    fontSize: 13,
+  pushModalText: {
+    fontSize: 14,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurfaceVariant,
-    lineHeight: 18,
+    textAlign: 'center' as any,
+    lineHeight: 21,
+    marginBottom: spacing.xl,
   },
-  pushBannerActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  pushBannerDismiss: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.onSurfaceVariant,
-  },
-  pushBannerEnableBtn: {
-    backgroundColor: colors.primary,
+  pushModalEnableBtn: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    justifyContent: 'center' as any,
+    gap: spacing.sm,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.xl,
     borderRadius: radii.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
+    width: '100%' as any,
   },
-  pushBannerEnableText: {
-    fontSize: 13,
+  pushModalEnableText: {
+    fontSize: 15,
     fontFamily: fonts.displayBold,
     color: colors.onPrimary,
   },
+  pushModalDismissBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  pushModalDismissText: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.onSurfaceVariant,
+  },
 
   // ── Inline Composer ──
-  composerSection: { marginTop: 16 },
+  composerSection: { marginTop: 16, marginBottom: spacing.sm },
   composerCard: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: radii.xl,

@@ -17,6 +17,17 @@ export const REACTION_EMOJI: Record<ReactionType, string> = {
   SUPPORT:  '🫶',
 };
 
+export interface ContactInfo {
+  phone?: string | null;
+  contactEmail?: string | null;
+  facebook?: string | null;
+  instagram?: string | null;
+  linkedin?: string | null;
+  twitter?: string | null;
+  tiktok?: string | null;
+  youtube?: string | null;
+}
+
 export interface User {
   id: string;
   displayName: string;
@@ -24,6 +35,15 @@ export interface User {
   createdAt: string;
   isAnonymous?: boolean;
   avatarUrl?: string | null;
+  bio?: string | null;
+  phone?: string | null;
+  contactEmail?: string | null;
+  facebook?: string | null;
+  instagram?: string | null;
+  linkedin?: string | null;
+  twitter?: string | null;
+  tiktok?: string | null;
+  youtube?: string | null;
 }
 
 export interface MentionUser {
@@ -102,6 +122,7 @@ export interface Journal {
   content: string;
   mood?: string | null;
   tags?: string[];
+  isPublic?: boolean;
   createdAt: string;
   updatedAt: string;
   user?: Pick<User, 'displayName' | 'role' | 'avatarUrl'>;
@@ -173,9 +194,9 @@ export interface MarkAllNotificationsReadRequest { userId: string; }
 export interface MarkAllNotificationsReadResponse { success: boolean; }
 
 // Journal
-export interface CreateJournalRequest { userId: string; title: string; content: string; mood?: string; tags?: string[]; }
+export interface CreateJournalRequest { userId: string; title: string; content: string; mood?: string; tags?: string[]; isPublic?: boolean; }
 export interface CreateJournalResponse { journal: Journal; }
-export interface UpdateJournalRequest { userId: string; title: string; content: string; mood?: string; tags?: string[]; }
+export interface UpdateJournalRequest { userId: string; title: string; content: string; mood?: string; tags?: string[]; isPublic?: boolean; }
 export interface UpdateJournalResponse { journal: Journal; }
 export interface GetJournalsResponse { journals: Journal[]; }
 export interface GetJournalResponse { journal: Journal; }

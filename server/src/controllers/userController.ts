@@ -273,6 +273,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
           // Backfill PIN for users created before the PIN feature
           ...(!existingUser.pin ? { pin: await generateUniquePin() } : {}),
         },
+        select: { id: true, displayName: true, role: true, avatarUrl: true, bannerUrl: true, pin: true },
       });
 
       res.status(200).json({
@@ -280,6 +281,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         displayName: user.displayName,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        bannerUrl: user.bannerUrl ?? null,
         pin: user.pin,
         token: signToken({ userId: user.id, role: user.role }),
       });
@@ -301,6 +303,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         ...(deviceId ? { deviceId } : {}),
         ...(isAdminUsername(displayName) ? { role: 'ADMIN' } : {}),
       },
+      select: { id: true, displayName: true, role: true, avatarUrl: true, bannerUrl: true, pin: true },
     });
 
     res.status(201).json({
@@ -308,6 +311,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       displayName: user.displayName,
       role: user.role,
       avatarUrl: user.avatarUrl,
+      bannerUrl: user.bannerUrl ?? null,
       pin: user.pin,
       token: signToken({ userId: user.id, role: user.role }),
     });
@@ -335,6 +339,7 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
         isAnonymous: true,
         notificationsEnabled: true,
         avatarUrl: true,
+        bannerUrl: true,
         createdAt: true,
       },
     });
@@ -505,6 +510,153 @@ export async function uploadAvatar(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * POST /api/users/:userId/banner
+ * Uploads a profile banner image via multipart form data.
+ * Returns: { bannerUrl: string }
+ */
+export async function uploadBanner(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only update your own banner.' });
+    return;
+  }
+
+  const imageFile = (req as any).file as Express.Multer.File | undefined;
+
+  if (!imageFile) {
+    res.status(400).json({ error: 'No image file provided.' });
+    return;
+  }
+
+  try {
+    const bannerUrl = await uploadBuffer(imageFile.buffer, 'puso-spaze/banners');
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { bannerUrl },
+      select: { id: true, bannerUrl: true },
+    });
+
+    res.json({ bannerUrl: user.bannerUrl });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] uploadBanner error:', err);
+      res.status(500).json({ error: 'Failed to upload banner.' });
+    }
+  }
+}
+
+/**
+ * PATCH /api/users/:userId/bio
+ * Body: { bio: string }
+ * Returns: { success: boolean, bio: string }
+ */
+export async function updateBio(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+  const { bio } = req.body as { bio: string };
+
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only update your own bio.' });
+    return;
+  }
+
+  if (typeof bio !== 'string') {
+    res.status(400).json({ error: 'bio must be a string.' });
+    return;
+  }
+
+  const trimmed = bio.trim().slice(0, 500);
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { bio: trimmed },
+      select: { id: true, bio: true },
+    });
+    res.json({ success: true, bio: user.bio ?? '' });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] updateBio error:', err);
+      res.status(500).json({ error: 'Failed to update bio.' });
+    }
+  }
+}
+
+/**
+ * GET /api/users/:userId/contacts
+ * Returns the user's public contact fields.
+ */
+export async function getContacts(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only view your own contacts.' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, contactEmail: true, facebook: true, instagram: true, linkedin: true, twitter: true, tiktok: true, youtube: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ contacts: user });
+  } catch (err) {
+    console.error('[UserController] getContacts error:', err);
+    res.status(500).json({ error: 'Failed to get contacts.' });
+  }
+}
+
+/**
+ * PATCH /api/users/:userId/contacts
+ * Body: { phone?, contactEmail?, facebook?, instagram?, linkedin?, twitter?, tiktok?, youtube? }
+ */
+export async function updateContacts(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only update your own contacts.' });
+    return;
+  }
+
+  const fields = ['phone', 'contactEmail', 'facebook', 'instagram', 'linkedin', 'twitter', 'tiktok', 'youtube'] as const;
+  const sanitize = (val: unknown): string | null =>
+    typeof val === 'string' ? val.trim().slice(0, 200) || null : null;
+
+  const data: Record<string, string | null> = {};
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+      data[field] = sanitize(req.body[field]);
+    }
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { phone: true, contactEmail: true, facebook: true, instagram: true, linkedin: true, twitter: true, tiktok: true, youtube: true },
+    });
+    res.json({ success: true, contacts: user });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] updateContacts error:', err);
+      res.status(500).json({ error: 'Failed to update contacts.' });
+    }
+  }
+}
+
+/**
  * GET /api/users/:userId/pin
  * Returns the user's current PIN code.
  */
@@ -604,7 +756,7 @@ export async function getUserStats(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, streakCount: true, lastStreakDate: true },
+    select: { id: true, streakCount: true, lastStreakDate: true, createdAt: true },
   });
   if (!user) {
     res.status(404).json({ error: 'User not found.' });
@@ -655,7 +807,7 @@ export async function getUserStats(req: Request, res: Response): Promise<void> {
 
   const totalReflections = postCount + journalCount;
 
-  res.json({ encouragementsGiven, totalReflections, streak });
+  res.json({ encouragementsGiven, totalReflections, streak, createdAt: user.createdAt });
 }
 
 export async function updatePin(req: Request, res: Response): Promise<void> {

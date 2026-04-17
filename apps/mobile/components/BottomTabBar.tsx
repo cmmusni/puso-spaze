@@ -52,6 +52,7 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const barsVisible = useScrollBarVisibility((s) => s.barsVisible);
+  const triggerScrollToTop = useScrollBarVisibility((s) => s.triggerScrollToTop);
   const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -76,7 +77,13 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
           return (
             <TouchableOpacity
               key={tab.key}
-              onPress={() => onNavigate(tab.route)}
+              onPress={() => {
+                if (active) {
+                  triggerScrollToTop();
+                } else {
+                  onNavigate(tab.route);
+                }
+              }}
               activeOpacity={0.7}
               style={styles.tab}
             >

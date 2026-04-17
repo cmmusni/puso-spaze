@@ -33,6 +33,16 @@ model User {
   webPushSubscription  Json?    // Web Push API subscription object (endpoint, keys)
   email                String?  // Coach email address (from invite code)
   avatarUrl            String?  // Profile picture URL
+  bannerUrl            String?  // Profile banner image URL
+  bio                  String?  // About Me bio text
+  phone                String?  // Contact phone number
+  contactEmail         String?  // Public contact email
+  facebook             String?  // Facebook profile URL or username
+  instagram            String?  // Instagram handle
+  linkedin             String?  // LinkedIn profile URL or username
+  twitter              String?  // Twitter/X handle
+  tiktok               String?  // TikTok handle
+  youtube              String?  // YouTube channel
   notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
   streakCount          Int      @default(0)     // Consecutive days the user opened the HomeScreen
   lastStreakDate       DateTime?                 // Date (midnight UTC) of last streak-qualifying visit
@@ -187,6 +197,7 @@ model Journal {
   content   String
   mood      String?  // e.g. "grateful", "anxious", "hopeful", "peaceful", "sad"
   tags      String[]
+  isPublic  Boolean  @default(false) // User can share journal entries publicly
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

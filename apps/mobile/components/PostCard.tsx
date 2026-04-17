@@ -84,6 +84,7 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
   onPin?: (postId: string) => void;
   onPostPress?: (postId: string) => void;
+  openedFrom?: string;
 }
 
 /**
@@ -104,14 +105,15 @@ function formatRelativeTime(dateStr: string): string {
 // PostCard is used inside drawer screens, so we use any for navigation type
 type CardNavProp = any;
 
-export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCardProps) {
+export default function PostCard({ post, onDelete, onPin, onPostPress, openedFrom }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
   const { userId, role, username: currentUserDisplayName, avatarUrl: currentUserAvatarUrl } = useUser();
   const colors = useThemeStore((s) => s.colors);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const isMedium = screenWidth >= 600;
-  const isSmall = screenWidth >= 350;
+  const isWide = screenWidth >= 900;
+  const isMedium = screenWidth < 900 && screenWidth >= 600;
+  const isSmall = screenWidth < 600;
 
   // ── Anonymous owner detection ─────────────────
   const isOwnAnonymousPost = post.isAnonymous && post.userId === userId;
@@ -243,7 +245,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
   const handleViewComments = () => {
     closeMenu();
     onPostPress?.(post.id);
-    navigation.navigate("PostDetail" as any, { postId: post.id });
+    navigation.navigate("PostDetail" as any, { postId: post.id, openedFrom });
   };
 
   const handleDeletePost = async () => {
@@ -401,7 +403,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
         activeOpacity={0.88}
         onPress={() => {
           onPostPress?.(post.id);
-          navigation.navigate("PostDetail" as any, { postId: post.id });
+          navigation.navigate("PostDetail" as any, { postId: post.id, openedFrom });
         }}
         onLongPress={openPicker}
         delayLongPress={300}
@@ -410,8 +412,9 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
           post.pinned ? styles.cardPinned : null,
           styles.cardDefault,
           { backgroundColor: colors.card },
-          !isMedium && { borderRadius: 0, marginHorizontal: 0, marginBottom: 2 },
-          isMedium && { padding: 24, marginBottom: 20 },
+          isSmall && { borderRadius: 0, marginHorizontal: 0, marginBottom: 2 },
+          isMedium && { padding: 24, marginBottom: 20, marginHorizontal: 20 },
+          isWide && { padding: 28, marginBottom: 24 },
         ]}
       >
         {/* ── Author row ── */}
@@ -420,33 +423,33 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
             {post.userId === "system-encouragement-bot" ? (
               <Image
                 source={require("../assets/logo.png")}
-                style={[styles.avatar, isMedium && styles.avatarMd, { borderRadius: isMedium ? 10 : 8 }]}
+                style={[styles.avatar, isMedium && styles.avatarMd, isWide && styles.avatarWide, { borderRadius: isMedium ? 10 : 8 }]}
               />
             ) : displayAvatarUrl ? (
               <Image
                 source={{ uri: resolveAvatarUrl(displayAvatarUrl) }}
-                style={[styles.avatar, isMedium && styles.avatarMd]}
+                style={[styles.avatar, isMedium && styles.avatarMd, isWide && styles.avatarWide]}
               />
             ) : (
               <LinearGradient
                 colors={colorPair}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[styles.avatar, isMedium && styles.avatarMd]}
+                style={[styles.avatar, isMedium && styles.avatarMd, isWide && styles.avatarWide]}
               >
-                <Text style={[styles.avatarInitial, isMedium && { fontSize: 17 }]}>{initial}</Text>
+                <Text style={[styles.avatarInitial, isMedium && { fontSize: 17 }, isWide && { fontSize: 19 }]}>{initial}</Text>
               </LinearGradient>
             )}
 
             <View>
               <View style={styles.authorNameRow}>
-                <Text style={[styles.authorName, isMedium && { fontSize: 15 }]}>{displayName}</Text>
+                <Text style={[styles.authorName, isMedium && { fontSize: 15 }, isWide && { fontSize: 16 }]}>{displayName}</Text>
                 {isOwnAnonymousPost && (
                   <Text
-                    style={[styles.authorSubtitle, { color: colors.secondary, maxWidth: isSmall ? 100 : isMedium ? 200 : 120 }]}
+                    style={[styles.authorSubtitle, { color: colors.secondary, maxWidth: isSmall ? 100 : isMedium ? 200 : isWide ? 320 : 'auto' }]}
                     numberOfLines={1}
                   >
-                    {" · Posted as "}{post.anonDisplayName ?? "Anonymous"}
+                    {"● Posted as "}{post.anonDisplayName ?? "Anonymous"}
                   </Text>
                 )}
                 {post.userId !== "system-encouragement-bot" && post.user?.role !== "USER" && !post.isAnonymous && (
@@ -492,7 +495,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
             {post.pinned && (
               <View style={styles.pinnedPill}>
                 <Ionicons name="pin" size={12} color={colors.accent} />
-                {isMedium && <Text style={styles.pinnedPillText}>Pinned</Text>}
+                {(isMedium || isWide) && <Text style={styles.pinnedPillText}>Pinned</Text>}
               </View>
             )}
             <TouchableOpacity
@@ -518,7 +521,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
         {post.imageUrl && (
           <Image
             source={{ uri: resolveAvatarUrl(post.imageUrl) }}
-            style={[styles.postImage, isMedium && { height: 260 }]}
+            style={[styles.postImage, isMedium && !isWide && { height: 260 }, isWide && { height: 340 }]}
             resizeMode="cover"
           />
         )}
@@ -535,7 +538,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
         )}
 
         {/* ── Footer: reaction + comment counts ── */}
-        <View style={[styles.footer, isMedium && { marginTop: 20, paddingTop: 16 }]}>
+        <View style={[styles.footer, isMedium && !isWide && { marginTop: 20, paddingTop: 16 }, isWide && { marginTop: 24, paddingTop: 18 }]}>
           <View style={styles.footerLeft}>
             {/* Main reaction button — defaults to Pray, shows user's reaction when set */}
             <TouchableOpacity
@@ -613,9 +616,10 @@ export default function PostCard({ post, onDelete, onPin, onPostPress }: PostCar
                 navigation.navigate("PostDetail" as any, {
                   postId: post.id,
                   highlightCommentId: post.latestComment!.id,
+                  openedFrom,
                 });
               }}
-              style={[styles.latestCommentWrap, !isMedium && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, isMedium && styles.latestCommentWrapMd]}
+              style={[styles.latestCommentWrap, !isMedium && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, isMedium && styles.latestCommentWrapMd, isWide && styles.latestCommentWrapWide]}
             >
               <View style={[styles.commentInner, isMedium && styles.commentInnerMd]}>
                 {cAvatarUrl ? (
@@ -1041,7 +1045,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     borderRadius: radii.xl,
     padding: 16,
     marginBottom: 14,
-    marginHorizontal: 4,
     ...ambientShadow,
   },
   cardDefault: {},
@@ -1091,6 +1094,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginRight: 12,
+  },
+  avatarWide: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 14,
   },
   avatarInitial: {
     color: colors.onPrimary,
@@ -1284,6 +1293,16 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+  },
+  latestCommentWrapWide: {
+    marginHorizontal: -28,
+    marginBottom: -28,
+    borderBottomLeftRadius: radii.xl,
+    borderBottomRightRadius: radii.xl,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.09,
+    shadowRadius: 10,
+    elevation: 4,
   },
   commentInner: {
     flex: 1,

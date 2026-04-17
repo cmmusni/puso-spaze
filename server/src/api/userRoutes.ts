@@ -7,7 +7,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import multer from 'multer';
-import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, getPin, updatePin, getUserStats, recordVisit } from '../controllers/userController';
+import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, uploadBanner, updateBio, getContacts, updateContacts, getPin, updatePin, getUserStats, recordVisit } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
 import { isValidImageBuffer } from '../utils/validateImageMagicBytes';
@@ -156,6 +156,31 @@ router.post(
   uploadAvatar
 );
 
+router.post(
+  '/:userId/banner',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.is('multipart/form-data')) {
+      avatarUpload.single('image')(req, res, (err) => {
+        if (err) return next(err);
+        const file = (req as any).file as Express.Multer.File | undefined;
+        if (file && !isValidImageBuffer(file.buffer)) {
+          res.status(400).json({ error: 'Uploaded file is not a valid image.' });
+          return;
+        }
+        next();
+      });
+    } else {
+      res.status(400).json({ error: 'Content-Type must be multipart/form-data.' });
+    }
+  },
+  uploadBanner
+);
+
 router.get(
   '/:userId/pin',
   requireAuth,
@@ -198,6 +223,37 @@ router.patch(
     validate,
   ],
   updatePin
+);
+
+router.patch(
+  '/:userId/bio',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    body('bio').isString().withMessage('bio must be a string'),
+    validate,
+  ],
+  updateBio
+);
+
+router.get(
+  '/:userId/contacts',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  getContacts
+);
+
+router.patch(
+  '/:userId/contacts',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  updateContacts
 );
 
 export default router;

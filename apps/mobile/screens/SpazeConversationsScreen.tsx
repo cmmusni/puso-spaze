@@ -3,7 +3,7 @@
 // Community-wide view of all member ↔ coach conversations
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from ".
 import { useThemeStore } from "../context/ThemeContext";
 import { showConfirm } from "../utils/alertPlatform";
 import type { Conversation } from "../../../packages/types";
+import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 
 export default function SpazeConversationsScreen({ navigation }: any) {
   const { userId, role } = useUserStore();
@@ -35,6 +36,16 @@ export default function SpazeConversationsScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
 
   const isWide = Platform.OS === "web" && width >= 900;
+
+  const flatListRef = useRef<FlatList>(null);
+  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
+  const scrollToTopRef = useRef(scrollToTopTrigger);
+  useEffect(() => {
+    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+    scrollToTopRef.current = scrollToTopTrigger;
+  }, [scrollToTopTrigger]);
 
   const isAdmin = role === 'ADMIN';
 
@@ -297,6 +308,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
       />
 
       <FlatList
+        ref={flatListRef}
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={renderConversation}
