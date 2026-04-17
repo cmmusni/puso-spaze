@@ -1,67 +1,61 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 16, 2026
+**Last Updated:** April 17, 2026
 
 ## Current Work Focus
-- Memory bank & documentation update
-- Android build & testing (Expo EAS + Android Studio)
-- Security hardening (15 bug fixes completed)
+- Pre-deployment documentation update (memory bank + AGENTS.md sync)
+- Deploy agent enhanced with Step -1 (memory bank update before deploy)
+- Full QA test suite created and passing
 
 ## Recent Changes
 
+### Deploy Agent Enhancement (April 17, 2026)
+- **UPDATED**: `.github/agents/deploy.agent.md` — added Step -1: mandatory memory bank & AGENTS.md update before any git/deploy actions
+- Reads all 7 memory bank files, identifies changes via `git diff`, updates each doc as needed, and produces a summary before proceeding to deployment checks
+
+### Persistent Anonymous Display Name (April 16–17, 2026)
+- **NEW**: `anonDisplayName` field on User, Post, and Comment models in Prisma schema
+- **Migration**: `20250416_add_anon_display_name` adds column to User table
+- **Logic**: When anonymous user creates first post/comment, `generateAnonUsername()` generates a name and persists it on the User record. All subsequent anonymous posts/comments reuse the same name.
+- **PostCard/Screens**: Updated to display `anonDisplayName` for anonymous content; `realUser` field returned only to the post author (not in feed/single-post for public)
+
+### Cloudinary Image Upload Migration (April 15–16, 2026)
+- **NEW**: `server/src/config/cloudinary.ts` — Cloudinary SDK configuration
+- **UPDATED**: `postController.ts` and `userController.ts` — image uploads now go to Cloudinary instead of local `uploads/` folder
+- **Reason**: Railway uses ephemeral filesystem; local uploads were lost on redeploys
+- **Env vars**: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+### Coach Controller Expansion (April 16, 2026)
+- **EXPANDED**: `server/src/controllers/coachController.ts` — added `getReviewQueue()`, `moderatePost()`, `moderateComment()`, `flagPost()`, `flagComment()`, `getMembers()`
+- **UPDATED**: `server/src/api/coachRoutes.ts` — wired all new coach endpoints
+- Moderation actions now send notifications to the post/comment author
+
+### Full QA Test Suite (April 16–17, 2026)
+- **NEW**: `quality/qa-tests/full-qa-pass.mjs` — 100+ test comprehensive QA script (18 sections: smoke, registration, validation, CRUD, comments, reactions, auth, anon, journals, notifications, profile, coach, flagging, duplicates, errors, recovery, stress, cross-feature)
+- **NEW**: `quality/qa-tests/new-features-qa.mjs` — focused tests for persistent anon names and encouragement stats
+
+### Dashboard & Stats Endpoints (April 13–16, 2026)
+- **NEW**: `GET /api/stats/dashboard` — totalMembers, dailyStories, onlineCount, trendingTags, dailyReflection
+- **NEW**: `GET /api/users/:userId/stats` — encouragementsGiven, totalReflections, streak
+- **Client**: `apiGetDashboardStats()`, `apiGetUserStats()` in `services/api.ts`
+
 ### Encouragement System Refactor (April 13–16, 2026)
 - **DELETED**: `encouragementScheduler.ts`, `appConfigService.ts`, `ENCOURAGEMENT_FEATURE.md`
-- **NEW**: `biblicalEncouragementService.ts` — standalone OpenAI-powered encouragement generator (Taglish, Gen Z tone, 1-3 sentences)
-- **NEW**: `dailyReflectionService.ts` — daily biblical reflection with in-memory per-day caching + personalization based on user's recent posts
-- **NEW**: `reflectionReminderScheduler.ts` — daily push notification scheduler (replaces hourly cron with daily reminders)
-- **Architecture shift**: "Hourly Hope" automated posts → "Daily Reflections" with personalized content + push reminders
-
-### Dashboard Stats Endpoint (April 13–16, 2026)
-- **NEW**: `GET /api/stats/dashboard` — returns `totalMembers`, `dailyStories`, `onlineCount`, `trendingTags`, `dailyReflection` (personalized if userId provided)
-- **NEW**: `GET /api/users/:userId/stats` — returns `encouragementsGiven`, `totalReflections`, `streak`
-- **Client**: `apiGetDashboardStats()`, `apiGetUserStats()` added to `services/api.ts`
+- **NEW**: `biblicalEncouragementService.ts`, `dailyReflectionService.ts`, `reflectionReminderScheduler.ts`
+- **Architecture shift**: "Hourly Hope" → "Daily Reflections" with personalized content + push reminders
 
 ### Security Audit — 15 Bug Fixes (April 13, 2026)
-- **BUG-001**: Race condition on concurrent reactions → try/catch P2002/P2025
-- **BUG-002**: POST_MAX_LENGTH 1000→500 (server/client sync)
-- **BUG-003**: Comment min length 1→3
-- **BUG-004**: Malformed JSON 500→400
-- **BUG-005**: Journal PATCH fields made optional
-- **BUG-006**: User-facing `POST /api/posts/:postId/report` endpoint
-- **BUG-007**: XSS — `stripHtmlTags()` on all content entry points
-- **BUG-008**: Null byte injection — global middleware strips from body+query
-- **BUG-009–011**: IDOR on PIN read/write, username change (ownership checks)
-- **BUG-012**: IDOR on anonymous toggle + notifications + avatar
-- **BUG-013**: XSS in journal entries
-- **BUG-014**: Nested JSON depth check (>10 levels → 400)
-- **BUG-015**: Journal read authorization gap (ownership check on GET)
-- **Hardening**: JSON body limit 1mb→100kb, error handler uses `err.status`, null byte sanitization on keys+query params
-
-### Schema Additions
-- `webPushSubscription` (Json?) — Web Push API subscription on User model
-- `lastActiveAt` (DateTime) — tracks user activity for online count
-- `AppConfig` model — minimal config container (id, createdAt, updatedAt)
-
-### SendInviteScreen Cleanup (April 16, 2026)
-- Removed all Hourly Hope references; now purely an admin invite management tool
-
-### Previous Session (April 12, 2026)
-- PIN-based cross-device login + account recovery system
-- JWT authentication on all write endpoints
-- Magic bytes upload validation
-- Web deviceId persistence
+- BUG-001 through BUG-015: Race conditions, validation gaps, XSS, null bytes, IDOR, error handling (see `memory-bank/bug-fixes.md` for details)
 
 ## Next Steps
+- Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET`, Cloudinary env vars)
 - Complete Android APK build and test on physical tablet
-- Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET` env vars)
-- Add functional tests for daily reflection, user stats, and security fixes
-- Update QUALITY.md with new scenarios for daily reflections and security hardening
+- Add functional tests for daily reflection, user stats, and security fixes to `quality/functional.test.ts`
+- Update QUALITY.md with new scenarios for daily reflections and Cloudinary uploads
 
 ## Active Decisions
+- Image uploads moved to Cloudinary (Railway ephemeral filesystem fix)
+- Anonymous display names are persistent per-user (frozen on first anonymous action)
 - "Hourly Hope" replaced by "Daily Reflections" (personalized, cached per-day, push notifications)
 - All write API endpoints require JWT auth; read endpoints remain public
-- PIN-based cross-device login as alternative to device-bound identity
-- Recovery requests require coach review with user history verification
-- Global middleware strips null bytes from all request bodies + query params
-- JSON body limit set to 100kb; nesting depth limited to 10 levels
-- All user-scoped mutation AND read endpoints verify ownership via JWT userId
+- Deploy agent runs memory bank update as Step -1 before every deployment

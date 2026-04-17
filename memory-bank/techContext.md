@@ -89,6 +89,9 @@ PORT=3000
 OPENAI_API_KEY=...
 JWT_SECRET=...              # MUST override hardcoded default in production
 ADMIN_SECRET=...            # MUST override hardcoded default in production
+CLOUDINARY_CLOUD_NAME=...   # Cloudinary image hosting
+CLOUDINARY_API_KEY=...      # Cloudinary API key
+CLOUDINARY_API_SECRET=...   # Cloudinary API secret
 GMAIL_USER=...
 GMAIL_PASS=...
 ```

@@ -109,8 +109,24 @@
 
 ### File Uploads
 - Multer with content-type guard (multipart only)
-- Magic bytes validation for image uploads (JPEG, PNG, GIF, WebP)
+- Magic bytes validation for avatar uploads (JPEG, PNG, GIF, WebP)
+- **Cloudinary**: All image uploads (posts + avatars) stored on Cloudinary via `uploadBuffer()` in `server/src/config/cloudinary.ts`
+- Local `uploads/` folder deprecated — Railway ephemeral filesystem made local storage unreliable
 - Web blob URIs → fetch blob → read MIME type (no extension parsing)
+
+### Anonymous Identity
+- Users toggle anonymous mode via `PATCH /api/users/:userId/anonymous`
+- On first anonymous post/comment, `generateAnonUsername()` generates a display name and persists it on the User record (`anonDisplayName` field)
+- All subsequent anonymous posts/comments reuse the same `anonDisplayName` — consistency across the platform
+- `realUser` field returned only to the post/comment author (not leaked in feed or single-post public API)
+
+### Coach Moderation
+- `GET /api/coach/review` — review queue of REVIEW + FLAGGED posts/comments
+- `PATCH /api/coach/posts/:id/moderate` — approve or reject posts
+- `PATCH /api/coach/comments/:id/moderate` — approve or reject comments
+- `PATCH /api/coach/posts/:id/flag` / `comments/:id/flag` — coaches can flag SAFE content for re-review
+- `GET /api/coach/members` — view all platform members
+- Moderation actions send notifications to the content author
 
 ## Component Relationships
 - `AppNavigator` → Auth stack (`Login`, `CoachLogin`) or `MainDrawer`
