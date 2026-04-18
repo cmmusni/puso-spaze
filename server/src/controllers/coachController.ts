@@ -296,3 +296,37 @@ export async function getMembers(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: 'Failed to fetch members.' });
   }
 }
+
+/**
+ * GET /api/coach/coaches?coachId=...
+ *
+ * Returns all COACH and ADMIN-role accounts sorted newest-first.
+ * Used by the Coach Dashboard coaches panel.
+ */
+export async function getCoaches(req: Request, res: Response): Promise<void> {
+  const coachId = req.query.coachId as string;
+
+  if (!(await verifyCoach(coachId))) {
+    res.status(403).json({ error: 'Access denied. PUSO Coach account required.' });
+    return;
+  }
+
+  try {
+    const coaches = await prisma.user.findMany({
+      where: { role: { in: ['COACH', 'ADMIN'] } },
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ coaches });
+  } catch (err) {
+    console.error('[CoachController] getCoaches error:', err);
+    res.status(500).json({ error: 'Failed to fetch coaches.' });
+  }
+}

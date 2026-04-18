@@ -19,6 +19,14 @@
 
 ## Recent Changes
 
+### Coach Roster Dashboard + QA Alignment (April 18, 2026)
+- **COACH API**: Added `GET /api/coach/coaches?coachId=...` in `server/src/api/coachRoutes.ts` and `getCoaches()` in `coachController.ts` to return all `COACH` + `ADMIN` users for dashboard roster display
+- **COACH DASHBOARD UI**: `CoachDashboard.tsx` now loads and displays separate Members and Coaches cards, adds admin badges in the coach list, and converts the right rail into a scrollable panel for denser dashboard content
+- **BADGE/SCROLL CLEANUP**: Removed coach dashboard dependencies on shared scroll-to-top and review badge stores; moderation/delete actions now update local state only
+- **CLIENT API**: Added `apiGetCoaches()` and `CoachSummary` in `apps/mobile/services/api.ts`
+- **QA UPDATES**: `quality/qa-tests/full-qa-pass.mjs` now reflects current behavior for optional `deviceId`, username+PIN login, notification toggle payload shape, report endpoint naming, dashboard stats path, and recovery request route/body
+- **QA AGENT**: `.github/agents/qa-tester.agent.md` now explicitly instructs QA work to use architecture and memory-bank context when planning coverage
+
 ### Overview Carousel Mobile Centering Tweak (April 18, 2026)
 - **OVERVIEW CSS**: Updated mobile rule for `.carousel-slide` in `apps/mobile/overview/index.html` to include `align-items: center` so mixed phone/tablet screenshots remain vertically centered on narrow screens
 - **DEPLOY SCOPE**: Presentation-only web overview CSS adjustment; no runtime API, schema, or auth behavior changes

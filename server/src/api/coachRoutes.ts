@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
-import { getReviewQueue, moderatePost, moderateComment, flagPost, flagComment, getMembers } from '../controllers/coachController';
+import { getReviewQueue, moderatePost, moderateComment, flagPost, flagComment, getMembers, getCoaches } from '../controllers/coachController';
 import { getRecoveryRequests, reviewRecoveryRequest } from '../controllers/recoveryController';
 
 const router = Router();
@@ -17,6 +17,9 @@ router.get('/review', requireAuth, getReviewQueue);
 
 // GET  /api/coach/members?coachId=...
 router.get('/members', requireAuth, getMembers);
+
+// GET  /api/coach/coaches?coachId=...
+router.get('/coaches', requireAuth, getCoaches);
 
 // PATCH /api/coach/posts/:id/moderate
 router.patch(

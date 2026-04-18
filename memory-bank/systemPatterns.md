@@ -129,11 +129,16 @@
 
 ### Coach Moderation
 - `GET /api/coach/review` — review queue of REVIEW + FLAGGED posts/comments
+- `GET /api/coach/coaches` — coach/admin roster for dashboard directory panel
 - `PATCH /api/coach/posts/:id/moderate` — approve or reject posts
 - `PATCH /api/coach/comments/:id/moderate` — approve or reject comments
 - `PATCH /api/coach/posts/:id/flag` / `comments/:id/flag` — coaches can flag SAFE content for re-review
 - `GET /api/coach/members` — view all platform members
 - Moderation actions send notifications to the content author
+
+### Coach Dashboard Panel Pattern
+- Wide layouts use a scrollable right rail to host secondary dashboard cards (sentiment, chats, members, coaches)
+- Coach/admin roster panels are informational lists sourced from dedicated endpoints rather than derived from conversation membership
 
 ### Profile Enrichment
 - User model supports richer public profile fields: `bannerUrl`, `bio`, `phone`, `contactEmail`, `facebook`, `instagram`, `linkedin`, `twitter`, `tiktok`, `youtube`, `website`

@@ -978,6 +978,21 @@ export async function apiGetMembers(coachId: string): Promise<MemberSummary[]> {
   return data.members;
 }
 
+export interface CoachSummary {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: string;
+  createdAt: string;
+}
+
+export async function apiGetCoaches(coachId: string): Promise<CoachSummary[]> {
+  const { data } = await client.get<{ coaches: CoachSummary[] }>('/api/coach/coaches', {
+    params: { coachId },
+  });
+  return data.coaches;
+}
+
 // ── Journal endpoints ─────────────────────────
 
 /**

@@ -3,7 +3,7 @@
 // PUSO Coach review dashboard — Sacred Journal design
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,9 +26,7 @@ import type { DrawerNavigationProp } from '@react-navigation/drawer';
 
 import { colors as defaultColors, fonts, radii, ambientShadow } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
-import { useScrollBarVisibility } from '../hooks/useScrollBarVisibility';
 import { useUserStore } from '../context/UserContext';
-import { useBadgeStore } from '../hooks/useNotifications';
 import {
   apiGetReviewQueue,
   apiModeratePost,
@@ -43,9 +41,10 @@ import {
   apiAdminListInviteCodes,
   apiAdminSendInviteByEmail,
   apiGetMembers,
+  apiGetCoaches,
   resolveAvatarUrl,
 } from '../services/api';
-import type { DashboardStats, MemberSummary } from '../services/api';
+import type { DashboardStats, MemberSummary, CoachSummary } from '../services/api';
 import { showAlert, showConfirm } from '../utils/alertPlatform';
 import type { Post, Comment, Conversation, RecoveryRequest, InviteCode } from '../../../packages/types';
 import type { MainDrawerParamList } from '../navigation/MainDrawerNavigator';
@@ -114,27 +113,17 @@ export default function CoachDashboard() {
   const isWide = width >= 900;
   const isNarrow = width < 500;
 
-  const mainScrollRef = useRef<ScrollView>(null);
-  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
-  const scrollToTopRef = useRef(scrollToTopTrigger);
-  useEffect(() => {
-    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
-      mainScrollRef.current?.scrollTo({ y: 0, animated: true });
-    }
-    scrollToTopRef.current = scrollToTopTrigger;
-  }, [scrollToTopTrigger]);
-
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([]);
   const [members, setMembers] = useState<MemberSummary[]>([]);
+  const [coaches, setCoaches] = useState<CoachSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const isAdmin = role === 'ADMIN';
-  const setReviewCount = useBadgeStore((s) => s.setReviewCount);
 
   // ── Invite state (admin only) ─────────────
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
@@ -148,12 +137,13 @@ export default function CoachDashboard() {
     if (!userId) return;
     if (!silent) setLoading(true);
     try {
-      const [queue, dashStats, convos, recoveryRes, membersRes] = await Promise.all([
+      const [queue, dashStats, convos, recoveryRes, membersRes, coachesRes] = await Promise.all([
         apiGetReviewQueue(userId),
         apiGetDashboardStats(),
         apiFetchConversations(userId),
         apiGetRecoveryRequests(userId),
         apiGetMembers(userId),
+        apiGetCoaches(userId),
       ]);
       setPosts(queue.posts);
       setComments(queue.comments);
@@ -161,6 +151,7 @@ export default function CoachDashboard() {
       setConversations(convos.conversations.slice(0, 3));
       setRecoveryRequests(recoveryRes.requests);
       setMembers(membersRes);
+      setCoaches(coachesRes);
 
       // Fetch invite codes for admin
       if (role === 'ADMIN') {
@@ -188,11 +179,7 @@ export default function CoachDashboard() {
     setActing(postId);
     try {
       await apiModeratePost(postId, { coachId: userId, action });
-      setPosts((prev) => {
-        const next = prev.filter((p) => p.id !== postId);
-        setReviewCount(next.length + comments.length);
-        return next;
-      });
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not moderate post.';
       showAlert('Error', msg);
@@ -204,11 +191,7 @@ export default function CoachDashboard() {
     setActing(commentId);
     try {
       await apiModerateComment(commentId, { coachId: userId, action });
-      setComments((prev) => {
-        const next = prev.filter((c) => c.id !== commentId);
-        setReviewCount(posts.length + next.length);
-        return next;
-      });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not moderate comment.';
       showAlert('Error', msg);
@@ -220,11 +203,7 @@ export default function CoachDashboard() {
     setActing(postId);
     try {
       await apiDeletePost(postId, userId);
-      setPosts((prev) => {
-        const next = prev.filter((p) => p.id !== postId);
-        setReviewCount(next.length + comments.length);
-        return next;
-      });
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not delete post.';
       showAlert('Error', msg);
@@ -236,11 +215,7 @@ export default function CoachDashboard() {
     setActing(commentId);
     try {
       await apiDeleteComment(postId, commentId, userId);
-      setComments((prev) => {
-        const next = prev.filter((c) => c.id !== commentId);
-        setReviewCount(posts.length + next.length);
-        return next;
-      });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not delete comment.';
       showAlert('Error', msg);
@@ -520,8 +495,195 @@ export default function CoachDashboard() {
 
   // ── Right sidebar (wide only) ─────────────
 
+  const membersCardEl = (compact = false) => (
+    <View style={s.membersCard}>
+      <View style={s.membersHeader}>
+        <Ionicons name="people-outline" size={18} color={colors.primary} />
+        <Text style={s.membersTitle}>Members</Text>
+        <Text style={s.membersBadge}>{members.length}</Text>
+      </View>
+      {compact ? (
+        <ScrollView
+          style={s.membersScroll}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
+          {members.length === 0 ? (
+            <Text style={s.sentimentNote}>No members yet.</Text>
+          ) : (
+            members.map((member) => {
+              const memberInitial = member.displayName.charAt(0).toUpperCase();
+              const memberGrad = avatarColors(memberInitial);
+              return (
+                <View key={member.id} style={s.memberRow}>
+                  {member.avatarUrl ? (
+                    <Image
+                      source={{ uri: resolveAvatarUrl(member.avatarUrl) }}
+                      style={s.memberAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={memberGrad}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={s.memberAvatar}
+                    >
+                      <Text style={s.memberAvatarText}>{memberInitial}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={s.memberInfo}>
+                    <Text style={s.memberName} numberOfLines={1}>{member.displayName}</Text>
+                    <Text style={s.memberJoined}>Joined {formatRelativeTime(member.createdAt)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView
+          style={s.membersScroll}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled>
+          {members.length === 0 ? (
+            <Text style={s.sentimentNote}>No members yet.</Text>
+          ) : (
+            members.map((member) => {
+              const memberInitial = member.displayName.charAt(0).toUpperCase();
+              const memberGrad = avatarColors(memberInitial);
+              return (
+                <View key={member.id} style={s.memberRow}>
+                  {member.avatarUrl ? (
+                    <Image
+                      source={{ uri: resolveAvatarUrl(member.avatarUrl) }}
+                      style={s.memberAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={memberGrad}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={s.memberAvatar}
+                    >
+                      <Text style={s.memberAvatarText}>{memberInitial}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={s.memberInfo}>
+                    <Text style={s.memberName} numberOfLines={1}>{member.displayName}</Text>
+                    <Text style={s.memberJoined}>Joined {formatRelativeTime(member.createdAt)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
+
+  const coachesCardEl = (compact = false) => (
+    <View style={s.coachesCard}>
+      <View style={s.coachesHeader}>
+        <Ionicons name="shield-checkmark-outline" size={18} color={colors.secondary} />
+        <Text style={s.coachesTitle}>Coaches</Text>
+        <Text style={s.coachesBadge}>{coaches.length}</Text>
+      </View>
+      {compact ? (
+        <ScrollView
+          style={s.coachesScroll}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
+          {coaches.length === 0 ? (
+            <Text style={s.sentimentNote}>No coaches yet.</Text>
+          ) : (
+            coaches.map((coach) => {
+              const coachInitial = coach.displayName.charAt(0).toUpperCase();
+              const coachGrad = avatarColors(coachInitial);
+              return (
+                <View key={coach.id} style={s.coachRow}>
+                  {coach.avatarUrl ? (
+                    <Image
+                      source={{ uri: resolveAvatarUrl(coach.avatarUrl) }}
+                      style={s.coachAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={coachGrad}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={s.coachAvatar}
+                    >
+                      <Text style={s.coachAvatarText}>{coachInitial}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={s.coachInfo}>
+                    <View style={s.coachNameRow}>
+                      <Text style={s.coachName} numberOfLines={1}>{coach.displayName}</Text>
+                      {coach.role === 'ADMIN' && (
+                        <View style={s.adminBadge}>
+                          <Text style={s.adminBadgeText}>ADMIN</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={s.coachJoined}>Joined {formatRelativeTime(coach.createdAt)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      ) : (
+        <View>
+          {coaches.length === 0 ? (
+            <Text style={s.sentimentNote}>No coaches yet.</Text>
+          ) : (
+            coaches.map((coach) => {
+              const coachInitial = coach.displayName.charAt(0).toUpperCase();
+              const coachGrad = avatarColors(coachInitial);
+              return (
+                <View key={coach.id} style={s.coachRow}>
+                  {coach.avatarUrl ? (
+                    <Image
+                      source={{ uri: resolveAvatarUrl(coach.avatarUrl) }}
+                      style={s.coachAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={coachGrad}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={s.coachAvatar}
+                    >
+                      <Text style={s.coachAvatarText}>{coachInitial}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={s.coachInfo}>
+                    <View style={s.coachNameRow}>
+                      <Text style={s.coachName} numberOfLines={1}>{coach.displayName}</Text>
+                      {coach.role === 'ADMIN' && (
+                        <View style={s.adminBadge}>
+                          <Text style={s.adminBadgeText}>ADMIN</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={s.coachJoined}>Joined {formatRelativeTime(coach.createdAt)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+      )}
+    </View>
+  );
+
   const rightPanel = (
-    <View style={s.rightPanel}>
+    <ScrollView
+      style={s.rightPanel}
+      contentContainerStyle={s.rightPanelContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Community Sentiment */}
       {sentimentCard}
 
@@ -564,51 +726,11 @@ export default function CoachDashboard() {
       </View>
 
       {/* Members */}
-      <View style={s.membersCard}>
-        <View style={s.membersHeader}>
-          <Ionicons name="people-outline" size={18} color={colors.primary} />
-          <Text style={s.membersTitle}>Members</Text>
-          <Text style={s.membersBadge}>{members.length}</Text>
-        </View>
-        <ScrollView
-          style={s.membersScroll}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-        >
-          {members.length === 0 ? (
-            <Text style={s.sentimentNote}>No members yet.</Text>
-          ) : (
-            members.map((member) => {
-              const memberInitial = member.displayName.charAt(0).toUpperCase();
-              const memberGrad = avatarColors(memberInitial);
-              return (
-                <View key={member.id} style={s.memberRow}>
-                  {member.avatarUrl ? (
-                    <Image
-                      source={{ uri: resolveAvatarUrl(member.avatarUrl) }}
-                      style={s.memberAvatar}
-                    />
-                  ) : (
-                    <LinearGradient
-                      colors={memberGrad}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={s.memberAvatar}
-                    >
-                      <Text style={s.memberAvatarText}>{memberInitial}</Text>
-                    </LinearGradient>
-                  )}
-                  <View style={s.memberInfo}>
-                    <Text style={s.memberName} numberOfLines={1}>{member.displayName}</Text>
-                    <Text style={s.memberJoined}>Joined {formatRelativeTime(member.createdAt)}</Text>
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </ScrollView>
-      </View>
-    </View>
+      {membersCardEl(true)}
+
+      {/* Coaches */}
+      {coachesCardEl(true)}
+    </ScrollView>
   );
 
   // ── Loading state ─────────────────────────
@@ -638,7 +760,6 @@ export default function CoachDashboard() {
       <View style={s.mainRow}>
         {/* Left / Main content */}
         <ScrollView
-          ref={mainScrollRef}
           style={s.scrollArea}
           contentContainerStyle={s.scrollContent}
           refreshControl={
@@ -937,6 +1058,14 @@ export default function CoachDashboard() {
                 </View>
               )}
             </>
+          )}
+
+          {/* ── Members & Coaches (mobile / narrow web) ── */}
+          {!isWide && (
+            <View style={s.mobileCardsSection}>
+              {membersCardEl(false)}
+              {coachesCardEl(false)}
+            </View>
           )}
         </ScrollView>
 
@@ -1266,7 +1395,9 @@ const createStyles = (colors: typeof defaultColors, isDark = false) => StyleShee
 
   // ── Right panel ──────────────────────────
   rightPanel: {
-    width: 300,
+    maxWidth: 350,
+  },
+  rightPanelContent: {
     paddingVertical: 20,
     paddingRight: 24,
     gap: 16,
@@ -1275,6 +1406,12 @@ const createStyles = (colors: typeof defaultColors, isDark = false) => StyleShee
   // Sentiment inline (mobile / narrow web)
   sentimentInline: {
     marginBottom: 24,
+  },
+
+  // Members & Coaches inline (mobile / narrow web)
+  mobileCardsSection: {
+    gap: 16,
+    marginTop: 24,
   },
 
   // Sentiment card
@@ -1471,6 +1608,89 @@ const createStyles = (colors: typeof defaultColors, isDark = false) => StyleShee
     color: colors.onSurface,
   },
   memberJoined: {
+    fontSize: 11,
+    fontFamily: fonts.bodyRegular,
+    color: colors.onSurfaceVariant,
+    marginTop: 1,
+  },
+
+  // Coaches card
+  coachesCard: {
+    backgroundColor: isDark ? colors.surfaceContainerLow : colors.surface,
+    borderRadius: radii.xl,
+    padding: 18,
+    ...(isDark ? {} : ambientShadow),
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.outlineVariant + '60' : 'transparent',
+  },
+  coachesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  coachesTitle: {
+    fontSize: 16,
+    fontFamily: fonts.displayBold,
+    color: colors.onSurface,
+    flex: 1,
+  },
+  coachesBadge: {
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
+    color: colors.onSurfaceVariant,
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    overflow: 'hidden',
+  },
+  coachesScroll: {
+    maxHeight: 280,
+  },
+  coachRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  coachAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  coachAvatarText: {
+    fontSize: 13,
+    fontFamily: fonts.displayBold,
+    color: '#fff',
+  },
+  coachInfo: { flex: 1 },
+  coachNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  coachName: {
+    fontSize: 13,
+    fontFamily: fonts.bodyBold,
+    color: colors.onSurface,
+  },
+  adminBadge: {
+    backgroundColor: colors.primary + (isDark ? '30' : '18'),
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.sm,
+  },
+  adminBadgeText: {
+    fontSize: 9,
+    fontFamily: fonts.bodyBold,
+    color: colors.primary,
+    letterSpacing: 0.4,
+  },
+  coachJoined: {
     fontSize: 11,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurfaceVariant,

@@ -12,6 +12,7 @@
 - **Comments** — Threaded comments with @mentions, edit/delete support (min 3 chars enforced)
 - **Moderation** — AI auto-moderation (OpenAI), coach review dashboard with approve/reject/flag, Unicode homoglyph normalization, zero-width stripping, 97 blocked terms + 10 contextual phrase patterns
 - **Coach Dashboard** — Review queue (`getReviewQueue`), moderate posts/comments (`moderatePost`, `moderateComment`), flag content, view members list
+- **Coach Dashboard Roster** — Dashboard now shows separate members and coaches/admin roster panels via `GET /api/coach/members` and `GET /api/coach/coaches`
 - **Notifications** — In-app notification system, push notifications (native + web push subscription support), moderation action notifications to authors
 - **Journal** — Private entries with mood tracking, calendar view, streak tracking, mood bloom stats (ownership-verified)
 - **1:1 Chat** — Conversations between users and coaches
@@ -38,6 +39,7 @@
 - **PWA Performance** — SW caching (Cloudinary cache-first, API network-first/stale fallback, static stale-while-revalidate); `expo-image` in PostCard/HomeScreen/PostDetailScreen with memory-disk caching; GET dedup in api.ts; gzip/brotli compression on server; `Cache-Control` on posts+stats; Cloudinary auto-quality+format at upload time
 - **Deploy Agent** — Pre-deploy checklist with Step -1 memory bank update, 12 deployment validation checks
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests)
+- **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
 
 ## Quality Status (April 17, 2026)
 - **Functional tests**: 56/56 passing — spec requirements (13), fitness scenarios (24), boundary tests (19)
