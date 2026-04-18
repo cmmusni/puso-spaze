@@ -70,6 +70,22 @@
 - Axios-based API client in `services/api.ts`
 - `getBaseUrl()` handles platform-specific URL resolution
 - All API functions prefixed with `api*` (e.g., `apiCreateUser`, `apiFetchPosts`)
+- High-traffic read endpoints use `deduplicatedGet()` to collapse duplicate concurrent GETs (feed, stats, coach roster/review, conversations)
+
+### Performance Guardrails
+- Prisma schema includes explicit indexes for recurring high-traffic filters/sorts (`posts`, `comments`, `reactions`, `users.lastActiveAt`, `invite_codes.used`)
+- `GET /api/stats/dashboard` uses in-process TTL caching for expensive aggregates and SQL-side trending tag aggregation (`unnest(tags) + GROUP BY`) to reduce app-layer CPU/memory work
+- `GET /api/coach/review` applies bounded queue reads (`take: 100`) to avoid oversized moderation payloads under backlog spikes
+
+### Shared Reaction State Pattern
+- `context/ReactionsStore.ts` centralizes post reaction counts + current user reaction keyed by `postId`
+- `PostCard` and `PostDetailScreen` read/write the same store state so reactions stay synchronized across feed/detail surfaces
+- Reaction writes use optimistic `applyToggle()` snapshots with `rollback()` on API failure to preserve UX speed without stale-clobber regressions
+
+### Adaptive Polling Pattern
+- Chat polling switched from fixed intervals to adaptive timeout loops
+- Web uses `document.visibilityState`; native uses `AppState.currentState`
+- Poll intervals back off while app is hidden/backgrounded to reduce network/battery load
 
 ### Moderation Flow
 - Posts/comments enter with `REVIEW` status

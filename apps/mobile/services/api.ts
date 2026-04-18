@@ -694,9 +694,7 @@ export async function apiRedeemInviteCode(
 export async function apiGetReviewQueue(
   coachId: string
 ): Promise<GetReviewQueueResponse> {
-  const { data } = await client.get<GetReviewQueueResponse>('/api/coach/review', {
-    params: { coachId },
-  });
+  const { data } = await deduplicatedGet<GetReviewQueueResponse>('/api/coach/review', { coachId });
   return data;
 }
 
@@ -972,9 +970,7 @@ export interface MemberSummary {
 }
 
 export async function apiGetMembers(coachId: string): Promise<MemberSummary[]> {
-  const { data } = await client.get<{ members: MemberSummary[] }>('/api/coach/members', {
-    params: { coachId },
-  });
+  const { data } = await deduplicatedGet<{ members: MemberSummary[] }>('/api/coach/members', { coachId });
   return data.members;
 }
 
@@ -987,9 +983,7 @@ export interface CoachSummary {
 }
 
 export async function apiGetCoaches(coachId: string): Promise<CoachSummary[]> {
-  const { data } = await client.get<{ coaches: CoachSummary[] }>('/api/coach/coaches', {
-    params: { coachId },
-  });
+  const { data } = await deduplicatedGet<{ coaches: CoachSummary[] }>('/api/coach/coaches', { coachId });
   return data.coaches;
 }
 
@@ -1089,9 +1083,7 @@ export async function apiFetchCoaches(): Promise<GetCoachesResponse> {
  * Returns conversations for the user (or all, if coach).
  */
 export async function apiFetchConversations(userId: string): Promise<GetConversationsResponse> {
-  const { data } = await client.get<GetConversationsResponse>('/api/conversations', {
-    params: { userId },
-  });
+  const { data } = await deduplicatedGet<GetConversationsResponse>('/api/conversations', { userId });
   return data;
 }
 

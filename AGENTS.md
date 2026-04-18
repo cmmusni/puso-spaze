@@ -56,7 +56,7 @@ apps/mobile/          — Expo/React Native universal app (web + iOS + Android)
   screens/            — 13 screens (Home, Post, Profile, Journal, Chat, Coach, etc.)
   components/         — Shared UI (PostCard, WebSidebar, BottomTabBar, etc.)
   services/api.ts     — API client (Axios-based)
-  context/            — UserContext (Zustand), ThemeContext
+  context/            — UserContext, ThemeContext, ReactionsStore (shared optimistic reaction state)
   hooks/              — usePosts, useUser, useNotifications, shared UI state hooks
   constants/theme.ts  — Design tokens (colors, fonts, spacing, shadows)
   navigation/         — Drawer navigator + web layout wrapper
@@ -102,6 +102,7 @@ User Input → Client Validation → API Request → Express Router
 10. **Profile routing modes**: The Profile screen supports owner and non-owner rendering via optional route `userId`; owner-only edit actions are hidden when viewing another user.
 11. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
 12. **Coach roster visibility**: The coach dashboard uses dedicated authenticated roster endpoints for members and coaches/admins so staff directories are available without inferring from conversations.
+13. **Performance-first read paths**: High-frequency reads are bounded and optimized via DB indexes, dashboard TTL caching + SQL tag aggregation, deduplicated client GETs, adaptive chat polling, and shared reaction state across feed/detail surfaces.
 
 ## Known Quirks
 
@@ -116,6 +117,7 @@ User Input → Client Validation → API Request → Express Router
 - `getPosts`, `getComments`, `getJournals`, `getConversations`, `getMessages` have no pagination limits (Scenario 10)
 - `GET /api/journals/public` is intentionally unauthenticated and capped to recent entries; visibility depends entirely on `journals.isPublic`
 - Coach review queue exists (`GET /api/coach/review`) but has no automated escalation for stale REVIEW posts (Scenario 7)
+- Coach review queue is capped to the first 100 posts/comments per request; older review items remain accessible only after backlog reduction
 - Coach/admin roster is exposed via authenticated coach endpoints (`GET /api/coach/members`, `GET /api/coach/coaches`)
 - Notification delivery is fire-and-forget — push failures are logged but not retried (Scenario 9)
 - PIN login (displayName + PIN) has no rate limiting — brute-force risk remains (Scenario 11)

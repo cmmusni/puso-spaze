@@ -3,6 +3,7 @@
 **Last Updated:** April 18, 2026
 
 ## Current Work Focus
+- Full-stack performance pass: DB indexing, dashboard aggregation/cache optimization, reaction-state sync, and list/polling load reduction
 - PIN auth flow update: username + PIN verification with non-unique PIN storage
 - Profile expansion: banner uploads, editable bio, and saved contact fields
 - Profile viewing parity: owner and non-owner profile rendering with read-only safeguards
@@ -18,6 +19,15 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Full-Stack Performance Pass (April 18, 2026)
+- **SCHEMA + MIGRATION**: Added performance indexes in `server/prisma/schema.prisma` with migration `server/prisma/migrations/20260418155124_perf_indexes/migration.sql` for `posts(createdAt, moderationStatus)`, `comments(postId, moderationStatus)`, `reactions(postId)`, `users(lastActiveAt)`, and `invite_codes(used)`
+- **DASHBOARD STATS PATH**: `server/src/index.ts` now uses lightweight in-process TTL caching for expensive aggregates and computes trending tags with SQL `unnest(tags)` grouping instead of app-layer flattening
+- **COACH QUEUE BOUNDING**: `server/src/controllers/coachController.ts` review queue now caps post/comment fetches to 100 rows each to avoid large moderation payload spikes
+- **REACTION SYNC MODEL**: Added global Zustand store `apps/mobile/context/ReactionsStore.ts`; `PostCard.tsx` and `PostDetailScreen.tsx` now share optimistic reaction state with rollback snapshots to prevent cross-screen desync/race clobbering
+- **FEED RENDER COST REDUCTION**: `PostCard.tsx` now uses narrow `UserContext` selectors plus `React.memo` to avoid mass card rerenders from unrelated profile-store changes
+- **LIST + POLLING OPTIMIZATIONS**: `CoachDashboard.tsx` and `SpazeCoachScreen.tsx` moved large mapped lists to `FlatList`; `ChatScreen.tsx` switched from fixed `setInterval` to adaptive polling cadence based on web visibility/native app state
+- **API REQUEST DEDUP EXPANSION**: `apps/mobile/services/api.ts` applies `deduplicatedGet()` to coach review/members/coaches and conversations endpoints
 
 ### Coach Roster Dashboard + QA Alignment (April 18, 2026)
 - **COACH API**: Added `GET /api/coach/coaches?coachId=...` in `server/src/api/coachRoutes.ts` and `getCoaches()` in `coachController.ts` to return all `COACH` + `ADMIN` users for dashboard roster display
@@ -171,6 +181,7 @@
 - BUG-001 through BUG-015: Race conditions, validation gaps, XSS, null bytes, IDOR, error handling (see `memory-bank/bug-fixes.md` for details)
 
 ## Next Steps
+- Monitor dashboard cache hit behavior and query timings in production logs after deploy
 - Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET`, Cloudinary env vars)
 - Verify scheduler behavior in production logs (streak 9 PM PHT, pending chat every 15 min)
 - Validate pull-to-refresh UX on mobile web and iOS/Android devices (gesture threshold + splash skip-once behavior)

@@ -64,6 +64,7 @@ import {
   ambientShadow,
 } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
+import { useReactionsStore } from "../context/ReactionsStore";
 import MentionText from "../components/MentionText";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 import {
@@ -274,8 +275,16 @@ export default function PostDetailScreen() {
   const isSmall = Platform.OS === "web" && screenWidth < 600;
   const isExtraSmall = Platform.OS === "web" && screenWidth < 400;
 
-  const [counts, setCounts] = useState<ReactionCounts>({});
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
+  // ── Reaction state (shared via global ReactionsStore) ──
+  const targetPostIdForStore = routePostId ?? routePost?.id ?? "";
+  const reactionState = useReactionsStore(
+    (s) => s.byPostId[targetPostIdForStore],
+  );
+  const setReactionsInStore = useReactionsStore((s) => s.setReactions);
+  const applyToggle = useReactionsStore((s) => s.applyToggle);
+  const rollback = useReactionsStore((s) => s.rollback);
+  const counts = reactionState?.counts ?? {};
+  const userReaction = reactionState?.userReaction ?? null;
   const [reactionLoading, setReactionLoading] = useState(false);
 
   const [comments, setComments] = useState<Comment[]>([]);
@@ -390,15 +399,14 @@ export default function PostDetailScreen() {
       ]);
 
       setPost(postData.post);
-      setCounts(reactData.counts);
-      setUserReaction(reactData.userReaction);
+      setReactionsInStore(targetPostId, reactData.counts, reactData.userReaction);
       setComments(commentData.comments);
     } catch {
       // non-fatal
     } finally {
       setCommentsLoading(false);
     }
-  }, [post?.id, routePostId, userId]);
+  }, [post?.id, routePostId, userId, setReactionsInStore]);
 
   useEffect(() => {
     const validRoutePost = isValidPost(route.params?.post)
@@ -447,20 +455,24 @@ export default function PostDetailScreen() {
   const loadData = useCallback(async () => {
     if (!post?.id) return;
     setCommentsLoading(true);
+    const hadStoreReactions = !!useReactionsStore.getState().byPostId[post.id];
     try {
       const [reactData, commentData] = await Promise.all([
         apiGetReactions(post.id, userId ?? undefined),
         apiGetComments(post.id, userId ?? undefined),
       ]);
-      setCounts(reactData.counts);
-      setUserReaction(reactData.userReaction);
+      // Only seed reactions from the server when the store had nothing yet.
+      // Otherwise we'd race with in-flight optimistic toggles and revert them.
+      if (!hadStoreReactions) {
+        setReactionsInStore(post.id, reactData.counts, reactData.userReaction);
+      }
       setComments(commentData.comments);
     } catch {
       // non-fatal
     } finally {
       setCommentsLoading(false);
     }
-  }, [post?.id, userId]);
+  }, [post?.id, userId, setReactionsInStore]);
 
   useEffect(() => {
     loadData();
@@ -503,8 +515,11 @@ export default function PostDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!openedFromNotifications) return;
-      void refreshPostDetail();
+      if (openedFromNotifications) {
+        void refreshPostDetail();
+      }
+      // Reactions stay in sync via the global ReactionsStore (writes from
+      // anywhere update both screens), so no extra refetch is needed here.
     }, [openedFromNotifications, refreshPostDetail]),
   );
 
@@ -559,23 +574,11 @@ export default function PostDetailScreen() {
       return;
     }
     setReactionLoading(true);
+    const snapshot = applyToggle(post.id, type);
     try {
-      const prev = userReaction;
-      // Optimistic update
-      const newCounts = { ...counts };
-      if (prev) newCounts[prev] = Math.max(0, (newCounts[prev] ?? 1) - 1);
-      if (type !== prev) {
-        newCounts[type] = (newCounts[type] ?? 0) + 1;
-        setUserReaction(type);
-      } else {
-        setUserReaction(null);
-      }
-      setCounts(newCounts);
-
       await apiUpsertReaction(post.id, { userId, type });
     } catch {
-      // Revert on failure
-      loadData();
+      rollback(post.id, snapshot);
     } finally {
       setReactionLoading(false);
     }
@@ -1232,7 +1235,10 @@ export default function PostDetailScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => (navigation as any).navigate("Home")}
+          onPress={() => {
+            setHighlightCommentId(null);
+            (navigation as any).navigate("Home");
+          }}
           activeOpacity={0.7}
           style={styles.headerCenter}
         >
@@ -1246,7 +1252,10 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => (navigation as any).navigate("Profile")}
+          onPress={() => {
+            setHighlightCommentId(null);
+            (navigation as any).navigate("Profile");
+          }}
         >
           {userAvatarUrl ? (
             <Image
@@ -1415,7 +1424,6 @@ export default function PostDetailScreen() {
                         activeOpacity={0.75}
                         style={[
                           styles.reactionBtn,
-                          userReaction && styles.reactionBtnActive,
                         ]}
                       >
                         {userReaction ? (

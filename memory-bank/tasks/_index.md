@@ -7,6 +7,7 @@
 _No pending tasks_
 
 ## Completed
+- [TASK006] Full-stack performance pass — DB indexes, getDashboardStats SQL+cache, list virtualization, PostCard memo + narrow selectors, adaptive ChatScreen polling, expanded request dedup (completed Apr 18)
 - [TASK005] PWA performance optimization — Compression, expo-image, Cloudinary transforms, SW caching, request dedup (completed Apr 18)
 - [TASK004] PWA input focus zoom — Added global touch-web input font-size guard in WebShell (updated Apr 17)
 - [TASK003] PWA notification click blank screen — Fixed web push deep links for chat and post notifications (updated Apr 17)

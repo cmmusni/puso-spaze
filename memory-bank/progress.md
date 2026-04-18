@@ -37,6 +37,7 @@
 - **PWA Input Zoom Guard** — Touch-web TextInput controls are forced to 16px in WebShell to prevent iPhone Safari auto-zoom on focus
 - **User reporting** — `POST /api/posts/:postId/report` allows any user to flag content for review
 - **PWA Performance** — SW caching (Cloudinary cache-first, API network-first/stale fallback, static stale-while-revalidate); `expo-image` in PostCard/HomeScreen/PostDetailScreen with memory-disk caching; GET dedup in api.ts; gzip/brotli compression on server; `Cache-Control` on posts+stats; Cloudinary auto-quality+format at upload time
+- **Full-Stack Perf Pass** — Added DB indexes for high-traffic feed/moderation queries; dashboard stats now use SQL tag aggregation + TTL cache; coach review queue capped at 100 posts/comments; reaction state is synchronized across feed/detail via global store with optimistic rollback; chat polling is visibility/app-state adaptive; roster lists virtualized with FlatList
 - **Deploy Agent** — Pre-deploy checklist with Step -1 memory bank update, 12 deployment validation checks
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
@@ -55,7 +56,6 @@
 - Validate and finalize profile expansion (banner upload, bio editing, contacts CRUD)
 - Validate and finalize public journal sharing feed (`GET /api/journals/public` + `isPublic` create/update flow)
 - iOS build and testing
-- **Performance optimization for large post feeds** ✅ (gzip compression, expo-image caching, Cloudinary URL transforms, request dedup, Cache-Control headers)
 - **Offline support / caching** ✅ (SW asset cache, API stale fallback, image cache-first)
 - Email notifications for coaches
 - Automated REVIEW post escalation (Scenario 7)
@@ -63,7 +63,7 @@
 - Rate limiting on PIN login and recovery requests
 
 ## Current Status
-The platform is **functional and deployed** on web. All core features are complete: posts, comments, reactions, moderation, journal, chat, daily reflections, Cloudinary image uploads, persistent anonymous names, comprehensive coach moderation dashboard, and full QA coverage. JWT auth + PIN-based cross-device login + account recovery protect all write endpoints. A comprehensive security audit fixed 15 vulnerabilities. Image uploads migrated to Cloudinary (Railway ephemeral filesystem fix). Focus is on native deployment, production env var setup, and UI polish.
+The platform is **functional and deployed** on web. All core features are complete: posts, comments, reactions, moderation, journal, chat, daily reflections, Cloudinary image uploads, persistent anonymous names, comprehensive coach moderation dashboard, and full QA coverage. JWT auth + PIN-based cross-device login + account recovery protect all write endpoints. A comprehensive security audit fixed 15 vulnerabilities. Image uploads migrated to Cloudinary (Railway ephemeral filesystem fix). Latest performance hardening adds indexed query paths, cached dashboard aggregates, reduced list/polling load, and shared reaction-state synchronization. Focus is on native deployment, production env var setup, and UI polish.
 
 ## Known Issues
 - `JWT_SECRET` uses a hardcoded default in dev — must be overridden in production (startup warning logged)

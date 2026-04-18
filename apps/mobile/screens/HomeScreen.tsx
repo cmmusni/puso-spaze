@@ -727,6 +727,7 @@ export default function HomeScreen() {
           )}
           <TouchableOpacity
             onPress={() => {
+              setHighlightPostId(null);
               flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
               handleRefresh();
             }}
@@ -792,7 +793,10 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            onPress={() => navigation.navigate("Profile")}
+            onPress={() => {
+              setHighlightPostId(null);
+              navigation.navigate("Profile");
+            }}
             activeOpacity={0.7}
             style={styles.avatarBtn}
           >

@@ -335,13 +335,18 @@ export default function SpazeCoachScreen({ navigation }: any) {
                   <Ionicons name="people" size={18} color={colors.primary} />
                   <Text style={[s.sectionTitle, { color: colors.onSurface }]}>Available Coaches</Text>
                 </View>
-                <ScrollView
+                <FlatList
+                  data={coaches}
+                  keyExtractor={(coach) => coach.id}
+                  renderItem={({ item }) => renderCoachCard(item)}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={s.coachScroll}
-                >
-                  {coaches.map((coach) => renderCoachCard(coach))}
-                </ScrollView>
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={6}
+                  windowSize={5}
+                  removeClippedSubviews={Platform.OS !== "web"}
+                />
               </View>
             )}
 

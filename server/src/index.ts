@@ -134,6 +134,19 @@ app.get('/api/stats/online', async (_req, res) => {
   }
 });
 
+// In-process TTL cache for shared, expensive aggregates (single-instance Railway).
+// Avoids hammering DB when many users open the home screen at once.
+const dashboardCache = new Map<string, { value: unknown; expiresAt: number }>();
+const DASHBOARD_TTL_MS = 60 * 1000;
+
+async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = dashboardCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.value as T;
+  const value = await fn();
+  dashboardCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  return value;
+}
+
 app.get('/api/stats/dashboard', async (req, res) => {
   try {
     const now = new Date();
@@ -156,16 +169,32 @@ app.get('/api/stats/dashboard', async (req, res) => {
       : [];
 
     const [totalMembers,dailyStories,onlineCount,trendingTags,reflectionContent] = await Promise.all([
-      prisma.user.count(),
-      prisma.post.count({ where: { createdAt: { gte: h24 }, moderationStatus: 'SAFE' } }),
-      prisma.user.count({ where: { lastActiveAt: { gte: m15 } } }),
-      prisma.post.findMany({
-        where: { moderationStatus: 'SAFE', tags: { isEmpty: false } },
-        select: { tags: true }, orderBy: { createdAt: 'desc' }, take: 50,
-      }).then((posts) => {
-        const tc: Record<string,number> = {};
-        for (const p of posts) for (const t of p.tags) tc[t]=(tc[t]||0)+1;
-        return Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t,c])=>({ tag: t, count: c }));
+      cached('totalMembers', DASHBOARD_TTL_MS, () => prisma.user.count()),
+      cached('dailyStories', DASHBOARD_TTL_MS, () =>
+        prisma.post.count({ where: { createdAt: { gte: h24 }, moderationStatus: 'SAFE' } })
+      ),
+      // online count is more time-sensitive; shorter TTL
+      cached('onlineCount', 15 * 1000, () =>
+        prisma.user.count({ where: { lastActiveAt: { gte: m15 } } })
+      ),
+      // Trending tags: aggregate at the DB level via unnest(tags) instead of
+      // pulling rows + flattening in JS. 60s TTL keeps repeat hits cheap.
+      cached('trendingTags', DASHBOARD_TTL_MS, async () => {
+        const rows = await prisma.$queryRaw<Array<{ tag: string; count: bigint }>>`
+          SELECT tag, COUNT(*)::bigint AS count
+          FROM (
+            SELECT unnest(tags) AS tag
+            FROM posts
+            WHERE "moderationStatus" = 'SAFE'
+              AND array_length(tags, 1) > 0
+            ORDER BY "createdAt" DESC
+            LIMIT 200
+          ) t
+          GROUP BY tag
+          ORDER BY count DESC
+          LIMIT 6
+        `;
+        return rows.map((r) => ({ tag: r.tag, count: Number(r.count) }));
       }),
       recentUserPosts.length > 0 && userId
         ? getPersonalisedDailyReflection(userId, recentUserPosts.map(p => p.content))
@@ -175,7 +204,8 @@ app.get('/api/stats/dashboard', async (req, res) => {
       ? { id: 'daily-reflection', content: reflectionContent, createdAt: new Date().toISOString() }
       : null;
     res.json({ totalMembers, dailyStories, onlineCount, trendingTags, dailyReflection });
-  } catch {
+  } catch (err) {
+    console.error('[Server] /api/stats/dashboard error:', err);
     res.json({ totalMembers:0, dailyStories:0, onlineCount:0, trendingTags:[], dailyReflection:null });
   }
 });

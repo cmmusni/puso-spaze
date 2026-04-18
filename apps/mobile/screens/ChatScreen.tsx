@@ -19,6 +19,7 @@ import {
   KeyboardAvoidingView,
   Animated,
   useWindowDimensions,
+  AppState,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -147,33 +148,65 @@ export default function ChatScreen({ navigation, route }: any) {
     fetchMessages();
   }, [fetchMessages]);
 
+  // ── Adaptive polling: slow when backgrounded / hidden ────
+  // Saves bandwidth and battery while not actively reading.
+  const isAppHidden = useCallback(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      return document.visibilityState === "hidden";
+    }
+    return AppState.currentState !== "active";
+  }, []);
+
   // ── Poll for new messages (only while focused) ───
   useFocusEffect(
     useCallback(() => {
-      fetchMessages();
-      const interval = setInterval(fetchMessages, POLL_INTERVAL);
-      return () => clearInterval(interval);
-    }, [fetchMessages])
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let cancelled = false;
+      const tick = async () => {
+        if (cancelled) return;
+        await fetchMessages();
+        if (cancelled) return;
+        const delay = isAppHidden() ? POLL_INTERVAL * 6 : POLL_INTERVAL;
+        timer = setTimeout(tick, delay);
+      };
+      tick();
+      return () => {
+        cancelled = true;
+        if (timer) clearTimeout(timer);
+      };
+    }, [fetchMessages, isAppHidden])
   );
 
-  // ── Poll for typing status (only while focused) ──
+  // ── Poll for typing status (only while focused + input has content) ──
+  // The other party's typing indicator is only meaningful while we're
+  // composing too; pausing it when our input is empty halves typing-poll
+  // traffic for the common "just reading" case.
   useFocusEffect(
     useCallback(() => {
       if (!userId || !conversationId) return;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let cancelled = false;
       const poll = async () => {
+        if (cancelled) return;
         try {
           const { typing } = await apiGetTyping(conversationId, userId);
           setOtherIsTyping(typing);
-        } catch { /* silent */ }
+        } catch {
+          /* silent */
+        }
+        if (cancelled) return;
+        const hidden = isAppHidden();
+        const delay = hidden ? TYPING_POLL_INTERVAL * 5 : TYPING_POLL_INTERVAL;
+        timer = setTimeout(poll, delay);
       };
       poll();
-      const interval = setInterval(poll, TYPING_POLL_INTERVAL);
       return () => {
-        clearInterval(interval);
+        cancelled = true;
+        if (timer) clearTimeout(timer);
         setOtherIsTyping(false);
         if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       };
-    }, [userId, conversationId])
+    }, [userId, conversationId, isAppHidden])
   );
 
   // ── Notify server when user types ────────

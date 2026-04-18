@@ -41,7 +41,8 @@ import {
   apiUnpinPost,
   resolveAvatarUrl,
 } from "../services/api";
-import { useUser } from "../hooks/useUser";
+import { useUserStore } from "../context/UserContext";
+import { useReactionsStore } from "../context/ReactionsStore";
 import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
@@ -106,9 +107,14 @@ function formatRelativeTime(dateStr: string): string {
 // PostCard is used inside drawer screens, so we use any for navigation type
 type CardNavProp = any;
 
-export default function PostCard({ post, onDelete, onPin, onPostPress, openedFrom }: PostCardProps) {
+function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCardProps) {
   const navigation = useNavigation<CardNavProp>();
-  const { userId, role, username: currentUserDisplayName, avatarUrl: currentUserAvatarUrl } = useUser();
+  // Narrow selectors so unrelated user-store updates (bio, contacts, banner)
+  // don't re-render every PostCard in the feed. React.memo above relies on this.
+  const userId = useUserStore((s) => s.userId);
+  const role = useUserStore((s) => s.role);
+  const currentUserDisplayName = useUserStore((s) => s.username);
+  const currentUserAvatarUrl = useUserStore((s) => s.avatarUrl);
   const colors = useThemeStore((s) => s.colors);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -125,28 +131,35 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
   const timeAgo = formatRelativeTime(post.createdAt);
   const initial = post.isAnonymous && !isOwnAnonymousPost ? "?" : displayName.charAt(0).toUpperCase();
 
-  // ── Local reaction state (optimistic) ────────
-  const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
-  const [counts, setCounts] = useState<ReactionCounts>({});
-  const [localTotal, setLocalTotal] = useState(post.reactionCount ?? 0);
+  // ── Reaction state (shared via global ReactionsStore) ──
+  const reactionState = useReactionsStore(
+    (s) => s.byPostId[post.id],
+  );
+  const setReactions = useReactionsStore((s) => s.setReactions);
+  const applyToggle = useReactionsStore((s) => s.applyToggle);
+  const rollback = useReactionsStore((s) => s.rollback);
+  const userReaction = reactionState?.userReaction ?? null;
+  const counts = reactionState?.counts ?? {};
+  const localTotal = reactionState?.total ?? (post.reactionCount ?? 0);
   const [reactionLoading, setReactionLoading] = useState(false);
 
   // ── Fetch counts on mount ─────────────────────
+  // Only fetch from the server if the store has no data for this post yet.
+  // This avoids refetching on remount (e.g. when coming back from PostDetail)
+  // which can race with an in-flight POST and overwrite the store with stale
+  // server state.
   useEffect(() => {
+    if (useReactionsStore.getState().byPostId[post.id]) return;
     apiGetReactions(post.id, userId ?? undefined)
       .then((data) => {
-        setCounts(data.counts);
-        setUserReaction(data.userReaction);
-        const total = Object.values(data.counts).reduce(
-          (s, n) => s + (n ?? 0),
-          0,
-        );
-        setLocalTotal(total);
+        // Don't clobber if a write set state while the fetch was in flight.
+        if (useReactionsStore.getState().byPostId[post.id]) return;
+        setReactions(post.id, data.counts, data.userReaction);
       })
       .catch(() => {
         /* keep defaults */
       });
-  }, [post.id, userId]);
+  }, [post.id, userId, setReactions]);
 
   // ── Floating picker ───────────────────────────
   const [showPicker, setShowPicker] = useState(false);
@@ -190,20 +203,6 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
       tension: 120,
       friction: 7,
     }).start();
-    // Silently refresh counts in background (data already loaded on mount)
-    apiGetReactions(post.id, userId ?? undefined)
-      .then((data) => {
-        setCounts(data.counts);
-        setUserReaction(data.userReaction);
-        const total = Object.values(data.counts).reduce(
-          (s, n) => s + (n ?? 0),
-          0,
-        );
-        setLocalTotal(total);
-      })
-      .catch(() => {
-        /* keep current state */
-      });
   };
 
   const closePicker = () => {
@@ -359,27 +358,11 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
     if (!userId) return;
     closePicker();
     setReactionLoading(true);
-    const prev = userReaction;
-    // Optimistic update
-    const newCounts = { ...counts };
-    if (prev) newCounts[prev] = Math.max(0, (newCounts[prev] ?? 1) - 1);
-    const removing = type === prev;
-    if (!removing) {
-      newCounts[type] = (newCounts[type] ?? 0) + 1;
-      setUserReaction(type);
-      if (!prev) setLocalTotal((t) => t + 1);
-    } else {
-      setUserReaction(null);
-      setLocalTotal((t) => Math.max(0, t - 1));
-    }
-    setCounts(newCounts);
+    const snapshot = applyToggle(post.id, type);
     try {
       await apiUpsertReaction(post.id, { userId, type });
     } catch {
-      // Revert
-      setUserReaction(prev);
-      setCounts(counts);
-      setLocalTotal(post.reactionCount ?? 0);
+      rollback(post.id, snapshot);
     } finally {
       setReactionLoading(false);
     }
@@ -1047,6 +1030,12 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
     </>
   );
 }
+
+// Memoize so feed list (HomeScreen) only re-renders cards whose `post` reference
+// actually changed (e.g., reaction toggle, edit). With stable handlers from
+// parent, a shallow prop comparison is sufficient.
+const PostCard = React.memo(PostCardImpl);
+export default PostCard;
 
 // ─────────────────────────────────────────────
 // Styles — Sacred Journal design system

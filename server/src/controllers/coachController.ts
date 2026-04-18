@@ -37,6 +37,7 @@ export async function getReviewQueue(req: Request, res: Response): Promise<void>
         where: { moderationStatus: { in: ['REVIEW', 'FLAGGED'] } },
         include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
         orderBy: { createdAt: 'asc' },
+        take: 100,
       }),
       prisma.comment.findMany({
         where: { moderationStatus: { in: ['REVIEW', 'FLAGGED'] } },
@@ -45,6 +46,7 @@ export async function getReviewQueue(req: Request, res: Response): Promise<void>
           post: { select: { id: true, content: true } },
         },
         orderBy: { createdAt: 'asc' },
+        take: 100,
       }),
     ]);
 
