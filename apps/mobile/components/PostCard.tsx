@@ -420,7 +420,12 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
       >
         {/* ── Author row ── */}
         <View style={styles.authorRow}>
-          <View style={styles.row}>
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            disabled={post.userId === SYSTEM_USER_ID || (post.isAnonymous && !isOwnAnonymousPost)}
+            onPress={() => navigation.navigate("Profile", { userId: post.userId })}
+          >
             {post.userId === "system-encouragement-bot" ? (
               <Image
                 source={require("../assets/logo.png")}
@@ -494,7 +499,7 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
                 })()}
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={styles.headerRight}>
             {post.pinned && (
               <View style={styles.pinnedPill}>

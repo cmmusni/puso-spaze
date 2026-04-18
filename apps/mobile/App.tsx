@@ -5,7 +5,8 @@
 // ─────────────────────────────────────────────
 
 import React, { useEffect } from 'react';
-import { Platform, View, ActivityIndicator } from 'react-native';
+import { Platform } from 'react-native';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -26,10 +27,12 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 import { useUserStore } from './context/UserContext';
-import { colors } from './constants/theme';
 import { useThemeStore } from './context/ThemeContext';
 import WebShell from './components/WebShell';
 import CustomAlertModal from './components/CustomAlertModal';
+
+// Hold the native splash until fonts are loaded
+ExpoSplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const loadUser = useUserStore((s) => s.loadUser);
@@ -56,6 +59,13 @@ export default function App() {
     loadTheme();
   }, [loadUser, loadTheme]);
 
+  // ── Hide native splash once fonts are ready ──
+  useEffect(() => {
+    if (fontsLoaded) {
+      ExpoSplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
   // ── Inject apple-touch-icon link tag on web ──
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -66,13 +76,8 @@ export default function App() {
     }
   }, []);
 
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: themeColors.surface }}>
-        <ActivityIndicator size="large" color={themeColors.primary} />
-      </View>
-    );
-  }
+  // Native splash is still visible while fonts load — return null to keep it up
+  if (!fontsLoaded) return null;
 
   // ── Main app ──────────────────────────────────
   return (

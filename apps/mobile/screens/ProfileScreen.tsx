@@ -30,8 +30,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, useRoute } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
+import type { RouteProp } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 
 import {
@@ -55,6 +56,7 @@ import {
   apiUpdatePin,
   apiGetUserStats,
   apiGetOrCreateConversation,
+  apiGetUserById,
   getBaseUrl,
   resolveAvatarUrl,
   apiFetchPublicJournals,
@@ -66,10 +68,11 @@ import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal, ContactInfo } from "../../../packages/types";
 
 type Nav = DrawerNavigationProp<MainDrawerParamList>;
+type ProfileRoute = RouteProp<MainDrawerParamList, "Profile">;
 
 const ROLE_LABELS: Record<string, string> = {
-  USER: "Spaze Member",
-  COACH: "Spaze Coach",
+  USER: "Member",
+  COACH: "Coach",
   ADMIN: "Admin",
 };
 
@@ -81,8 +84,33 @@ const ABOUT_ME_LABEL = "ABOUT ME";
 const PROFILE_TABS = ["TIMELINE", "ABOUT", "CONTACT", "PREFERENCES"] as const;
 type ProfileTab = (typeof PROFILE_TABS)[number];
 
+const CONTACT_FIELDS = [
+  { key: "phone", icon: "call-outline", label: "Phone", placeholder: "+1 234 567 8900", scheme: "tel:" },
+  { key: "contactEmail", icon: "mail-outline", label: "Email", placeholder: "you@example.com", scheme: "mailto:" },
+  { key: "facebook", icon: "logo-facebook", label: "Facebook", placeholder: "facebook.com/username", scheme: "" },
+  { key: "instagram", icon: "logo-instagram", label: "Instagram", placeholder: "@yourusername", scheme: "" },
+  { key: "linkedin", icon: "logo-linkedin", label: "LinkedIn", placeholder: "linkedin.com/in/you", scheme: "" },
+  { key: "twitter", icon: "logo-twitter", label: "Twitter / X", placeholder: "@yourusername", scheme: "" },
+  { key: "tiktok", icon: "musical-notes-outline", label: "TikTok", placeholder: "@yourusername", scheme: "" },
+  { key: "youtube", icon: "logo-youtube", label: "YouTube", placeholder: "youtube.com/@channel", scheme: "" },
+  { key: "website", icon: "globe-outline", label: "Website", placeholder: "yourwebsite.com", scheme: "" },
+] as const;
+
+/** Pure date formatter — no component deps, safe to hoist */
+const formatDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString())
+    return `Today, ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  const y = new Date(now);
+  y.setDate(y.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return "Yesterday";
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+};
+
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<ProfileRoute>();
   const {
     username,
     userId,
@@ -102,6 +130,11 @@ export default function ProfileScreen() {
     toggleAnonymous,
     toggleNotifications,
   } = useUserStore();
+
+  // ── Determine which user to show ──────────
+  const routeUserId = route.params?.userId;
+  const isOwner = !routeUserId || routeUserId === userId;
+  const profileUserId = isOwner ? userId : routeUserId;
   const { isDark, toggleDarkMode } = useThemeStore();
   const colors = useThemeStore((s) => s.colors);
   const s = useMemo(() => createStyles(colors), [colors]);
@@ -171,12 +204,46 @@ export default function ProfileScreen() {
   // ── Tab state ─────────────────────────────
   const [activeTab, setActiveTab] = useState<ProfileTab>("TIMELINE");
 
-  const displayName = username ?? "User";
-  const initial = displayName.charAt(0).toUpperCase();
-  const roleLabel = ROLE_LABELS[role ?? "USER"] ?? "Spaze Member";
+  // ── Other user profile data ───────────────
+  const [otherUser, setOtherUser] = useState<{
+    displayName: string;
+    role: string;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    bio?: string | null;
+    createdAt: string;
+    phone?: string | null;
+    contactEmail?: string | null;
+    facebook?: string | null;
+    instagram?: string | null;
+    linkedin?: string | null;
+    twitter?: string | null;
+    tiktok?: string | null;
+    youtube?: string | null;
+    website?: string | null;
+  } | null>(null);
 
-  // ── Ownership guard ───────────────────────
-  const isOwner = !!userId;
+  // ── Resolved profile values (owner vs other) ──
+  const displayName = isOwner ? (username ?? "User") : (otherUser?.displayName ?? "User");
+  const profileRole = isOwner ? role : otherUser?.role;
+  const profileAvatarUrl = isOwner ? avatarUrl : otherUser?.avatarUrl;
+  const profileBannerUrl = isOwner ? bannerUrl : otherUser?.bannerUrl;
+  const profileBio = isOwner ? bio : otherUser?.bio;
+  const profileContacts: ContactInfo = isOwner
+    ? (contacts ?? {})
+    : {
+        phone: otherUser?.phone,
+        contactEmail: otherUser?.contactEmail,
+        facebook: otherUser?.facebook,
+        instagram: otherUser?.instagram,
+        linkedin: otherUser?.linkedin,
+        twitter: otherUser?.twitter,
+        tiktok: otherUser?.tiktok,
+        youtube: otherUser?.youtube,
+        website: otherUser?.website,
+      };
+  const initial = displayName.charAt(0).toUpperCase();
+  const roleLabel = ROLE_LABELS[profileRole ?? "USER"] ?? "Spaze Member";
 
   // ── Responsive avatar size ────────────────
   const avatarSize = isMedium ? 100 : 88;
@@ -185,26 +252,44 @@ export default function ProfileScreen() {
   const loadData = useCallback(async () => {
     try {
       await fetchPosts();
-      if (userId) {
-        const [journalRes, pinRes, statsRes, contactsRes] = await Promise.all([
-          apiFetchPublicJournals(userId),
-          apiGetPin(userId).catch(() => ({ pin: null })),
-          apiGetUserStats(userId).catch(() => ({
+      if (profileUserId) {
+        const fetches: Promise<any>[] = [
+          apiFetchPublicJournals(profileUserId),
+          apiGetUserStats(profileUserId).catch(() => ({
             encouragementsGiven: 0,
             totalReflections: 0,
             streak: 0,
             createdAt: null,
           })),
-          apiGetContacts(userId).catch(() => ({ contacts: {} })),
-        ]);
+        ];
+        if (isOwner) {
+          fetches.push(
+            apiGetPin(profileUserId).catch(() => ({ pin: null })),
+            apiGetContacts(profileUserId).catch(() => ({ contacts: {} })),
+          );
+        } else {
+          fetches.push(
+            apiGetUserById(profileUserId).catch(() => ({ user: null })),
+          );
+        }
+        const results = await Promise.all(fetches);
+        const journalRes = results[0];
+        const statsRes = results[1];
         setJournals(journalRes.journals);
-        setPinCode(pinRes.pin);
         setEncouragementsGiven(statsRes.encouragementsGiven);
         setTotalReflections(statsRes.totalReflections);
         setStreak(statsRes.streak);
         setCreatedAt(statsRes.createdAt ?? "");
-        await updateContacts(contactsRes.contacts);
-        setEditedContacts(contactsRes.contacts);
+        if (isOwner) {
+          const pinRes = results[2];
+          const contactsRes = results[3];
+          setPinCode(pinRes.pin);
+          await updateContacts(contactsRes.contacts);
+          setEditedContacts(contactsRes.contacts);
+        } else {
+          const userRes = results[2];
+          if (userRes.user) setOtherUser(userRes.user);
+        }
       }
     } catch (err) {
       console.warn("[ProfileScreen] load error:", err);
@@ -212,7 +297,7 @@ export default function ProfileScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchPosts, userId]);
+  }, [fetchPosts, profileUserId, isOwner]);
 
   useFocusEffect(
     useCallback(() => {
@@ -220,27 +305,20 @@ export default function ProfileScreen() {
     }, [loadData]),
   );
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
-  };
+  }, [loadData]);
 
   // ── Stats ─────────────────────────────────
   const myPosts = useMemo(
-    () => posts.filter((p) => p.userId === userId),
-    [posts, userId],
+    () => posts.filter((p) => p.userId === profileUserId),
+    [posts, profileUserId],
   );
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString())
-      return `Today, ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-    const y = new Date(now);
-    y.setDate(y.getDate() - 1);
-    if (d.toDateString() === y.toDateString()) return "Yesterday";
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
+  const handlePostDeleted = useCallback(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   // ── Banner upload ─────────────────────────
   const handlePickBanner = async () => {
@@ -448,6 +526,15 @@ export default function ProfileScreen() {
     }
   };
 
+  const resolvedAvatarUri = useMemo(
+    () => resolveAvatarUrl(profileAvatarUrl) || null,
+    [profileAvatarUrl],
+  );
+  const resolvedBannerUri = useMemo(
+    () => resolveAvatarUrl(profileBannerUrl) || null,
+    [profileBannerUrl],
+  );
+
   // ═══════════════════════════════════════════
   //  R E N D E R
   // ═══════════════════════════════════════════
@@ -463,9 +550,6 @@ export default function ProfileScreen() {
       </SafeAreaView>
     );
   }
-
-  const resolvedAvatarUri = resolveAvatarUrl(avatarUrl) || null;
-  const resolvedBannerUri = resolveAvatarUrl(bannerUrl) || null;
 
   return (
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
@@ -518,14 +602,16 @@ export default function ProfileScreen() {
             isSmall && s.profileSectionSmall,
           ]}
         >
-          <TouchableOpacity
-            onPress={handlePickBanner}
-            disabled={uploadingBanner}
-            style={[s.bannerCameraBtn]}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="camera" size={14} color="#fff" />
-          </TouchableOpacity>
+          {isOwner && (
+            <TouchableOpacity
+              onPress={handlePickBanner}
+              disabled={uploadingBanner}
+              style={[s.bannerCameraBtn]}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="camera" size={14} color="#fff" />
+            </TouchableOpacity>
+          )}
           <View style={[s.profileHeader, isMedium && s.profileHeaderMedium]}>
             {/* Avatar */}
             <TouchableOpacity
@@ -583,17 +669,19 @@ export default function ProfileScreen() {
                 </View>
               )}
               {/* Camera badge */}
-              <TouchableOpacity
-                onPress={handlePickAvatar}
-                disabled={uploadingAvatar}
-                style={[
-                  s.cameraBadge,
-                  { backgroundColor: colors.primary, borderColor: colors.card },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="camera" size={14} color={colors.onPrimary} />
-              </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity
+                  onPress={handlePickAvatar}
+                  disabled={uploadingAvatar}
+                  style={[
+                    s.cameraBadge,
+                    { backgroundColor: colors.primary, borderColor: colors.card },
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="camera" size={14} color={colors.onPrimary} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
 
             {/* Name + Actions */}
@@ -710,29 +798,44 @@ export default function ProfileScreen() {
               ) : (
                 <>
                   <View style={s.nameActionRow}>
-                    <TouchableOpacity
-                      onPress={handleEditProfile}
-                      style={s.nameEditRow}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          s.displayName,
-                          { color: colors.onSurface },
-                          isMedium && s.displayNameMedium,
-                        ]}
-                        numberOfLines={1}
+                    {isOwner ? (
+                      <TouchableOpacity
+                        onPress={handleEditProfile}
+                        style={s.nameEditRow}
+                        activeOpacity={0.7}
                       >
-                        {displayName}
-                      </Text>
-                      <Ionicons
-                        name="pencil"
-                        size={isMedium ? 16 : 13}
-                        color={colors.onSurfaceVariant}
-                      />
-                    </TouchableOpacity>
+                        <Text
+                          style={[
+                            s.displayName,
+                            { color: colors.onSurface },
+                            isMedium && s.displayNameMedium,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {displayName}
+                        </Text>
+                        <Ionicons
+                          name="pencil"
+                          size={isMedium ? 16 : 13}
+                          color={colors.onSurfaceVariant}
+                        />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={s.nameEditRow}>
+                        <Text
+                          style={[
+                            s.displayName,
+                            { color: colors.onSurface },
+                            isMedium && s.displayNameMedium,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {displayName}
+                        </Text>
+                      </View>
+                    )}
                     <View style={s.actionBtns}>
-                      {!isWide && (
+                      {isOwner && !isWide && (
                         <TouchableOpacity
                           onPress={logoutUser}
                           activeOpacity={0.85}
@@ -869,7 +972,9 @@ export default function ProfileScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.tabBar}
           >
-            {PROFILE_TABS.map((tab) => (
+            {PROFILE_TABS.filter(
+              (tab) => isOwner || tab !== "PREFERENCES",
+            ).map((tab) => (
               <TouchableOpacity
                 key={tab}
                 onPress={() => setActiveTab(tab)}
@@ -1010,7 +1115,7 @@ export default function ProfileScreen() {
                     <PostCard
                       key={post.id}
                       post={post}
-                      onDelete={() => fetchPosts()}
+                      onDelete={handlePostDeleted}
                       openedFrom="profile"
                     />
                   ))
@@ -1099,7 +1204,7 @@ export default function ProfileScreen() {
                   </>
                 ) : (
                   <Text style={[s.aboutText, { color: colors.onSurface }]}>
-                    {bio ?? BIO_DEFAULT}
+                    {profileBio ?? BIO_DEFAULT}
                   </Text>
                 )}
               </View>
@@ -1135,58 +1240,7 @@ export default function ProfileScreen() {
                 {isOwner && isEditingContacts ? (
                   // ── Edit mode (owner only) ────────────────────
                   <>
-                    {(
-                      [
-                        {
-                          key: "phone",
-                          icon: "call-outline",
-                          label: "Phone",
-                          placeholder: "+1 234 567 8900",
-                        },
-                        {
-                          key: "contactEmail",
-                          icon: "mail-outline",
-                          label: "Email",
-                          placeholder: "you@example.com",
-                        },
-                        {
-                          key: "facebook",
-                          icon: "logo-facebook",
-                          label: "Facebook",
-                          placeholder: "facebook.com/username",
-                        },
-                        {
-                          key: "instagram",
-                          icon: "logo-instagram",
-                          label: "Instagram",
-                          placeholder: "@yourusername",
-                        },
-                        {
-                          key: "linkedin",
-                          icon: "logo-linkedin",
-                          label: "LinkedIn",
-                          placeholder: "linkedin.com/in/you",
-                        },
-                        {
-                          key: "twitter",
-                          icon: "logo-twitter",
-                          label: "Twitter / X",
-                          placeholder: "@yourusername",
-                        },
-                        {
-                          key: "tiktok",
-                          icon: "musical-notes-outline",
-                          label: "TikTok",
-                          placeholder: "@yourusername",
-                        },
-                        {
-                          key: "youtube",
-                          icon: "logo-youtube",
-                          label: "YouTube",
-                          placeholder: "youtube.com/@channel",
-                        },
-                      ] as const
-                    ).map(({ key, icon, label, placeholder }) => (
+                    {CONTACT_FIELDS.map(({ key, icon, label, placeholder }) => (
                       <View key={key} style={s.contactFieldRow}>
                         <Ionicons
                           name={icon as any}
@@ -1271,58 +1325,8 @@ export default function ProfileScreen() {
                 ) : (
                   // ── Read-only view ────────────────────────────
                   (() => {
-                    const CONTACT_ROWS = [
-                      {
-                        key: "phone",
-                        icon: "call-outline",
-                        label: "Phone",
-                        scheme: "tel:",
-                      },
-                      {
-                        key: "contactEmail",
-                        icon: "mail-outline",
-                        label: "Email",
-                        scheme: "mailto:",
-                      },
-                      {
-                        key: "facebook",
-                        icon: "logo-facebook",
-                        label: "Facebook",
-                        scheme: "",
-                      },
-                      {
-                        key: "instagram",
-                        icon: "logo-instagram",
-                        label: "Instagram",
-                        scheme: "",
-                      },
-                      {
-                        key: "linkedin",
-                        icon: "logo-linkedin",
-                        label: "LinkedIn",
-                        scheme: "",
-                      },
-                      {
-                        key: "twitter",
-                        icon: "logo-twitter",
-                        label: "Twitter / X",
-                        scheme: "",
-                      },
-                      {
-                        key: "tiktok",
-                        icon: "musical-notes-outline",
-                        label: "TikTok",
-                        scheme: "",
-                      },
-                      {
-                        key: "youtube",
-                        icon: "logo-youtube",
-                        label: "YouTube",
-                        scheme: "",
-                      },
-                    ] as const;
-                    const filled = CONTACT_ROWS.filter(
-                      (r) => !!(contacts as any)?.[r.key],
+                    const filled = CONTACT_FIELDS.filter(
+                      (r) => !!(profileContacts as any)?.[r.key],
                     );
                     if (filled.length === 0) {
                       return (
@@ -1338,7 +1342,7 @@ export default function ProfileScreen() {
                     return (
                       <>
                         {filled.map(({ key, icon, label, scheme }) => {
-                          const value = (contacts as any)[key] as string;
+                          const value = (profileContacts as any)[key] as string;
                           const isUrl =
                             /^https?:\/\//i.test(value) ||
                             scheme === "tel:" ||
@@ -1397,7 +1401,7 @@ export default function ProfileScreen() {
 
                 {/* Coach / Admin contact CTA — visible only to non-coach viewers */}
                 {!isOwner &&
-                  (role === "COACH" || role === "ADMIN") &&
+                  (profileRole === "COACH" || profileRole === "ADMIN") &&
                   !isEditingContacts && (
                     <View
                       style={[
@@ -1418,7 +1422,7 @@ export default function ProfileScreen() {
                               { color: colors.onSurface },
                             ]}
                           >
-                            {role === "ADMIN"
+                            {profileRole === "ADMIN"
                               ? "Admin Channel"
                               : "Available for Coaching"}
                           </Text>
@@ -1428,7 +1432,7 @@ export default function ProfileScreen() {
                               { color: colors.onSurfaceVariant },
                             ]}
                           >
-                            {role === "ADMIN"
+                            {profileRole === "ADMIN"
                               ? "Reach out through the secure admin channel."
                               : "Send a message to start a private coaching session."}
                           </Text>
@@ -1439,7 +1443,7 @@ export default function ProfileScreen() {
                           s.messageCoachBtn,
                           { backgroundColor: colors.secondary },
                         ]}
-                        onPress={() => userId && handleMessageCoach(userId)}
+                        onPress={() => profileUserId && handleMessageCoach(profileUserId)}
                         disabled={startingCoachChat}
                         activeOpacity={0.7}
                       >
@@ -1461,7 +1465,7 @@ export default function ProfileScreen() {
                                 { color: colors.onPrimary },
                               ]}
                             >
-                              {role === "ADMIN"
+                              {profileRole === "ADMIN"
                                 ? "Open Admin Channel"
                                 : "Message Coach"}
                             </Text>
@@ -1474,7 +1478,7 @@ export default function ProfileScreen() {
             )}
 
             {/* PREFERENCES Tab */}
-            {activeTab === "PREFERENCES" && (
+            {activeTab === "PREFERENCES" && isOwner && (
               <View
                 style={[
                   s.tabCard,
@@ -1699,11 +1703,11 @@ export default function ProfileScreen() {
                   {ABOUT_ME_LABEL}
                 </Text>
                 <Text style={[s.sideText, { color: colors.onSurface }]}>
-                  {bio ?? BIO_DEFAULT}
+                  {profileBio ?? BIO_DEFAULT}
                 </Text>
               </View>
 
-              {!isOwner && (role === "COACH" || role === "ADMIN") && (
+              {!isOwner && (profileRole === "COACH" || profileRole === "ADMIN") && (
                 <View
                   style={[
                     s.sideCard,
@@ -1716,7 +1720,7 @@ export default function ProfileScreen() {
                   <Text
                     style={[s.contactNote, { color: colors.onSurfaceVariant }]}
                   >
-                    {role === "ADMIN"
+                    {profileRole === "ADMIN"
                       ? "Reach out through the secure admin channel."
                       : "Send a message to start a private coaching session."}
                   </Text>
@@ -1725,7 +1729,7 @@ export default function ProfileScreen() {
                       s.messageCoachBtn,
                       { backgroundColor: colors.secondary },
                     ]}
-                    onPress={() => userId && handleMessageCoach(userId)}
+                    onPress={() => profileUserId && handleMessageCoach(profileUserId)}
                     disabled={startingCoachChat}
                     activeOpacity={0.7}
                   >
@@ -1747,7 +1751,7 @@ export default function ProfileScreen() {
                             { color: colors.onPrimary },
                           ]}
                         >
-                          {role === "ADMIN"
+                          {profileRole === "ADMIN"
                             ? "Open Admin Channel"
                             : "Message Coach"}
                         </Text>
@@ -1779,19 +1783,21 @@ export default function ProfileScreen() {
               style={s.previewImage}
               resizeMode="cover"
             />
-            <TouchableOpacity
-              style={[s.previewEditBtn, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                setAvatarPreviewVisible(false);
-                handlePickAvatar();
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="camera" size={18} color={colors.onPrimary} />
-              <Text style={[s.previewEditText, { color: colors.onPrimary }]}>
-                Edit Photo
-              </Text>
-            </TouchableOpacity>
+            {isOwner && (
+              <TouchableOpacity
+                style={[s.previewEditBtn, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  setAvatarPreviewVisible(false);
+                  handlePickAvatar();
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera" size={18} color={colors.onPrimary} />
+                <Text style={[s.previewEditText, { color: colors.onPrimary }]}>
+                  Edit Photo
+                </Text>
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         </Modal>
       )}
@@ -1954,15 +1960,6 @@ const createStyles = (colors: typeof defaultColors) =>
     displayName: { fontSize: 18, fontFamily: fonts.displayBold },
     displayNameMedium: { fontSize: 24 },
     actionBtns: { flexDirection: "row", gap: spacing.sm },
-    editSpazeBtn: {
-      paddingHorizontal: 16,
-      paddingVertical: 7,
-      borderRadius: radii.full,
-      borderWidth: 1,
-      borderStyle: "unset" as any,
-      boxShadow: "0 0 0 1px rgba(0,0,0,0.1)",
-    },
-    editSpazeBtnText: { fontSize: 13, fontFamily: fonts.displaySemiBold },
     signOutBtn: {
       paddingHorizontal: 16,
       paddingVertical: 7,
@@ -2119,13 +2116,6 @@ const createStyles = (colors: typeof defaultColors) =>
     mainColWide: { flex: 2 },
 
     // ── Section Labels ──────────────────────
-    sectionLabelRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginBottom: spacing.sm,
-    },
-    sectionLabelIcon: { fontSize: 14 },
     sectionLabel: {
       fontSize: 11,
       fontFamily: fonts.displayBold,
@@ -2164,53 +2154,6 @@ const createStyles = (colors: typeof defaultColors) =>
       borderRadius: radii.full,
     },
     tagText: { fontSize: 12, fontFamily: fonts.bodySemiBold },
-
-    // ── Post Cards ──────────────────────────
-    postCard: {
-      borderRadius: radii.xl,
-      padding: spacing.md,
-      marginBottom: spacing.md,
-      ...ambientShadow,
-    },
-    postHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      marginBottom: spacing.sm,
-    },
-    postAvatar: { width: 36, height: 36, borderRadius: 18, overflow: "hidden" },
-    postAvatarImg: { width: 36, height: 36, borderRadius: 18 },
-    postAvatarFallback: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    postAvatarText: { fontSize: 14, fontFamily: fonts.displayBold },
-    postMeta: { flex: 1 },
-    postAuthor: { fontSize: 14, fontFamily: fonts.displaySemiBold },
-    postTime: { fontSize: 12, fontFamily: fonts.bodyRegular },
-    postContent: {
-      fontSize: 14,
-      fontFamily: fonts.bodyRegular,
-      lineHeight: 21,
-      marginBottom: spacing.sm,
-    },
-    postImage: {
-      width: "100%" as any,
-      height: 200,
-      borderRadius: radii.lg,
-      marginBottom: spacing.sm,
-    },
-    postFooter: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.lg,
-      paddingTop: spacing.xs,
-    },
-    postStat: { flexDirection: "row", alignItems: "center", gap: 4 },
-    postStatNum: { fontSize: 13, fontFamily: fonts.bodyRegular },
 
     // ── Tab Content Cards ───────────────────
     tabCard: {

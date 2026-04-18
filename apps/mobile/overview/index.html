@@ -778,6 +778,256 @@
         .carousel-device-frame.tablet { width: 560px; }
       }
 
+      /* ── Get the App ── */
+      .get-app-section { background: #FBF8FE; }
+
+      .app-store-grid {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 48px;
+      }
+
+      .store-btn-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .store-btn {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 24px;
+        background: #1C1B1F;
+        color: #FFFFFF;
+        border-radius: 16px;
+        border: none;
+        cursor: pointer;
+        font-family: 'Be Vietnam Pro', sans-serif;
+        text-decoration: none;
+        min-width: 210px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .store-btn ion-icon {
+        font-size: 2rem;
+        flex-shrink: 0;
+      }
+
+      .store-btn-text {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .store-btn-label {
+        font-size: 0.7rem;
+        opacity: 0.7;
+        line-height: 1.2;
+      }
+
+      .store-btn-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        line-height: 1.3;
+      }
+
+      .store-btn-soon {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #49454F;
+        box-shadow: none;
+      }
+
+      .store-btn-pwa {
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        box-shadow: 0 4px 20px rgba(124, 0, 58, 0.25);
+      }
+
+      .store-btn-pwa:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(124, 0, 58, 0.35);
+      }
+
+      .coming-soon-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 14px;
+        background: #E5DAF0;
+        color: #7D45A2;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .available-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 14px;
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        color: #FFFFFF;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .available-badge ion-icon {
+        font-size: 0.9rem;
+      }
+
+      /* PWA Instructions Card */
+      .pwa-card {
+        background: #FFFFFF;
+        border-radius: 24px;
+        padding: 40px 32px;
+        box-shadow: 0 8px 40px -5px rgba(124, 0, 58, 0.06);
+        border: 1px solid rgba(121, 116, 126, 0.1);
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      .pwa-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+
+      .pwa-card-header .feature-card-icon {
+        margin-bottom: 0;
+        flex-shrink: 0;
+      }
+
+      .pwa-card-header h3 {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #1C1B1F;
+        margin-bottom: 4px;
+      }
+
+      .pwa-card-header p {
+        font-size: 0.88rem;
+        color: #49454F;
+        line-height: 1.5;
+      }
+
+      .pwa-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+      }
+
+      .pwa-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 20px;
+        border-radius: 9999px;
+        border: 2px solid rgba(121, 116, 126, 0.2);
+        background: transparent;
+        font-family: 'Be Vietnam Pro', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #49454F;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .pwa-tab ion-icon {
+        font-size: 1rem;
+      }
+
+      .pwa-tab:hover {
+        background: #F3EEFA;
+        border-color: #7D45A2;
+        color: #7C003A;
+      }
+
+      .pwa-tab.active {
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        color: #FFFFFF;
+        border-color: transparent;
+      }
+
+      .pwa-panel {
+        display: none;
+      }
+
+      .pwa-panel.active {
+        display: block;
+      }
+
+      .pwa-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .pwa-step {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        background: #FBF8FE;
+        border-radius: 12px;
+      }
+
+      .pwa-step-num {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #A60550, #8149A6);
+        color: #FFFFFF;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 800;
+      }
+
+      .pwa-step-text strong {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #1C1B1F;
+        margin-bottom: 2px;
+      }
+
+      .pwa-step-text span {
+        font-size: 0.85rem;
+        color: #49454F;
+        line-height: 1.5;
+      }
+
+      .pwa-note {
+        margin-top: 20px;
+        padding: 14px 20px;
+        background: #F3EEFA;
+        border-radius: 12px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 0.85rem;
+        color: #49454F;
+        line-height: 1.5;
+      }
+
+      .pwa-note ion-icon {
+        color: #7D45A2;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
       /* ── Fade-in animation ── */
       .fade-target {
         opacity: 0;
@@ -896,6 +1146,7 @@
           <li><a href="#features">Features</a></li>
           <li><a href="about.html">About</a></li>
           <li><a href="community.html">Community</a></li>
+          <li><a href="#get-app">Get the App</a></li>
           <li><a href="privacy-policy.html">Privacy</a></li>
           <li>
             <a href="https://puso-spaze.org" class="nav-cta" target="_blank" rel="noopener noreferrer">Get Started</a>
@@ -1057,6 +1308,189 @@
         </div>
       </section>
 
+      <!-- ═══ Get the App ═══ -->
+      <section class="section-pad get-app-section fade-target" id="get-app">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Get PUSO Spaze</h2>
+            <p class="section-subtitle">Your healing journey starts now — available as a web app today, with native iOS and Android apps coming soon.</p>
+          </div>
+
+          <div class="app-store-grid">
+            <!-- iOS -->
+            <div class="store-btn-wrap">
+              <button class="store-btn store-btn-soon" disabled aria-label="App Store — Coming Soon" aria-disabled="true">
+                <ion-icon name="logo-apple" aria-hidden="true"></ion-icon>
+                <div class="store-btn-text">
+                  <span class="store-btn-label">Download on the</span>
+                  <span class="store-btn-name">App Store</span>
+                </div>
+              </button>
+              <span class="coming-soon-badge" aria-label="iOS: Coming soon">Coming Soon</span>
+            </div>
+
+            <!-- Android -->
+            <div class="store-btn-wrap">
+              <button class="store-btn store-btn-soon" disabled aria-label="Google Play — Coming Soon" aria-disabled="true">
+                <ion-icon name="logo-google-playstore" aria-hidden="true"></ion-icon>
+                <div class="store-btn-text">
+                  <span class="store-btn-label">Get it on</span>
+                  <span class="store-btn-name">Google Play</span>
+                </div>
+              </button>
+              <span class="coming-soon-badge" aria-label="Android: Coming soon">Coming Soon</span>
+            </div>
+
+            <!-- PWA -->
+            <div class="store-btn-wrap">
+              <a href="https://puso-spaze.org" class="store-btn store-btn-pwa" target="_blank" rel="noopener noreferrer" aria-label="Install PUSO Spaze as a Web App">
+                <ion-icon name="globe-outline" aria-hidden="true"></ion-icon>
+                <div class="store-btn-text">
+                  <span class="store-btn-label">Install as</span>
+                  <span class="store-btn-name">Web App (PWA)</span>
+                </div>
+              </a>
+              <span class="available-badge">
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                Available Now
+              </span>
+            </div>
+          </div>
+
+          <!-- PWA Install Instructions -->
+          <div class="pwa-card">
+            <div class="pwa-card-header">
+              <div class="feature-card-icon" aria-hidden="true">
+                <ion-icon name="phone-portrait-outline"></ion-icon>
+              </div>
+              <div>
+                <h3>How to Install the Web App</h3>
+                <p>Add PUSO Spaze to your home screen in seconds — no app store required.</p>
+              </div>
+            </div>
+
+            <div class="pwa-tabs" role="tablist" aria-label="Choose your platform">
+              <button class="pwa-tab active" role="tab" aria-selected="true" aria-controls="pwa-ios" id="tab-ios" onclick="switchPwaTab('ios')">
+                <ion-icon name="logo-apple" aria-hidden="true"></ion-icon> iPhone / iPad
+              </button>
+              <button class="pwa-tab" role="tab" aria-selected="false" aria-controls="pwa-android" id="tab-android" onclick="switchPwaTab('android')">
+                <ion-icon name="logo-android" aria-hidden="true"></ion-icon> Android
+              </button>
+              <button class="pwa-tab" role="tab" aria-selected="false" aria-controls="pwa-desktop" id="tab-desktop" onclick="switchPwaTab('desktop')">
+                <ion-icon name="desktop-outline" aria-hidden="true"></ion-icon> Desktop
+              </button>
+            </div>
+
+            <!-- iOS Panel -->
+            <div class="pwa-panel active" id="pwa-ios" role="tabpanel" aria-labelledby="tab-ios">
+              <div class="pwa-steps">
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">1</div>
+                  <div class="pwa-step-text">
+                    <strong>Open Safari</strong>
+                    <span>Navigate to <strong>puso-spaze.org</strong> in Safari. Safari is required on iPhone and iPad.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">2</div>
+                  <div class="pwa-step-text">
+                    <strong>Tap the Share button</strong>
+                    <span>Tap the Share icon (□↑) at the bottom of the screen (or top on iPad).</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">3</div>
+                  <div class="pwa-step-text">
+                    <strong>Add to Home Screen</strong>
+                    <span>Scroll down in the share sheet and tap <strong>"Add to Home Screen"</strong>.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">4</div>
+                  <div class="pwa-step-text">
+                    <strong>Confirm &amp; open</strong>
+                    <span>Tap <strong>"Add"</strong> in the top-right corner. PUSO Spaze appears on your home screen like a native app!</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pwa-note">
+                <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+                <span>Safari is required on iOS/iPadOS. Chrome and other browsers on iPhone or iPad do not support home screen installation.</span>
+              </div>
+            </div>
+
+            <!-- Android Panel -->
+            <div class="pwa-panel" id="pwa-android" role="tabpanel" aria-labelledby="tab-android">
+              <div class="pwa-steps">
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">1</div>
+                  <div class="pwa-step-text">
+                    <strong>Open Chrome</strong>
+                    <span>Navigate to <strong>puso-spaze.org</strong> in Google Chrome on your Android device.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">2</div>
+                  <div class="pwa-step-text">
+                    <strong>Tap the menu</strong>
+                    <span>Tap the three-dot menu icon (⋮) in the top-right corner of Chrome.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">3</div>
+                  <div class="pwa-step-text">
+                    <strong>Add to Home Screen</strong>
+                    <span>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong> from the menu.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">4</div>
+                  <div class="pwa-step-text">
+                    <strong>Confirm &amp; open</strong>
+                    <span>Tap <strong>"Add"</strong> or <strong>"Install"</strong>. PUSO Spaze will appear on your home screen!</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pwa-note">
+                <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+                <span>Google Chrome is recommended for the best PWA experience on Android. Some Android browsers may show an install banner automatically.</span>
+              </div>
+            </div>
+
+            <!-- Desktop Panel -->
+            <div class="pwa-panel" id="pwa-desktop" role="tabpanel" aria-labelledby="tab-desktop">
+              <div class="pwa-steps">
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">1</div>
+                  <div class="pwa-step-text">
+                    <strong>Open Chrome or Edge</strong>
+                    <span>Navigate to <strong>puso-spaze.org</strong> in Google Chrome or Microsoft Edge.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">2</div>
+                  <div class="pwa-step-text">
+                    <strong>Click the install icon</strong>
+                    <span>Look for a computer/install icon (⊕) on the right side of the address bar and click it.</span>
+                  </div>
+                </div>
+                <div class="pwa-step">
+                  <div class="pwa-step-num" aria-hidden="true">3</div>
+                  <div class="pwa-step-text">
+                    <strong>Install the app</strong>
+                    <span>Click <strong>"Install"</strong> in the popup. PUSO Spaze opens as its own standalone window!</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pwa-note">
+                <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+                <span>No install icon? In Chrome, go to Menu (⋮) → <strong>"Save and share"</strong> → <strong>"Install page as app"</strong>. In Edge, go to Menu (…) → <strong>"Apps"</strong> → <strong>"Install this site as an app"</strong>.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ═══ CTA ═══ -->
       <section class="cta-section fade-target">
         <div class="container">
@@ -1209,6 +1643,22 @@
           resetAuto();
         });
       })();
+
+      // PWA tab switcher
+      function switchPwaTab(platform) {
+        document.querySelectorAll('.pwa-tab').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.pwa-panel').forEach(p => p.classList.remove('active'));
+        const tab = document.getElementById('tab-' + platform);
+        const panel = document.getElementById('pwa-' + platform);
+        if (tab && panel) {
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          panel.classList.add('active');
+        }
+      }
 
       // Cookie consent
       (() => {

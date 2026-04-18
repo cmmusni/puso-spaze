@@ -98,8 +98,9 @@ User Input → Client Validation → API Request → Express Router
 6. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
 7. **Visit-based streaks**: Streaks are updated from Home screen visits (`POST /api/users/:userId/record-visit`) rather than inferred from posting/journal activity; reminders are sent before local day-end.
 8. **Coach response nudges**: Pending member messages trigger coach reminders every 15 minutes once a 1-hour reply threshold is crossed.
-9. **Profile enrichment**: Users can maintain richer profile data including banner image, bio, and public contact fields; client state persists these fields locally and syncs via dedicated user endpoints.
-10. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
+9. **Profile enrichment**: Users can maintain richer profile data including banner image, bio, and public contact fields (including `website`); client state persists these fields locally and syncs via dedicated user endpoints.
+10. **Profile routing modes**: The Profile screen supports owner and non-owner rendering via optional route `userId`; owner-only edit actions are hidden when viewing another user.
+11. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
 
 ## Known Quirks
 

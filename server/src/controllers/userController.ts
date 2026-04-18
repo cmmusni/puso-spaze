@@ -340,6 +340,16 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
         notificationsEnabled: true,
         avatarUrl: true,
         bannerUrl: true,
+        bio: true,
+        phone: true,
+        contactEmail: true,
+        facebook: true,
+        instagram: true,
+        linkedin: true,
+        twitter: true,
+        tiktok: true,
+        youtube: true,
+        website: true,
         createdAt: true,
       },
     });
@@ -601,7 +611,7 @@ export async function getContacts(req: Request, res: Response): Promise<void> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { phone: true, contactEmail: true, facebook: true, instagram: true, linkedin: true, twitter: true, tiktok: true, youtube: true },
+      select: { phone: true, contactEmail: true, facebook: true, instagram: true, linkedin: true, twitter: true, tiktok: true, youtube: true, website: true },
     });
 
     if (!user) {
@@ -618,7 +628,7 @@ export async function getContacts(req: Request, res: Response): Promise<void> {
 
 /**
  * PATCH /api/users/:userId/contacts
- * Body: { phone?, contactEmail?, facebook?, instagram?, linkedin?, twitter?, tiktok?, youtube? }
+ * Body: { phone?, contactEmail?, facebook?, instagram?, linkedin?, twitter?, tiktok?, youtube?, website? }
  */
 export async function updateContacts(req: Request, res: Response): Promise<void> {
   const { userId } = req.params;
@@ -628,7 +638,7 @@ export async function updateContacts(req: Request, res: Response): Promise<void>
     return;
   }
 
-  const fields = ['phone', 'contactEmail', 'facebook', 'instagram', 'linkedin', 'twitter', 'tiktok', 'youtube'] as const;
+  const fields = ['phone', 'contactEmail', 'facebook', 'instagram', 'linkedin', 'twitter', 'tiktok', 'youtube', 'website'] as const;
   const sanitize = (val: unknown): string | null =>
     typeof val === 'string' ? val.trim().slice(0, 200) || null : null;
 
@@ -643,7 +653,7 @@ export async function updateContacts(req: Request, res: Response): Promise<void>
     const user = await prisma.user.update({
       where: { id: userId },
       data,
-      select: { phone: true, contactEmail: true, facebook: true, instagram: true, linkedin: true, twitter: true, tiktok: true, youtube: true },
+      select: { phone: true, contactEmail: true, facebook: true, instagram: true, linkedin: true, twitter: true, tiktok: true, youtube: true, website: true },
     });
     res.json({ success: true, contacts: user });
   } catch (err: any) {

@@ -4,6 +4,7 @@
 
 ## Current Work Focus
 - Profile expansion: banner uploads, editable bio, and saved contact fields
+- Profile viewing parity: owner and non-owner profile rendering with read-only safeguards
 - Journal sharing controls: private/public toggle and public journal feed endpoint
 - Mobile UX refinements: notifications responsive polish and shared scroll-to-top trigger
 - Scroll-direction hide/show bars: top bar + bottom tab bar auto-hide on scroll down, reveal on scroll up
@@ -16,6 +17,17 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Profile Routing + Website Contact + Native Splash Hold (April 18, 2026)
+- **SCHEMA**: Added `users.website` in Prisma (`server/prisma/schema.prisma`) with migration `20260418090022_add_website_contact_field`
+- **USER API**: `GET /api/users/:userId` now returns richer public fields (`bio`, contact links including `website`) for non-owner profile viewing
+- **CONTACTS API**: `getContacts` and `updateContacts` now include `website`
+- **CLIENT TYPES/API**: `ContactInfo` + auth response shapes include `website`/`bannerUrl`; API adds `apiGetUserById()`
+- **PROFILE SCREEN**: `ProfileScreen.tsx` now supports route-driven profile lookup (`Profile` with optional `userId`) and owner/non-owner behavior split (edit controls hidden for non-owner)
+- **POST CARD NAVIGATION**: Author row now routes to `Profile` for non-system, non-protected anonymous authors
+- **SESSION SYNC**: User store now persists `bannerUrl`/`avatarUrl` when server session is revalidated
+- **NATIVE SPLASH**: `App.tsx` integrates `expo-splash-screen` to hold native splash until fonts load; iOS storyboard updated accordingly
+- **WEB OVERVIEW**: `apps/mobile/overview/index.html` adds “Get the App” section + PWA install instruction tabs
 
 ### PWA Performance Optimization (April 18, 2026)
 - **NEW UTIL**: `apps/mobile/utils/optimizeImage.ts` — `optimizeCloudinaryUrl(url, w)` appends Cloudinary transformation params (`f_auto`, `q_auto`, `w_<n>`) for auto-format and responsive sizes

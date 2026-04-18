@@ -43,9 +43,9 @@ export function useUser() {
 
       const deviceId = await getDeviceId();
       const generatedId = uuidv4();
-      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
+      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, bannerUrl: serverBanner, token } =
         await apiCreateUser({ displayName, deviceId, platform: Platform.OS, ...(pin ? { pin } : {}) });
-      await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER', serverAvatar, token);
+      await loginUser(serverId || generatedId, serverName || displayName, serverRole ?? 'USER', serverAvatar, token, serverBanner);
     },
     [loginUser, validateDeviceOwner, getDeviceId]
   );
@@ -62,9 +62,9 @@ export function useUser() {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const anonName = attempt === 0 && preferredName ? preferredName : generateAnonUsername();
       try {
-        const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
+        const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, bannerUrl: serverBanner, token } =
           await apiCreateUser({ displayName: anonName, deviceId, platform: Platform.OS });
-        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER', serverAvatar, token);
+        await loginUser(serverId || generatedId, serverName || anonName, serverRole ?? 'USER', serverAvatar, token, serverBanner);
         return serverName || anonName;
       } catch (err: any) {
         const serverError = err?.response?.data?.error ?? err?.message ?? '';
@@ -94,9 +94,9 @@ export function useUser() {
       await validateDeviceOwner(displayName);
 
       const deviceId = await getDeviceId();
-      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, token } =
+      const { userId: serverId, displayName: serverName, role: serverRole, avatarUrl: serverAvatar, bannerUrl: serverBanner, token } =
         await apiRedeemInviteCode({ displayName, code, deviceId, platform: Platform.OS, ...(email ? { email } : {}) });
-      await loginUser(serverId, serverName, serverRole, serverAvatar, token);
+      await loginUser(serverId, serverName, serverRole, serverAvatar, token, serverBanner);
     },
     [loginUser, validateDeviceOwner, getDeviceId]
   );

@@ -144,47 +144,53 @@ User Input → Client Validation → Axios Request → Express Router
 
 ALL tokens live in `apps/mobile/constants/theme.ts`. **NEVER hard-code colors, fonts, radii, or shadows.**
 
-### Colors
+### Reusable Theme Snippets (DRY)
+Use these snippets as the single source and reuse them instead of rewriting similar imports/style setup in multiple places.
+
 ```ts
-import { colors } from '../constants/theme';
+import { useMemo } from "react";
+import {
+  colors as defaultColors,
+  colors as themeColors,
+  fonts,
+  spacing,
+  radii,
+  ambientShadow,
+} from "../constants/theme";
+import { useThemeStore } from "../context/ThemeContext";
+
+const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
+  // styles...
+});
+
+// Inside component:
+const colors = useThemeStore((s) => s.colors);
+const isDark = useThemeStore((s) => s.isDark);
+const styles = useMemo(() => createStyles(colors), [colors]);
+
+// Use themeColors when a static token reference is needed.
+const cardBg = themeColors.card;
 ```
+
+### Colors
 - Primary: deep berry `#7C003A`, Secondary: purple `#7D45A2`, Tertiary: indigo
 - Surfaces: tonal layering (M3 style) — `surfaceContainer*` tokens for depth
 - Cards: `colors.card` (#FFFFFF) with `ambientShadow`
 - Outline: `colors.outline` at 15% opacity ("ghost border")
 
 ### Typography
-```ts
-import { fonts } from '../constants/theme';
-```
 - **Headings**: Plus Jakarta Sans (`displayBold`, `displayExtraBold`)
 - **Body/UI**: Be Vietnam Pro (`bodyRegular`, `bodyMedium`, `bodySemiBold`)
 
 ### Spacing & Radii
-```ts
-import { spacing, radii } from '../constants/theme';
-```
 - Spacing: `xs:4, sm:8, md:16, lg:24, xl:32, xxl:48`
 - Radii: `sm:8, md:12, lg:16, xl:24, full:9999`
 
 ### Shadows
-```ts
-import { ambientShadow } from '../constants/theme';
-```
 - Use `...ambientShadow` spread on cards. Never use `elevation` alone or hard-coded shadows.
 
 ### Dark Mode Pattern
-```ts
-import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
-import { useThemeStore } from "../context/ThemeContext";
-
-const createStyles = (colors: typeof defaultColors) => StyleSheet.create({ ... });
-
-// Inside component:
-const colors = useThemeStore((s) => s.colors);
-const isDark = useThemeStore((s) => s.isDark);
-const styles = useMemo(() => createStyles(colors), [colors]);
-```
+- Reuse the `Reusable Theme Snippets (DRY)` block above.
 
 ---
 
@@ -325,10 +331,11 @@ cd server && npx tsx --test quality/functional.test.ts  # Functional tests
 2. **Refresh memory on uncertainty** — read the memory-bank files when context is reset, incomplete, stale, or you are no longer confident in the app details.
 3. **Read before editing** — always read the specific file you're about to modify.
 4. **Follow existing patterns** — match the style, conventions, and structure already in the codebase.
-5. **Keep the memory bank current** — update the relevant memory-bank files when the task changes project knowledge, current focus, architecture, or bug history.
-6. **Test your changes** — run the dev server, check for TypeScript errors, verify endpoints work.
-7. **Platform-aware** — always consider both web and native implications.
-8. **Theme-compliant** — never hard-code visual values; always import from theme.ts.
+5. **Prefer reusable solutions (DRY)** — extract shared logic and constants; avoid copy/paste when a helper, hook, utility, or shared component is more appropriate.
+6. **Keep the memory bank current** — update the relevant memory-bank files when the task changes project knowledge, current focus, architecture, or bug history.
+7. **Test your changes** — run the dev server, check for TypeScript errors, verify endpoints work.
+8. **Platform-aware** — always consider both web and native implications.
+9. **Theme-compliant** — never hard-code visual values; always import from theme.ts.
 
 ---
 

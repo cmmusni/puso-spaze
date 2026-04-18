@@ -83,7 +83,7 @@ export interface UserState {
    * @param avatarUrl  Profile picture URL from server (optional)
    * @param token  JWT auth token from server (optional)
    */
-  loginUser: (userId: string, username: string, role?: UserRole, avatarUrl?: string | null, token?: string | null) => Promise<void>;
+  loginUser: (userId: string, username: string, role?: UserRole, avatarUrl?: string | null, token?: string | null, bannerUrl?: string | null) => Promise<void>;
 
   /** Clear session from SecureStore and reset state (but keep device owner) */
   logoutUser: () => Promise<void>;
@@ -181,6 +181,16 @@ export const useUserStore = create<UserState>((set, get) => ({
             await storage.setItem(JWT_TOKEN_KEY, res.token);
             setAuthToken(res.token);
           }
+          // Sync bannerUrl from server (survives redeployment / storage wipe)
+          if (res.bannerUrl) {
+            await storage.setItem(BANNER_URL_KEY, res.bannerUrl);
+            set({ bannerUrl: res.bannerUrl });
+          }
+          // Sync avatarUrl from server
+          if (res.avatarUrl) {
+            await storage.setItem(AVATAR_URL_KEY, res.avatarUrl);
+            set({ avatarUrl: res.avatarUrl });
+          }
           await storage.setItem(DEVICE_SYNCED_KEY, 'true');
           console.log('[UserStore] Session validated with server');
         } catch (syncErr: any) {
@@ -221,7 +231,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  loginUser: async (userId: string, username: string, role: UserRole = 'USER', avatarUrl?: string | null, token?: string | null) => {
+  loginUser: async (userId: string, username: string, role: UserRole = 'USER', avatarUrl?: string | null, token?: string | null, bannerUrl?: string | null) => {
     try {
       // Set device owner on first login (immutable thereafter)
       const deviceOwner = await storage.getItem(DEV_OWNER_KEY);
@@ -237,6 +247,10 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (avatarUrl) {
         await storage.setItem(AVATAR_URL_KEY, avatarUrl);
       }
+      // Persist banner URL from server if provided
+      if (bannerUrl) {
+        await storage.setItem(BANNER_URL_KEY, bannerUrl);
+      }
       // Persist JWT token and set it for API calls
       if (token) {
         await storage.setItem(JWT_TOKEN_KEY, token);
@@ -248,7 +262,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       console.warn('[UserStore] Could not persist session:', err);
     }
     // Always update in-memory state even if storage fails
-    set({ userId, username, role, avatarUrl: avatarUrl ?? null, isLoggedIn: true, isLoading: false });
+    set({ userId, username, role, avatarUrl: avatarUrl ?? null, bannerUrl: bannerUrl ?? null, isLoggedIn: true, isLoading: false });
   },
 
   logoutUser: async () => {

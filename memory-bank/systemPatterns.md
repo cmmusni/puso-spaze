@@ -136,13 +136,19 @@
 - Moderation actions send notifications to the content author
 
 ### Profile Enrichment
-- User model supports richer public profile fields: `bannerUrl`, `bio`, `phone`, `contactEmail`, `facebook`, `instagram`, `linkedin`, `twitter`, `tiktok`, `youtube`
+- User model supports richer public profile fields: `bannerUrl`, `bio`, `phone`, `contactEmail`, `facebook`, `instagram`, `linkedin`, `twitter`, `tiktok`, `youtube`, `website`
 - New user endpoints:
   - `POST /api/users/:userId/banner` (multipart image upload)
   - `PATCH /api/users/:userId/bio`
   - `GET /api/users/:userId/contacts`
   - `PATCH /api/users/:userId/contacts`
+- `GET /api/users/:userId` serves public profile data used for viewing another user's profile screen
 - Client store persists banner/bio/contacts for session continuity
+
+### Profile Screen Routing Pattern
+- `Profile` route can receive optional `userId`
+- Owner view (`route userId` absent or equals session user) shows editable controls (avatar/banner upload, contacts editor, preferences)
+- Non-owner view fetches public profile data and hides owner-only actions
 
 ### Public Journal Sharing
 - Journal model includes `isPublic` (default false)

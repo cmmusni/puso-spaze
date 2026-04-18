@@ -43,6 +43,7 @@ model User {
   twitter              String?  // Twitter/X handle
   tiktok               String?  // TikTok handle
   youtube              String?  // YouTube channel
+  website              String?  // Personal website URL
   notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
   streakCount          Int      @default(0)     // Consecutive days the user opened the HomeScreen
   lastStreakDate       DateTime?                 // Date (midnight UTC) of last streak-qualifying visit

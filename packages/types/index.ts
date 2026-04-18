@@ -26,6 +26,7 @@ export interface ContactInfo {
   twitter?: string | null;
   tiktok?: string | null;
   youtube?: string | null;
+  website?: string | null;
 }
 
 export interface User {
@@ -137,7 +138,7 @@ export interface ReactionCounts {
 
 // ── API shapes ────────────────────────────────
 export interface CreateUserRequest { displayName: string; deviceId?: string; platform?: string; pin?: string; }
-export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; pin?: string | null; token?: string; }
+export interface CreateUserResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; bannerUrl?: string | null; pin?: string | null; token?: string; }
 
 export interface CreatePostRequest { userId: string; content: string; tags?: string[]; isAnonymous?: boolean; }
 export interface CreatePostResponse { post: Post; flagged: boolean; underReview: boolean; }
@@ -168,7 +169,7 @@ export interface UserSession { userId: string; username: string; role: UserRole;
 
 // Coach / Admin
 export interface RedeemInviteRequest { displayName: string; code: string; deviceId?: string; platform?: string; email?: string; }
-export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; token?: string; }
+export interface RedeemInviteResponse { userId: string; displayName: string; role: UserRole; avatarUrl?: string | null; bannerUrl?: string | null; token?: string; }
 
 export interface ReviewQueue { posts: Post[]; comments: Comment[]; }
 export interface GetReviewQueueResponse { posts: Post[]; comments: Comment[]; }

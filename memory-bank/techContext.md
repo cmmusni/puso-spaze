@@ -17,6 +17,7 @@
 | expo-linear-gradient | ~12.7.2 | Gradient backgrounds |
 | expo-image-picker | ~14.7.1 | Image uploads |
 | expo-notifications | ~0.27.8 | Push notifications |
+| expo-splash-screen | ~55.x | Native splash lifecycle control |
 | NativeWind | ^2.0.11 | Tailwind CSS for RN |
 | Plus Jakarta Sans / Be Vietnam Pro | Google Fonts | Typography |
 

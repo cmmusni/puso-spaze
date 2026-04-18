@@ -327,6 +327,17 @@ export async function apiGetPin(
 }
 
 /**
+ * GET /api/users/:userId
+ * Returns public profile data for any user.
+ */
+export async function apiGetUserById(
+  userId: string
+): Promise<{ user: { id: string; displayName: string; role: string; avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; isAnonymous?: boolean; createdAt: string; phone?: string | null; contactEmail?: string | null; facebook?: string | null; instagram?: string | null; linkedin?: string | null; twitter?: string | null; tiktok?: string | null; youtube?: string | null; website?: string | null } }> {
+  const { data } = await client.get(`/api/users/${userId}`);
+  return data;
+}
+
+/**
  * GET /api/users/:userId/stats
  * Returns profile stats (encouragementsGiven).
  */
