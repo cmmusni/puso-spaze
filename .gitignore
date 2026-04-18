@@ -59,6 +59,9 @@ logs/
 .vscode/
 .idea/
 
+# Test results / QA reports
+quality/results/
+
 # Build logs (temp files from native builds)
 gradle-*.txt
 gradle-errors.txt

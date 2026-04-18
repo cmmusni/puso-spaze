@@ -2544,10 +2544,8 @@ const createStyles = (colors: typeof defaultColors) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: radii.full,
-      backgroundColor: colors.surfaceContainerLow,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
     },
     reactionBtnActive: {
       backgroundColor: colors.primaryContainer + "30",

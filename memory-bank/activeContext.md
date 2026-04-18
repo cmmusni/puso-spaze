@@ -20,6 +20,11 @@
 
 ## Recent Changes
 
+### PostCard & PostDetail Reaction UX Fix + Break-It Adversarial QA (April 19, 2026)
+- **POSTCARD CLEANUP**: Removed unused `reactionLoading` state; guard `closePicker()` only when picker is open (prevents close-on-every-reaction calls)
+- **POST DETAIL STYLE**: Compacted `reactionBtn` padding (`16/8 → 4/4`), removed pill shape (borderRadius/backgroundColor) for a tighter icon-only interaction target
+- **NEW QA TOOL**: `quality/qa-tests/break-it.mjs` — 631-line adversarial OWASP Top 10 (2021) test suite targeting authentication, access control, injection, rate limiting, and edge-case surfaces; results written to `quality/results/` (gitignored)
+
 ### Full-Stack Performance Pass (April 18, 2026)
 - **SCHEMA + MIGRATION**: Added performance indexes in `server/prisma/schema.prisma` with migration `server/prisma/migrations/20260418155124_perf_indexes/migration.sql` for `posts(createdAt, moderationStatus)`, `comments(postId, moderationStatus)`, `reactions(postId)`, `users(lastActiveAt)`, and `invite_codes(used)`
 - **DASHBOARD STATS PATH**: `server/src/index.ts` now uses lightweight in-process TTL caching for expensive aggregates and computes trending tags with SQL `unnest(tags)` grouping instead of app-layer flattening

@@ -141,7 +141,6 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   const userReaction = reactionState?.userReaction ?? null;
   const counts = reactionState?.counts ?? {};
   const localTotal = reactionState?.total ?? (post.reactionCount ?? 0);
-  const [reactionLoading, setReactionLoading] = useState(false);
 
   // ── Fetch counts on mount ─────────────────────
   // Only fetch from the server if the store has no data for this post yet.
@@ -356,15 +355,12 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
 
   const handleReaction = async (type: ReactionType) => {
     if (!userId) return;
-    closePicker();
-    setReactionLoading(true);
+    if (showPicker) closePicker();
     const snapshot = applyToggle(post.id, type);
     try {
       await apiUpsertReaction(post.id, { userId, type });
     } catch {
       rollback(post.id, snapshot);
-    } finally {
-      setReactionLoading(false);
     }
   };
 
