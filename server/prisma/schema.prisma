@@ -25,7 +25,7 @@ model User {
   id            String   @id @default(uuid())
   displayName   String   @unique
   deviceId      String?  // Permanent device UUID — only this device can use this username
-  pin           String?  @unique // Random PIN code for cross-device login
+  pin           String?  // Random PIN code for cross-device login
   role          UserRole @default(USER)
   isAnonymous          Boolean  @default(false) // Hide identity from community
   anonDisplayName      String?  // Persistent anonymous username (generated on first anonymous post/comment)

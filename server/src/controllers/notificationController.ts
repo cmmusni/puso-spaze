@@ -174,7 +174,11 @@ export async function registerWebPushSubscription(req: Request, res: Response): 
     });
 
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
     console.error('Error registering web push subscription:', error);
     res.status(500).json({ error: 'Failed to register web push subscription' });
   }

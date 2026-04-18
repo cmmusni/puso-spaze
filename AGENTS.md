@@ -93,7 +93,7 @@ User Input → Client Validation → API Request → Express Router
 1. **Moderation-first**: Every post and comment is AI-moderated before publishing. Content defaults to REVIEW on moderation failure — never silently approved.
 2. **Anonymous mode**: Users can toggle anonymous posting. Anonymous posts get a persistent randomly generated display name stored on the User record (`anonDisplayName`). The same name is reused across all anonymous posts and comments.
 3. **Daily Reflections**: Personalized AI-generated biblical reflections (replaces Hourly Hope). Cached per-day, personalized to user's recent emotional context. Daily push notification reminders to opted-in users.
-4. **Device binding + PIN auth**: Usernames are bound to device IDs. Users get a unique 6-digit PIN for cross-device login. Locked-out users can submit recovery requests reviewed by coaches.
+4. **Device binding + PIN auth**: Usernames are bound to device IDs. Users get a 6-digit PIN for cross-device login, validated as a displayName+PIN pair. Locked-out users can submit recovery requests reviewed by coaches.
 5. **JWT auth**: All write endpoints require JWT Bearer tokens (7-day expiry). Read endpoints are public.
 6. **Multi-platform**: Same codebase serves web (via Vercel) and native (via Expo). Navigation uses drawer on native, sidebar/bottom tabs on web.
 7. **Visit-based streaks**: Streaks are updated from Home screen visits (`POST /api/users/:userId/record-visit`) rather than inferred from posting/journal activity; reminders are sent before local day-end.
@@ -116,7 +116,7 @@ User Input → Client Validation → API Request → Express Router
 - `GET /api/journals/public` is intentionally unauthenticated and capped to recent entries; visibility depends entirely on `journals.isPublic`
 - Coach review queue exists (`GET /api/coach/review`) but has no automated escalation for stale REVIEW posts (Scenario 7)
 - Notification delivery is fire-and-forget — push failures are logged but not retried (Scenario 9)
-- PIN login has no rate limiting — brute-force risk for 6-digit PINs (Scenario 11)
+- PIN login (displayName + PIN) has no rate limiting — brute-force risk remains (Scenario 11)
 - Recovery request endpoint is public (no auth) — potential spam vector (Scenario 12)
 
 ## Quality Docs

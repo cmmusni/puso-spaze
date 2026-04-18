@@ -26,7 +26,7 @@ import { useNavigation, useFocusEffect, useRoute, type RouteProp } from "@react-
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNotifications } from "../hooks/useNotifications";
 import { apiGetDashboardStats, apiRecordVisit, resolveAvatarUrl, type DashboardStats } from "../services/api";
 import { validatePostContent } from "../utils/validators";
@@ -127,6 +127,7 @@ export default function HomeScreen() {
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { username, role, userId, avatarUrl } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
   const { posts, loading, loadingMore, hasMore, error, fetchPosts, loadMore, submitPost } = usePosts();
@@ -697,6 +698,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView
       style={[styles.screen, { backgroundColor: colors.background }]}
+      edges={['left', 'right', 'bottom']}
     >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
@@ -708,7 +710,7 @@ export default function HomeScreen() {
         onLayout={(e) => setTopBarHeight(e.nativeEvent.layout.height)}
         style={[
           styles.topBar,
-          { backgroundColor: colors.surfaceContainerLowest, transform: [{ translateY: topBarTranslateY }] },
+          { backgroundColor: colors.surfaceContainerLowest, transform: [{ translateY: topBarTranslateY }], paddingTop: Platform.OS !== 'web' ? insets.top + 6 : 10 },
         ]}
       >
         <View style={styles.topBarLeft}>
@@ -1026,7 +1028,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Platform.OS === "web" ? 20 : 12,
-    paddingVertical: 10,
+    paddingBottom: 10,
     backgroundColor: colors.surfaceContainerLowest,
     gap: Platform.OS === "web" ? 12 : 8,
     position: "absolute",

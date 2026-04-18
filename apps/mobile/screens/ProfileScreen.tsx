@@ -640,12 +640,8 @@ export default function ProfileScreen() {
                       colors.surfaceVariant,
                     ]}
                     style={[
+                      StyleSheet.absoluteFillObject,
                       s.avatarPlaceholder,
-                      {
-                        width: avatarSize,
-                        height: avatarSize,
-                        borderRadius: radii.full,
-                      },
                     ]}
                   >
                     <Text

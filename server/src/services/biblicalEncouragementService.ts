@@ -22,7 +22,7 @@ export async function generateBiblicalEncouragement(): Promise<string> {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4-mini',
       messages: [
         {
           role: 'system',
@@ -52,7 +52,7 @@ Examples:
           content: 'Generate a short biblical encouragement in Taglish for a Gen Z Filipino who needs hope today.',
         },
       ],
-      max_tokens: 150,
+      max_completion_tokens: 150,
       temperature: 0.9,
     });
 

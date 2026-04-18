@@ -63,7 +63,7 @@
 - Device owner binding persisted in SecureStore/AsyncStorage
 - Roles: USER, COACH, ADMIN (COACH via invite code redemption)
 - **JWT auth**: All write endpoints require `Authorization: Bearer <token>` via `requireAuth` middleware; tokens signed with `JWT_SECRET` (7-day expiry, payload: `{ userId, role }`)
-- **PIN-based cross-device login**: Each user gets a unique 6-digit PIN (auto-generated on first login); presenting username + PIN from a different device allows migration
+- **PIN-based cross-device login**: Each user gets a 6-digit PIN (auto-generated on first login); login validates display name + PIN pair and allows device migration when valid
 - **Account recovery**: Locked-out users submit recovery request (public, no auth) → coaches review with user's post/journal history → approval clears device binding
 
 ### API Communication

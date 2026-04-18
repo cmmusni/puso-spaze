@@ -112,17 +112,10 @@ export function isAdminUsername(name: string): boolean {
 }
 
 /**
- * Generate a unique 6-digit PIN code.
- * Retries up to 10 times if a collision occurs.
+ * Generate a random 6-digit PIN code.
  */
-async function generateUniquePin(): Promise<string> {
-  for (let i = 0; i < 10; i++) {
-    const pin = String(crypto.randomInt(100000, 999999));
-    const existing = await prisma.user.findUnique({ where: { pin }, select: { id: true } });
-    if (!existing) return pin;
-  }
-  // Fallback: 8-digit PIN for extreme collision edge case
-  return String(crypto.randomInt(10000000, 99999999));
+function generatePin(): string {
+  return String(crypto.randomInt(100000, 999999));
 }
 
 function toMentionHandle(displayName: string): string {
@@ -271,7 +264,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
           // Update deviceId when logging in from a new device via PIN
           ...(deviceId ? { deviceId } : {}),
           // Backfill PIN for users created before the PIN feature
-          ...(!existingUser.pin ? { pin: await generateUniquePin() } : {}),
+          ...(!existingUser.pin ? { pin: generatePin() } : {}),
         },
         select: { id: true, displayName: true, role: true, avatarUrl: true, bannerUrl: true, pin: true },
       });
@@ -295,7 +288,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     }
 
     // ── New user: create with deviceId and generate PIN ──
-    const pin = await generateUniquePin();
+    const pin = generatePin();
     const user = await prisma.user.create({
       data: {
         displayName,
@@ -840,8 +833,6 @@ export async function updatePin(req: Request, res: Response): Promise<void> {
   } catch (err: any) {
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'User not found.' });
-    } else if (err.code === 'P2002') {
-      res.status(409).json({ error: 'This PIN is already in use. Please choose a different one.' });
     } else {
       console.error('[UserController] updatePin error:', err);
       res.status(500).json({ error: 'Failed to update PIN.' });

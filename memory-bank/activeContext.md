@@ -3,6 +3,7 @@
 **Last Updated:** April 18, 2026
 
 ## Current Work Focus
+- PIN auth flow update: username + PIN verification with non-unique PIN storage
 - Profile expansion: banner uploads, editable bio, and saved contact fields
 - Profile viewing parity: owner and non-owner profile rendering with read-only safeguards
 - Journal sharing controls: private/public toggle and public journal feed endpoint
@@ -17,6 +18,15 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### PIN Auth Update + UI Polish Pass (April 18, 2026)
+- **SCHEMA**: Removed unique constraint on `users.pin` (`server/prisma/schema.prisma`) and added migration `20260418093238_remove_pin_unique_constraint`
+- **AUTH API**: `POST /api/auth/pin-login` now requires `{ displayName, pin, deviceId? }` and validates user by display name + PIN pair
+- **USER CONTROLLER**: PIN generation simplified to random 6-digit generation (no collision probing/fallback length escalation)
+- **NOTIFICATIONS API**: `registerWebPushSubscription` now handles Prisma `P2025` with 404 user-not-found response
+- **AI SERVICES**: Encouragement generation uses `gpt-5.4-mini`; OpenAI token option switched to `max_completion_tokens`
+- **UI POLISH**: Compact time chips (`m/h/d`) applied in `PostCard` and `PostDetailScreen`; Home top bar safe-area handling improved; coach and notifications badge state sync improved
+- **ASSET REFRESH**: Updated iPad/iPhone screenshot assets and added notification screen variants under `apps/mobile/assets/screens/`
 
 ### Profile Routing + Website Contact + Native Splash Hold (April 18, 2026)
 - **SCHEMA**: Added `users.website` in Prisma (`server/prisma/schema.prisma`) with migration `20260418090022_add_website_contact_field`

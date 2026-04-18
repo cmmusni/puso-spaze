@@ -78,7 +78,7 @@ Your reflection should be:
           content: `Write today's daily reflection for ${key}. Make it unique and relevant.`,
         },
       ],
-      max_tokens: 200,
+      max_completion_tokens: 200,
       temperature: 0.85,
     });
 
@@ -150,7 +150,7 @@ Your reflection should be:
           content: `Here are the user's recent posts:\n${postsSummary}\n\nWrite a personalised daily reflection for ${key} that speaks to what this person seems to be going through.`,
         },
       ],
-      max_tokens: 200,
+      max_completion_tokens: 200,
       temperature: 0.85,
     });
 

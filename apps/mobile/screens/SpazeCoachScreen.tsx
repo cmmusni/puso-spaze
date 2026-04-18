@@ -202,7 +202,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
         ) : (
           <View style={[s.coachMsgBtn, { backgroundColor: colors.secondary }]}>
             <Ionicons name="chatbubble-ellipses" size={18} color={colors.onPrimary} />
-            <Text style={[s.coachMsgBtnText, { color: colors.onPrimary }]}>Message Coach</Text>
+            <Text style={[s.coachMsgBtnText, { color: colors.onPrimary }]}>Message</Text>
           </View>
         )}
       </TouchableOpacity>

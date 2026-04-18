@@ -4,6 +4,7 @@
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
+- **PIN Auth Model** — PIN is now validated as `displayName + pin` pair (PIN no longer globally unique), reducing collision sensitivity and keeping cross-device login flow stable
 - **Account Recovery** — Coach-reviewed recovery requests for locked-out users; coaches see user's post/journal history for identity verification; approval clears device binding
 - **Posting** — Create posts with text + optional image (uploaded to Cloudinary), tags, anonymous mode
 - **Persistent Anonymous Names** — Users get a randomly generated anonymous display name on first anonymous action; the same name is reused across all anonymous posts and comments
@@ -65,7 +66,7 @@ The platform is **functional and deployed** on web. All core features are comple
 - `ADMIN_SECRET` has hardcoded default `pusocoach_admin_2026` — must be overridden in production
 - EAS local build failed (environment/dependency issue) — using Android Studio prebuild as alternative
 - `flexWrap` with `flex: 1` spacer doesn't push items right on mobile — use separate rows or `marginLeft: 'auto'`
-- PIN collision: `generateUniquePin()` retries 10× with 8-digit fallback — low risk but not zero
+- PIN values are no longer globally unique; security depends on username+PIN pair and still needs rate limiting
 - Recovery requests have no rate limiting — potential spam vector for unauthenticated endpoint
 - PIN login has no rate limiting — brute-force risk for 6-digit PINs
 - `AppConfig` model exists in schema but has no corresponding service (unused)

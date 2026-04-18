@@ -102,7 +102,7 @@ GMAIL_PASS=...
 - Device ID enforcement on both native and web (since JWT + PIN update)
 - Expo SDK 50 — must stay compatible with this version
 - No password/email auth — identity is device-bound username + optional PIN
-- PIN is 6-digit unique; 8-digit fallback on collision (10 retries)
+- PIN is 6-digit and validated together with displayName (not globally unique)
 - Recovery requests are public/unauthenticated — potential spam target
 - `AppConfig` model exists in Prisma schema but has no corresponding service
 - `webPushSubscription` (Json?) and `lastActiveAt` (DateTime) added to User model

@@ -35,6 +35,7 @@ import type { Notification, Post } from '../../../packages/types';
 import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from '../constants/theme';
 import { useThemeStore } from '../context/ThemeContext';
 import { useScrollBarVisibility } from '../hooks/useScrollBarVisibility';
+import { useBadgeStore } from '../hooks/useNotifications';
 
 type NavigationType = DrawerNavigationProp<any>;
 
@@ -127,6 +128,7 @@ export default function NotificationsScreen() {
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const setUnreadCount = useBadgeStore((s) => s.setUnreadCount);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -187,6 +189,7 @@ export default function NotificationsScreen() {
     try {
       await apiMarkAllNotificationsRead({ userId });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
     } catch (error) {
       console.error('Failed to mark all as read:', error);
     }

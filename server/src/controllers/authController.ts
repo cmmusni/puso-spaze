@@ -123,22 +123,26 @@ export async function redeemInvite(req: Request, res: Response): Promise<void> {
 
 /**
  * POST /api/auth/pin-login
- * Body: { pin: string; deviceId?: string }
+ * Body: { displayName: string; pin: string; deviceId?: string }
  *
- * Authenticates a user by their unique PIN code and optionally binds a new device.
+ * Authenticates a user by displayName + PIN and optionally binds a new device.
  * Returns: { userId, displayName, role, avatarUrl, token }
  */
 export async function pinLogin(req: Request, res: Response): Promise<void> {
-  const { pin, deviceId } = req.body as { pin: string; deviceId?: string };
+  const { displayName, pin, deviceId } = req.body as { displayName?: string; pin: string; deviceId?: string };
 
   if (!pin || typeof pin !== 'string') {
     res.status(400).json({ error: 'pin is required.' });
     return;
   }
+  if (!displayName || typeof displayName !== 'string') {
+    res.status(400).json({ error: 'displayName is required.' });
+    return;
+  }
 
   try {
     const user = await prisma.user.findUnique({
-      where: { pin },
+      where: { displayName },
       select: {
         id: true,
         displayName: true,
@@ -148,8 +152,8 @@ export async function pinLogin(req: Request, res: Response): Promise<void> {
       },
     });
 
-    if (!user) {
-      res.status(401).json({ error: 'Invalid PIN.' });
+    if (!user || user.pin !== pin) {
+      res.status(401).json({ error: 'Invalid username or PIN.' });
       return;
     }
 

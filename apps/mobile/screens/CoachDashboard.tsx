@@ -28,6 +28,7 @@ import { colors as defaultColors, fonts, radii, ambientShadow } from '../constan
 import { useThemeStore } from '../context/ThemeContext';
 import { useScrollBarVisibility } from '../hooks/useScrollBarVisibility';
 import { useUserStore } from '../context/UserContext';
+import { useBadgeStore } from '../hooks/useNotifications';
 import {
   apiGetReviewQueue,
   apiModeratePost,
@@ -133,6 +134,7 @@ export default function CoachDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const isAdmin = role === 'ADMIN';
+  const setReviewCount = useBadgeStore((s) => s.setReviewCount);
 
   // ── Invite state (admin only) ─────────────
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
@@ -186,7 +188,11 @@ export default function CoachDashboard() {
     setActing(postId);
     try {
       await apiModeratePost(postId, { coachId: userId, action });
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      setPosts((prev) => {
+        const next = prev.filter((p) => p.id !== postId);
+        setReviewCount(next.length + comments.length);
+        return next;
+      });
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not moderate post.';
       showAlert('Error', msg);
@@ -198,7 +204,11 @@ export default function CoachDashboard() {
     setActing(commentId);
     try {
       await apiModerateComment(commentId, { coachId: userId, action });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setComments((prev) => {
+        const next = prev.filter((c) => c.id !== commentId);
+        setReviewCount(posts.length + next.length);
+        return next;
+      });
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not moderate comment.';
       showAlert('Error', msg);
@@ -210,7 +220,11 @@ export default function CoachDashboard() {
     setActing(postId);
     try {
       await apiDeletePost(postId, userId);
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      setPosts((prev) => {
+        const next = prev.filter((p) => p.id !== postId);
+        setReviewCount(next.length + comments.length);
+        return next;
+      });
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not delete post.';
       showAlert('Error', msg);
@@ -222,7 +236,11 @@ export default function CoachDashboard() {
     setActing(commentId);
     try {
       await apiDeleteComment(postId, commentId, userId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setComments((prev) => {
+        const next = prev.filter((c) => c.id !== commentId);
+        setReviewCount(posts.length + next.length);
+        return next;
+      });
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not delete comment.';
       showAlert('Error', msg);
