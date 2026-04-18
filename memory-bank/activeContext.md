@@ -19,6 +19,11 @@
 
 ## Recent Changes
 
+### Overview Screenshot Asset Cleanup (April 18, 2026)
+- **ASSET DEDUP**: Removed accidental duplicate file `apps/mobile/assets/screens/iphone/iphone-feed.png.png`
+- **PRIMARY FEED SCREENSHOT**: Updated `apps/mobile/assets/screens/iphone/iphone-feed.png` and kept `overview/index.html` pointing to the canonical filename
+- **DEPLOY SCOPE**: No API/schema/runtime logic changes; this pass is content/asset cleanup for overview presentation quality
+
 ### PIN Auth Update + UI Polish Pass (April 18, 2026)
 - **SCHEMA**: Removed unique constraint on `users.pin` (`server/prisma/schema.prisma`) and added migration `20260418093238_remove_pin_unique_constraint`
 - **AUTH API**: `POST /api/auth/pin-login` now requires `{ displayName, pin, deviceId? }` and validates user by display name + PIN pair

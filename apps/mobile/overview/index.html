@@ -767,9 +767,9 @@
       }
 
       @media (max-width: 599px) {
-        .carousel-device-frame.phone { width: 120px; }
-        .carousel-device-frame.tablet { width: 240px; }
-        .carousel-slide { gap: 12px; }
+        .carousel-device-frame.phone { width: 220px; }
+        .carousel-device-frame.tablet { width: 280px; }
+        .carousel-slide { justify-content: center; padding: 0 24px 16px; }
         .carousel-label { font-size: 0.95rem; }
       }
 
@@ -1252,48 +1252,7 @@
         </div>
         <div class="container">
           <div class="carousel-viewport">
-            <div class="carousel-track" id="carouselTrack">
-              <div class="carousel-slide" data-label="Community Feed">
-                <div class="carousel-device-frame phone">
-                  <img src="/screens/iphone/iphone-feed.png" alt="Community Feed on iPhone" loading="lazy" />
-                </div>
-                <div class="carousel-device-frame tablet">
-                  <img src="/screens/ipad/ipad-feed.png" alt="Community Feed on iPad" loading="lazy" />
-                </div>
-              </div>
-              <div class="carousel-slide" data-label="Sacred Journal">
-                <div class="carousel-device-frame phone">
-                  <img src="/screens/iphone/iphone-journal.png" alt="Sacred Journal on iPhone" loading="lazy" />
-                </div>
-                <div class="carousel-device-frame tablet">
-                  <img src="/screens/ipad/ipad-journal.png" alt="Sacred Journal on iPad" loading="lazy" />
-                </div>
-              </div>
-              <div class="carousel-slide" data-label="Your Profile">
-                <div class="carousel-device-frame phone">
-                  <img src="/screens/iphone/iphone-profile.png" alt="Profile on iPhone" loading="lazy" />
-                </div>
-                <div class="carousel-device-frame tablet">
-                  <img src="/screens/ipad/ipad-profile.png" alt="Profile on iPad" loading="lazy" />
-                </div>
-              </div>
-              <div class="carousel-slide" data-label="Spaze Coach">
-                <div class="carousel-device-frame phone">
-                  <img src="/screens/iphone/iphone-spaze-coach.png" alt="Spaze Coach on iPhone" loading="lazy" />
-                </div>
-                <div class="carousel-device-frame tablet">
-                  <img src="/screens/ipad/ipad-spaze-coach.png" alt="Spaze Coach on iPad" loading="lazy" />
-                </div>
-              </div>
-              <div class="carousel-slide" data-label="Login">
-                <div class="carousel-device-frame phone">
-                  <img src="/screens/iphone/iphone-login.png" alt="Login on iPhone" loading="lazy" />
-                </div>
-                <div class="carousel-device-frame tablet">
-                  <img src="/screens/ipad/ipad-login.png" alt="Login on iPad" loading="lazy" />
-                </div>
-              </div>
-            </div>
+            <div class="carousel-track" id="carouselTrack"></div>
           </div>
           <div class="carousel-label" id="carouselLabel">Community Feed</div>
           <div class="carousel-controls">
@@ -1592,22 +1551,60 @@
 
       // Device carousel
       (() => {
+        const FEATURES = [
+          { label: 'Community Feed', phone: '/screens/iphone/iphone-feed.png',         tablet: '/screens/ipad/ipad-feed.png' },
+          { label: 'Sacred Journal', phone: '/screens/iphone/iphone-journal.png',      tablet: '/screens/ipad/ipad-journal.png' },
+          { label: 'Your Profile',   phone: '/screens/iphone/iphone-profile.png',      tablet: '/screens/ipad/ipad-profile.png' },
+          { label: 'Spaze Coach',    phone: '/screens/iphone/iphone-spaze-coach.png',  tablet: '/screens/ipad/ipad-spaze-coach.png' },
+          { label: 'Login',          phone: '/screens/iphone/iphone-login.png',        tablet: '/screens/ipad/ipad-login.png' },
+        ];
+
         const track = document.getElementById('carouselTrack');
-        const slides = track.querySelectorAll('.carousel-slide');
         const label = document.getElementById('carouselLabel');
         const dotsWrap = document.getElementById('carouselDots');
         const prevBtn = document.getElementById('carouselPrev');
         const nextBtn = document.getElementById('carouselNext');
+        const MOBILE_QUERY = window.matchMedia('(max-width: 599px)');
         let current = 0;
-        const total = slides.length;
+        let total = 0;
+        let slides = [];
+        let autoTimer = null;
 
-        // Build dots
-        for (let i = 0; i < total; i++) {
-          const dot = document.createElement('button');
-          dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
-          dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
-          dot.addEventListener('click', () => goTo(i));
-          dotsWrap.appendChild(dot);
+        function buildFrame(kind, src, label) {
+          return `<div class="carousel-device-frame ${kind}"><img src="${src}" alt="${label} on ${kind === 'phone' ? 'iPhone' : 'iPad'}" loading="lazy" /></div>`;
+        }
+
+        function buildSlides() {
+          const isMobile = MOBILE_QUERY.matches;
+          const html = [];
+          if (isMobile) {
+            // One device per slide, alternating phone -> tablet for each feature
+            FEATURES.forEach((f) => {
+              html.push(`<div class="carousel-slide" data-label="${f.label} — Phone">${buildFrame('phone', f.phone, f.label)}</div>`);
+              html.push(`<div class="carousel-slide" data-label="${f.label} — Tablet">${buildFrame('tablet', f.tablet, f.label)}</div>`);
+            });
+          } else {
+            // Phone + tablet side-by-side per feature
+            FEATURES.forEach((f) => {
+              html.push(`<div class="carousel-slide" data-label="${f.label}">${buildFrame('phone', f.phone, f.label)}${buildFrame('tablet', f.tablet, f.label)}</div>`);
+            });
+          }
+          track.innerHTML = html.join('');
+          slides = track.querySelectorAll('.carousel-slide');
+          total = slides.length;
+
+          // Rebuild dots
+          dotsWrap.innerHTML = '';
+          for (let i = 0; i < total; i++) {
+            const dot = document.createElement('button');
+            dot.className = 'carousel-dot';
+            dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+            dot.addEventListener('click', () => { goTo(i); resetAuto(); });
+            dotsWrap.appendChild(dot);
+          }
+
+          current = Math.min(current, total - 1);
+          goTo(current);
         }
 
         function goTo(index) {
@@ -1619,20 +1616,21 @@
           });
         }
 
-        prevBtn.addEventListener('click', () => { goTo(current - 1); resetAuto(); });
-        nextBtn.addEventListener('click', () => { goTo(current + 1); resetAuto(); });
-
-        // Auto-slide every 4s
-        let autoTimer = setInterval(() => goTo(current + 1), 4000);
-        function resetAuto() {
-          clearInterval(autoTimer);
+        function startAuto() {
           autoTimer = setInterval(() => goTo(current + 1), 4000);
         }
+        function resetAuto() {
+          clearInterval(autoTimer);
+          startAuto();
+        }
+
+        prevBtn.addEventListener('click', () => { goTo(current - 1); resetAuto(); });
+        nextBtn.addEventListener('click', () => { goTo(current + 1); resetAuto(); });
 
         // Pause on hover
         const section = track.closest('.device-gallery');
         section.addEventListener('mouseenter', () => clearInterval(autoTimer));
-        section.addEventListener('mouseleave', () => { autoTimer = setInterval(() => goTo(current + 1), 4000); });
+        section.addEventListener('mouseleave', () => { resetAuto(); });
 
         // Swipe support
         let startX = 0;
@@ -1642,6 +1640,15 @@
           if (Math.abs(diff) > 50) goTo(current + (diff > 0 ? 1 : -1));
           resetAuto();
         });
+
+        // Rebuild when crossing the mobile breakpoint
+        MOBILE_QUERY.addEventListener('change', () => {
+          current = 0;
+          buildSlides();
+        });
+
+        buildSlides();
+        startAuto();
       })();
 
       // PWA tab switcher
