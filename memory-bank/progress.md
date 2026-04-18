@@ -26,6 +26,7 @@
 - **Contact Fields** — `website` added end-to-end (Prisma, controller, shared types, API client, Profile UI)
 - **Native Splash Lifecycle** — `expo-splash-screen` keeps native splash visible until fonts finish loading
 - **Overview Asset Hygiene** — duplicate iPhone feed screenshot asset removed; overview now relies on canonical screenshot filename only
+- **Overview Carousel Polish** — mobile carousel slides now vertically center mixed device frames for cleaner presentation in the overview page
 - **Admin** — Invite code management, post pinning, content deletion, **device reset**
 - **Security** — Magic bytes validation for avatars, MIME allowlist, JWT auth, IDOR protection on all user-scoped endpoints, XSS sanitization (posts, comments, journals), null byte injection prevention, JSON depth limiting, payload size limiting
 - **Dark Mode** — Theme toggle with persistence

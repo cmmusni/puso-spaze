@@ -19,6 +19,10 @@
 
 ## Recent Changes
 
+### Overview Carousel Mobile Centering Tweak (April 18, 2026)
+- **OVERVIEW CSS**: Updated mobile rule for `.carousel-slide` in `apps/mobile/overview/index.html` to include `align-items: center` so mixed phone/tablet screenshots remain vertically centered on narrow screens
+- **DEPLOY SCOPE**: Presentation-only web overview CSS adjustment; no runtime API, schema, or auth behavior changes
+
 ### Overview Screenshot Asset Cleanup (April 18, 2026)
 - **ASSET DEDUP**: Removed accidental duplicate file `apps/mobile/assets/screens/iphone/iphone-feed.png.png`
 - **PRIMARY FEED SCREENSHOT**: Updated `apps/mobile/assets/screens/iphone/iphone-feed.png` and kept `overview/index.html` pointing to the canonical filename
