@@ -10,13 +10,13 @@ import {
   StatusBar,
   StyleSheet,
   Platform,
-  Image,
   TextInput,
   Modal,
   Animated,
   useWindowDimensions,
   NativeScrollEvent,
 } from "react-native";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -37,6 +37,7 @@ import type { Post } from "../../../packages/types";
 import WebRightPanel from "../components/WebRightPanel";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
+import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 
 type HomeNav = DrawerNavigationProp<MainDrawerParamList, "Home">;
 
@@ -520,7 +521,7 @@ export default function HomeScreen() {
               <Image
                 source={{ uri: composeImage }}
                 style={styles.composerImagePreview}
-                resizeMode="cover"
+                contentFit="cover"
               />
               <TouchableOpacity
                 style={styles.composerImageRemove}
@@ -732,7 +733,8 @@ export default function HomeScreen() {
             <Image
               source={require("../assets/logo.png")}
               style={styles.topBarLogo}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
             />
           </TouchableOpacity>
         </View>
@@ -804,8 +806,10 @@ export default function HomeScreen() {
             )}
             {avatarUrl ? (
               <Image
-                source={{ uri: resolveAvatarUrl(avatarUrl) }}
+                source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(avatarUrl), 56) }}
                 style={styles.topBarAvatar}
+                cachePolicy="memory-disk"
+                transition={200}
               />
             ) : (
             <LinearGradient

@@ -1,7 +1,104 @@
 // ─────────────────────────────────────────────
 // public/sw.js — Service Worker for Web Push Notifications
-// Handles push events and notification clicks
+// + PWA asset caching + API stale-while-revalidate
 // ─────────────────────────────────────────────
+
+const CACHE_VERSION = 'puso-v1';
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const API_CACHE = `${CACHE_VERSION}-api`;
+const IMAGE_CACHE = `${CACHE_VERSION}-images`;
+
+// Static assets to precache on install
+const PRECACHE_URLS = [
+  '/',
+  '/icon-192.png',
+];
+
+// ── Install: precache shell assets ────────────
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+  );
+});
+
+// ── Activate: clean old caches ────────────────
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((k) => k !== STATIC_CACHE && k !== API_CACHE && k !== IMAGE_CACHE)
+          .map((k) => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+
+// ── Fetch: cache strategy per request type ────
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') return;
+
+  // 1) Cloudinary images → Cache-first (images rarely change)
+  if (url.hostname.includes('res.cloudinary.com')) {
+    event.respondWith(
+      caches.open(IMAGE_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        const response = await fetch(request);
+        if (response.ok) {
+          cache.put(request, response.clone());
+        }
+        return response;
+      })
+    );
+    return;
+  }
+
+  // 2) API requests → Network-first with stale fallback
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      caches.open(API_CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            cache.put(request, response.clone());
+          }
+          return response;
+        } catch {
+          // Network failed — serve stale cache if available
+          const cached = await cache.match(request);
+          return cached || new Response(JSON.stringify({ error: 'Offline' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      })
+    );
+    return;
+  }
+
+  // 3) Static assets (JS/CSS bundles) → Stale-while-revalidate
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const fetchPromise = fetch(request).then((response) => {
+          if (response.ok) {
+            cache.put(request, response.clone());
+          }
+          return response;
+        }).catch(() => cached);
+
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
+});
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;

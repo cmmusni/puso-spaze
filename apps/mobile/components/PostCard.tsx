@@ -14,11 +14,11 @@ import {
   StyleSheet,
   FlatList,
   type GestureResponderEvent,
-  Image,
   ActivityIndicator,
   useWindowDimensions,
   Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -46,6 +46,7 @@ import { colors as defaultColors, fonts, radii, ambientShadow } from "../constan
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
+import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
 const SYSTEM_USER_ID = "system-encouragement-bot";
@@ -424,11 +425,14 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
               <Image
                 source={require("../assets/logo.png")}
                 style={[styles.avatar, isMedium && styles.avatarMd, isWide && styles.avatarWide, { borderRadius: isMedium ? 10 : 8 }]}
+                cachePolicy="memory-disk"
               />
             ) : displayAvatarUrl ? (
               <Image
-                source={{ uri: resolveAvatarUrl(displayAvatarUrl) }}
+                source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(displayAvatarUrl), 80) }}
                 style={[styles.avatar, isMedium && styles.avatarMd, isWide && styles.avatarWide]}
+                cachePolicy="memory-disk"
+                transition={200}
               />
             ) : (
               <LinearGradient
@@ -520,9 +524,11 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
         {/* ── Post Image ── */}
         {post.imageUrl && (
           <Image
-            source={{ uri: resolveAvatarUrl(post.imageUrl) }}
+            source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(post.imageUrl), 600) }}
             style={[styles.postImage, isMedium && !isWide && { height: 260 }, isWide && { height: 340 }]}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={300}
           />
         )}
 
@@ -624,8 +630,10 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
               <View style={[styles.commentInner, isMedium && styles.commentInnerMd]}>
                 {cAvatarUrl ? (
                   <Image
-                    source={{ uri: resolveAvatarUrl(cAvatarUrl) }}
+                    source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(cAvatarUrl), 52) }}
                     style={[styles.commentAvatar, isMedium && { width: 26, height: 26, borderRadius: 13 }]}
+                    cachePolicy="memory-disk"
+                    transition={200}
                   />
                 ) : (
                 <LinearGradient
@@ -1002,8 +1010,9 @@ export default function PostCard({ post, onDelete, onPin, onPostPress, openedFro
                       <View style={styles.reactorAvatarWrap}>
                         {item.user.avatarUrl ? (
                           <Image
-                            source={{ uri: resolveAvatarUrl(item.user.avatarUrl) }}
+                            source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(item.user.avatarUrl), 56) }}
                             style={styles.reactorAvatar}
+                            cachePolicy="memory-disk"
                           />
                         ) : (
                           <LinearGradient

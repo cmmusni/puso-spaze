@@ -25,9 +25,9 @@ import {
   Modal,
   Animated,
   StyleSheet,
-  Image,
   useWindowDimensions,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,6 +65,7 @@ import {
 } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import MentionText from "../components/MentionText";
+import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 import {
   extractTrailingMentionQuery,
   replaceTrailingMention,
@@ -907,11 +908,14 @@ export default function PostDetailScreen() {
               isReply && styles.commentAvatarReply,
               { borderRadius: isReply ? 6 : 8 },
             ]}
+            cachePolicy="memory-disk"
           />
         ) : commentAvatarUrl ? (
           <Image
-            source={{ uri: resolveAvatarUrl(commentAvatarUrl) }}
+            source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(commentAvatarUrl), 64) }}
             style={[styles.commentAvatar, isReply && styles.commentAvatarReply]}
+            cachePolicy="memory-disk"
+            transition={200}
           />
         ) : (
           <LinearGradient
@@ -1235,7 +1239,8 @@ export default function PostDetailScreen() {
           <Image
             source={require("../assets/logo.png")}
             style={styles.headerLogo}
-            resizeMode="contain"
+            contentFit="contain"
+            cachePolicy="memory-disk"
           />
           <Text style={styles.headerTitle}>PUSO Spaze</Text>
         </TouchableOpacity>
@@ -1245,8 +1250,10 @@ export default function PostDetailScreen() {
         >
           {userAvatarUrl ? (
             <Image
-              source={{ uri: resolveAvatarUrl(userAvatarUrl) }}
+              source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(userAvatarUrl), 56) }}
               style={styles.headerAvatar}
+              cachePolicy="memory-disk"
+              transition={200}
             />
           ) : (
             <LinearGradient
@@ -1287,11 +1294,14 @@ export default function PostDetailScreen() {
                       <Image
                         source={require("../assets/logo.png")}
                         style={[styles.postAvatar, { borderRadius: 11 }]}
+                        cachePolicy="memory-disk"
                       />
                     ) : postAvatarUrl ? (
                       <Image
-                        source={{ uri: resolveAvatarUrl(postAvatarUrl) }}
+                        source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(postAvatarUrl), 80) }}
                         style={styles.postAvatar}
+                        cachePolicy="memory-disk"
+                        transition={200}
                       />
                     ) : (
                       <LinearGradient
@@ -1361,9 +1371,11 @@ export default function PostDetailScreen() {
                       onPress={() => setImageViewerVisible(true)}
                     >
                       <Image
-                        source={{ uri: resolveAvatarUrl(post.imageUrl) }}
+                        source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(post.imageUrl), 600) }}
                         style={styles.postImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={300}
                       />
                       <View style={styles.imageExpandHint}>
                         <Ionicons

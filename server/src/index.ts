@@ -5,6 +5,7 @@
 
 import path from 'path';
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import { env } from './config/env';
 import { logger } from './middlewares/logger';
@@ -29,6 +30,9 @@ const app = express();
 
 // ── Global Middleware ─────────────────────────
 app.use(logger);
+
+// ── Response compression (gzip/brotli) ────────
+app.use(compression());
 
 app.use(
   cors({
@@ -99,6 +103,18 @@ app.use('/uploads', (_req, res, next) => {
   res.setHeader('Content-Disposition', 'inline');
   next();
 }, express.static(path.join(__dirname, '..', 'uploads')));
+
+// ── Cache-Control for safe-to-cache GET endpoints ──
+// User-specific endpoints (journals, notifications, conversations, users) must
+// NOT be cached — the user expects immediate consistency after writes.
+const CACHEABLE_PREFIXES = ['/api/posts', '/api/stats'];
+app.use((req, res, next) => {
+  if (req.method === 'GET' && CACHEABLE_PREFIXES.some((p) => req.path.startsWith(p))) {
+    // 30s browser cache + revalidate — prevents hammering on PWA focus
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+  }
+  next();
+});
 
 // ── Health check ──────────────────────────────
 app.get('/health', (_req, res) => {

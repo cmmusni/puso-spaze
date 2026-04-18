@@ -43,7 +43,8 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-image"
     ],
     "extra": {
       "apiUrl": "https://api.puso-spaze.org",

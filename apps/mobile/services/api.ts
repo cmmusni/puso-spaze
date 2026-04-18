@@ -152,6 +152,23 @@ client.interceptors.response.use(
   }
 );
 
+// ── GET request deduplication ────────────────
+// Prevents the same GET request from being sent multiple times concurrently
+// (e.g. when HomeScreen fires 4 requests on every focus event).
+const _inflight = new Map<string, Promise<any>>();
+
+function deduplicatedGet<T>(url: string, params?: Record<string, any>): Promise<{ data: T }> {
+  const key = url + (params ? JSON.stringify(params) : '');
+  const existing = _inflight.get(key);
+  if (existing) return existing;
+
+  const request = client.get<T>(url, { params }).finally(() => {
+    _inflight.delete(key);
+  });
+  _inflight.set(key, request);
+  return request;
+}
+
 // ── User endpoints ───────────────────────────
 
 /**
@@ -388,9 +405,8 @@ export async function apiFetchPosts(query?: string, cursor?: string): Promise<Ge
   const params: Record<string, string> = {};
   if (query) params.q = query;
   if (cursor) params.cursor = cursor;
-  const { data } = await client.get<GetPostsResponse>('/api/posts', {
-    params: Object.keys(params).length > 0 ? params : undefined,
-  });
+  const p = Object.keys(params).length > 0 ? params : undefined;
+  const { data } = await deduplicatedGet<GetPostsResponse>('/api/posts', p);
   return data;
 }
 
@@ -811,8 +827,8 @@ export async function apiGetNotifications(
 export async function apiGetUnreadCount(
   userId: string
 ): Promise<GetUnreadCountResponse> {
-  const { data } = await client.get<GetUnreadCountResponse>(
-    `/api/notifications/unread-count?userId=${userId}`
+  const { data } = await deduplicatedGet<GetUnreadCountResponse>(
+    `/api/notifications/unread-count`, { userId }
   );
   return data;
 }
@@ -928,9 +944,9 @@ export interface DashboardStats {
 
 export async function apiGetDashboardStats(userId?: string): Promise<DashboardStats> {
   try {
-    const { data } = await client.get<DashboardStats>('/api/stats/dashboard', {
-      params: userId ? { userId } : undefined,
-    });
+    const { data } = await deduplicatedGet<DashboardStats>('/api/stats/dashboard',
+      userId ? { userId } : undefined,
+    );
     return data;
   } catch {
     return { totalMembers: 0, dailyStories: 0, onlineCount: 0, trendingTags: [], dailyReflection: null };

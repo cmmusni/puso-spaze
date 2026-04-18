@@ -29,6 +29,7 @@
 - **Refresh UX Parity** — Native pull-to-refresh coverage on major data screens (including Journal) plus web touch pull-to-refresh indicator/gesture with one-time splash skip on reload
 - **PWA Input Zoom Guard** — Touch-web TextInput controls are forced to 16px in WebShell to prevent iPhone Safari auto-zoom on focus
 - **User reporting** — `POST /api/posts/:postId/report` allows any user to flag content for review
+- **PWA Performance** — SW caching (Cloudinary cache-first, API network-first/stale fallback, static stale-while-revalidate); `expo-image` in PostCard/HomeScreen/PostDetailScreen with memory-disk caching; GET dedup in api.ts; gzip/brotli compression on server; `Cache-Control` on posts+stats; Cloudinary auto-quality+format at upload time
 - **Deploy Agent** — Pre-deploy checklist with Step -1 memory bank update, 12 deployment validation checks
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests)
 
@@ -46,8 +47,8 @@
 - Validate and finalize profile expansion (banner upload, bio editing, contacts CRUD)
 - Validate and finalize public journal sharing feed (`GET /api/journals/public` + `isPublic` create/update flow)
 - iOS build and testing
-- Performance optimization for large post feeds
-- Offline support / caching
+- **Performance optimization for large post feeds** ✅ (gzip compression, expo-image caching, Cloudinary URL transforms, request dedup, Cache-Control headers)
+- **Offline support / caching** ✅ (SW asset cache, API stale fallback, image cache-first)
 - Email notifications for coaches
 - Automated REVIEW post escalation (Scenario 7)
 - Pagination on `getPosts`, `getComments`, `getJournals`, `getConversations`, `getMessages`

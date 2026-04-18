@@ -17,6 +17,15 @@
 
 ## Recent Changes
 
+### PWA Performance Optimization (April 18, 2026)
+- **NEW UTIL**: `apps/mobile/utils/optimizeImage.ts` — `optimizeCloudinaryUrl(url, w)` appends Cloudinary transformation params (`f_auto`, `q_auto`, `w_<n>`) for auto-format and responsive sizes
+- **SERVICE WORKER**: `sw.js` gains install/activate/fetch handlers: Cloudinary images → cache-first; API GET → network-first with stale offline fallback; static bundles → stale-while-revalidate
+- **API CLIENT**: `deduplicatedGet()` added to `services/api.ts` — prevents duplicate concurrent GETs (posts, notifications, stats) triggered by HomeScreen focus events
+- **SERVER**: Added `compression` middleware (gzip/brotli) and `Cache-Control: public, max-age=30, stale-while-revalidate=120` header for `/api/posts` and `/api/stats` GET endpoints
+- **CLOUDINARY**: Upload transformer updated to apply `quality:auto` + `fetch_format:auto` at upload time — images stored in WebP/AVIF where supported
+- **expo-image**: `Image` component in `PostCard`, `HomeScreen`, `PostDetailScreen` switched from RN core `Image` to `expo-image` for disk+memory caching and fade transitions; all src urls pass through `optimizeCloudinaryUrl()`
+- **DEPS**: Added `expo-image` to mobile, `compression` + `@types/compression` to server
+
 ### Profile, Contacts, and Public Journal Expansion (April 18, 2026)
 - **SCHEMA**: Added user profile/contact fields: `bannerUrl`, `bio`, `phone`, `contactEmail`, `facebook`, `instagram`, `linkedin`, `twitter`, `tiktok`, `youtube`
 - **SCHEMA**: Added `journals.isPublic` (default `false`) for optional public sharing
