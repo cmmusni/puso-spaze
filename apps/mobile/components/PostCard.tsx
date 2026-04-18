@@ -96,10 +96,17 @@ function getCareIcon(): keyof typeof Ionicons.glyphMap {
 }
 
 function renderReactionIcon(type: ReactionType, size: number, color: string) {
-  if (type === "PRAY") return <PrayIcon size={size} color={color} />;
-  if (type === "SUPPORT") return <SupportIcon size={size} color={color} />;
-  if (type === "LIKE") return <LikeIcon size={size} color={color} />;
-  return <Ionicons name={getCareIcon()} size={size} color={color} />;
+  // The `key` includes both type and color. This forces React to remount the
+  // underlying <Image>/<Ionicons> whenever either changes — Safari otherwise
+  // caches the CSS mask-image (used to implement `tintColor`) inside any
+  // ancestor compositing layer, so the icon's color never updates after a
+  // select/deselect.
+  const k = `${type}-${color}`;
+  if (type === "PRAY") return <PrayIcon key={k} size={size} color={color} />;
+  if (type === "SUPPORT")
+    return <SupportIcon key={k} size={size} color={color} />;
+  if (type === "LIKE") return <LikeIcon key={k} size={size} color={color} />;
+  return <Ionicons key={k} name={getCareIcon()} size={size} color={color} />;
 }
 
 interface PostCardProps {
@@ -643,8 +650,13 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                 ]}
               />
               <Animated.View
+                pointerEvents="none"
                 style={{ transform: [{ scale: reactionPress.scale }] }}
               >
+                {/* key forces remount on reaction change. Safari otherwise
+                    caches the mask-image (tintColor) inside the composited
+                    layer created by the Animated transform, so the icon
+                    color never updates after a select/deselect. */}
                 {renderReactionIcon(
                   userReaction ?? "PRAY",
                   18,

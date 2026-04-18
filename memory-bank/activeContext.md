@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 18, 2026
+**Last Updated:** April 19, 2026
 
 ## Current Work Focus
 - Full-stack performance pass: DB indexing, dashboard aggregation/cache optimization, reaction-state sync, and list/polling load reduction
@@ -19,6 +19,11 @@
 - Full QA test suite created and passing
 
 ## Recent Changes
+
+### Safari Reaction Tint Cache Fix (April 19, 2026)
+- **ICON REMOUNT SAFEGUARD**: `renderReactionIcon()` in `PostCard.tsx` and `PostDetailScreen.tsx` now assigns a stable key composed of `reactionType + color` so reaction icon components remount when tint color changes
+- **WEBKIT MASK CACHE WORKAROUND**: Addresses Safari behavior where CSS mask-image tint can stay stale inside animated/composited layers after reaction select/deselect transitions
+- **ANIMATION INTERACTION SAFETY**: Added `pointerEvents="none"` to the animated icon wrapper views used in the main reaction buttons to ensure overlays never intercept taps during scale animations
 
 ### Facebook-Style Reaction Picker + Haptics + Press Animation (April 19, 2026)
 - **REACTION PICKER REDESIGN**: `PostCard.tsx` and `PostDetailScreen.tsx` now use anchor-positioned gradient bubble pickers (Facebook-style). Long-press measures `measureInWindow` on the reaction button to place the picker just above it; fallbacks center-above for unknown positions
