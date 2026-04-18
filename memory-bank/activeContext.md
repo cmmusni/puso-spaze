@@ -20,6 +20,15 @@
 
 ## Recent Changes
 
+### Facebook-Style Reaction Picker + Haptics + Press Animation (April 19, 2026)
+- **REACTION PICKER REDESIGN**: `PostCard.tsx` and `PostDetailScreen.tsx` now use anchor-positioned gradient bubble pickers (Facebook-style). Long-press measures `measureInWindow` on the reaction button to place the picker just above it; fallbacks center-above for unknown positions
+- **GRADIENT BUBBLES**: Each reaction type has its own LinearGradient (using theme tokens), replacing the flat icon/label rows. Active state adds a 2px primary border ring. Pressed bubble animates scale-up + translate-up with a tooltip label
+- **STAGGER ANIMATION**: Picker entrance uses per-item staggered interpolation (opacity + scale + translateY), plus a combined scale+translateY spring on the pill itself
+- **HAPTICS**: New `apps/mobile/utils/haptics.ts` wraps `expo-haptics` with Platform guards (`tapLight`, `tapMedium`); `expo-haptics` added to `apps/mobile/package.json`
+- **PRESS ANIMATION**: New `apps/mobile/hooks/usePressAnimation.ts` provides `scale` + `bgOpacity` Animated values for reaction button press feedback; `reactionPressBg` overlay fades in for web where haptics are unavailable
+- **CONTEXT MENU SUPPRESSOR**: New `apps/mobile/utils/suppressWebMenu.ts` provides `installContextMenuSuppressor()` (document-level listener) and `suppressWebMenu()` / `noSelectStyle` helpers; installed in `App.tsx` on mount; applied to PostCard long-press and PostDetail comment rows to prevent browser right-click/context popup
+- **DEPS**: `expo-haptics ~55.0.14` added and installed
+
 ### PostCard & PostDetail Reaction UX Fix + Break-It Adversarial QA (April 19, 2026)
 - **POSTCARD CLEANUP**: Removed unused `reactionLoading` state; guard `closePicker()` only when picker is open (prevents close-on-every-reaction calls)
 - **POST DETAIL STYLE**: Compacted `reactionBtn` padding (`16/8 → 4/4`), removed pill shape (borderRadius/backgroundColor) for a tighter icon-only interaction target

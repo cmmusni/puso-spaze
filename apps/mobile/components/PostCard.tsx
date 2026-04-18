@@ -43,6 +43,9 @@ import {
 } from "../services/api";
 import { useUserStore } from "../context/UserContext";
 import { useReactionsStore } from "../context/ReactionsStore";
+import { tapLight, tapMedium } from "../utils/haptics";
+import { noSelectStyle, suppressWebMenu } from "../utils/suppressWebMenu";
+import { usePressAnimation } from "../hooks/usePressAnimation";
 import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
@@ -51,6 +54,24 @@ import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
 const SYSTEM_USER_ID = "system-encouragement-bot";
+
+const REACTION_LABELS: Record<ReactionType, string> = {
+  PRAY: "Pray",
+  CARE: "Care",
+  SUPPORT: "Support",
+  LIKE: "Like",
+};
+
+// Per-reaction gradient palette (sourced from theme tokens).
+const REACTION_GRADIENTS: Record<
+  ReactionType,
+  (c: typeof defaultColors) => [string, string]
+> = {
+  PRAY: (c) => [c.primary, c.secondary],
+  CARE: (c) => [c.hot, c.fuchsia],
+  SUPPORT: (c) => [c.tertiary, c.primary],
+  LIKE: (c) => [c.secondary, c.primaryContainer],
+};
 
 const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
   grateful: { emoji: "\u{1F60A}", label: "Grateful" },
@@ -162,6 +183,17 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
 
   // ── Floating picker ───────────────────────────
   const [showPicker, setShowPicker] = useState(false);
+  const [pressedReaction, setPressedReaction] = useState<ReactionType | null>(
+    null,
+  );
+  // Position of the picker pill in window coordinates. Set on long-press by
+  // measuring the anchor (reaction button or card press location) so the
+  // picker appears just above it instead of being centered on screen.
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const reactionBtnRef = useRef<View>(null);
+  const reactionPress = usePressAnimation();
   const pickerAnim = useRef(new Animated.Value(0)).current;
 
   // ── Reactors modal ────────────────────────────
@@ -194,7 +226,24 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   const [editContent, setEditContent] = useState(post.content);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const openPicker = () => {
+  // Estimated dimensions of the picker pill (4 bubbles × 44 + gaps + padding).
+  // Used to position the picker above its anchor before measuring on layout.
+  const PICKER_WIDTH = 224;
+  const PICKER_HEIGHT = 60;
+
+  const openPickerAt = (anchor: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => {
+    tapMedium();
+    let left = anchor.x + anchor.width / 2 - PICKER_WIDTH / 2;
+    left = Math.max(8, Math.min(left, screenWidth - PICKER_WIDTH - 8));
+    // Prefer above the anchor; if not enough room, drop below.
+    let top = anchor.y - PICKER_HEIGHT - 8;
+    if (top < 8) top = anchor.y + anchor.height + 8;
+    setPickerPos({ top, left });
     setShowPicker(true);
     Animated.spring(pickerAnim, {
       toValue: 1,
@@ -202,6 +251,44 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
       tension: 120,
       friction: 7,
     }).start();
+  };
+
+  const openPickerFromReactionBtn = () => {
+    const node = reactionBtnRef.current;
+    if (node && typeof (node as any).measureInWindow === "function") {
+      (node as any).measureInWindow(
+        (x: number, y: number, w: number, h: number) =>
+          openPickerAt({ x, y, width: w, height: h }),
+      );
+    } else {
+      // Fallback: center horizontally near the bottom of the screen.
+      openPickerAt({
+        x: screenWidth / 2 - 22,
+        y: screenHeight - 200,
+        width: 44,
+        height: 44,
+      });
+    }
+  };
+
+  const openPickerFromCard = (e: GestureResponderEvent) => {
+    const { pageX, pageY } = e.nativeEvent;
+    openPickerAt({
+      x: pageX - 22,
+      y: pageY - 22,
+      width: 44,
+      height: 44,
+    });
+  };
+
+  const openPicker = () => {
+    // Legacy entry point — opens centered if anchor unknown.
+    openPickerAt({
+      x: screenWidth / 2 - 22,
+      y: screenHeight / 2 - 22,
+      width: 44,
+      height: 44,
+    });
   };
 
   const closePicker = () => {
@@ -355,6 +442,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
 
   const handleReaction = async (type: ReactionType) => {
     if (!userId) return;
+    tapLight();
     if (showPicker) closePicker();
     const snapshot = applyToggle(post.id, type);
     try {
@@ -385,13 +473,15 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
           onPostPress?.(post.id);
           navigation.navigate("PostDetail" as any, { postId: post.id, openedFrom });
         }}
-        onLongPress={openPicker}
+        onLongPress={openPickerFromCard}
         delayLongPress={300}
+        {...suppressWebMenu()}
         style={[
           styles.card,
           post.pinned ? styles.cardPinned : null,
           styles.cardDefault,
           { backgroundColor: colors.card },
+          noSelectStyle,
           isSmall && { borderRadius: 0, marginHorizontal: 0, marginBottom: 2 },
           isMedium && { padding: 24, marginBottom: 20, marginHorizontal: 20 },
           isWide && { padding: 28, marginBottom: 24 },
@@ -532,17 +622,35 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
           <View style={styles.footerLeft}>
             {/* Main reaction button — defaults to Pray, shows user's reaction when set */}
             <TouchableOpacity
+              ref={reactionBtnRef as any}
               onPress={() => handleReaction(userReaction ?? "PRAY")}
-              onLongPress={openPicker}
+              onPressIn={reactionPress.onPressIn}
+              onPressOut={reactionPress.onPressOut}
+              onLongPress={() => {
+                reactionPress.onLongPress();
+                openPickerFromReactionBtn();
+              }}
               delayLongPress={300}
-              activeOpacity={0.75}
-              style={styles.countButton}
+              activeOpacity={1}
+              {...suppressWebMenu()}
+              style={[styles.countButton, noSelectStyle]}
             >
-              {renderReactionIcon(
-                userReaction ?? "PRAY",
-                18,
-                userReaction ? colors.primary : colors.lightPrimary,
-              )}
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.reactionPressBg,
+                  { opacity: reactionPress.bgOpacity },
+                ]}
+              />
+              <Animated.View
+                style={{ transform: [{ scale: reactionPress.scale }] }}
+              >
+                {renderReactionIcon(
+                  userReaction ?? "PRAY",
+                  18,
+                  userReaction ? colors.primary : colors.lightPrimary,
+                )}
+              </Animated.View>
             </TouchableOpacity>
             {/* Comment button */}
             <TouchableOpacity
@@ -648,7 +756,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
         })()}
       </TouchableOpacity>
 
-      {/* ── Floating Reaction Picker Modal ── */}
+      {/* ── Floating Reaction Picker Modal (Facebook-style) ── */}
       <Modal
         visible={showPicker}
         transparent
@@ -662,7 +770,15 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
             activeOpacity={1}
             onPress={closePicker}
           />
-          <View style={styles.modalCenter} pointerEvents="box-none">
+          <View
+            style={[
+              styles.pickerAnchorLayer,
+              pickerPos
+                ? { top: pickerPos.top, left: pickerPos.left }
+                : styles.modalCenter,
+            ]}
+            pointerEvents="box-none"
+          >
             <Animated.View
               style={[
                 styles.pickerPill,
@@ -672,50 +788,82 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                     {
                       scale: pickerAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0.6, 1],
+                        outputRange: [0.85, 1],
+                      }),
+                    },
+                    {
+                      translateY: pickerAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [12, 0],
                       }),
                     },
                   ],
                 },
               ]}
             >
-              {REACTION_TYPES.map((type) => {
+              {REACTION_TYPES.map((type, i) => {
                 const active = userReaction === type;
-                const count = counts[type] ?? 0;
+                const isPressed = pressedReaction === type;
+                // Stagger each icon's entrance
+                const itemAnim = pickerAnim.interpolate({
+                  inputRange: [
+                    0,
+                    Math.min(0.15 + i * 0.12, 0.85),
+                    1,
+                  ],
+                  outputRange: [0, 0, 1],
+                });
+                const gradient = REACTION_GRADIENTS[type](colors);
                 return (
-                  <TouchableOpacity
-                    key={type}
-                    onPress={() => handleReaction(type)}
-                    activeOpacity={0.75}
-                    style={[
-                      styles.reactionOption,
-                      active
-                        ? styles.reactionOptionActive
-                        : styles.reactionOptionDefault,
-                    ]}
-                  >
-                    <View style={styles.reactionIconCircle}>
-                      {renderReactionIcon(
-                        type,
-                        32,
-                        colors.card,
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.reactionLabel,
-                        active
-                          ? styles.reactionLabelActive
-                          : styles.reactionLabelDefault,
-                      ]}
-                    >
-                      {type.toLowerCase().charAt(0).toUpperCase() +
-                        type.slice(1).toLowerCase()}
-                    </Text>
-                    {count > 0 && (
-                      <Text style={styles.reactionCount}>{count}</Text>
+                  <View key={type} style={styles.pickerItemWrap}>
+                    {/* Floating label above pressed/active icon */}
+                    {isPressed && (
+                      <View style={styles.pickerTooltip}>
+                        <Text style={styles.pickerTooltipText}>
+                          {REACTION_LABELS[type]}
+                        </Text>
+                      </View>
                     )}
-                  </TouchableOpacity>
+                    <Animated.View
+                      style={{
+                        opacity: itemAnim,
+                        transform: [
+                          {
+                            scale: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.4, isPressed ? 1.25 : 1],
+                            }),
+                          },
+                          {
+                            translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [16, isPressed ? -6 : 0],
+                            }),
+                          },
+                        ],
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => handleReaction(type)}
+                        onPressIn={() => setPressedReaction(type)}
+                        onPressOut={() => setPressedReaction(null)}
+                        activeOpacity={1}
+                        accessibilityLabel={REACTION_LABELS[type]}
+                      >
+                        <LinearGradient
+                          colors={gradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[
+                            styles.pickerBubble,
+                            active && styles.pickerBubbleActive,
+                          ]}
+                        >
+                          {renderReactionIcon(type, 24, colors.card)}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  </View>
                 );
               })}
             </Animated.View>
@@ -1240,8 +1388,20 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   countButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    height: 28,
+    height: 32,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    overflow: "hidden",
+  },
+  // Tinted background that fades in while a reaction button is pressed.
+  // Provides visible feedback on web/PWA where haptics are unavailable.
+  reactionPressBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.primaryContainer,
+    opacity: 0,
+    borderRadius: radii.full,
   },
   reactionSummary: {
     flexDirection: "row",
@@ -1404,55 +1564,51 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  // Anchor layer for the floating picker. When pickerPos is set we override
+  // top/left inline so the picker sits just above the long-pressed button.
+  pickerAnchorLayer: {
+    position: "absolute",
+  },
   pickerPill: {
     flexDirection: "row",
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radii.full,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-    ...ambientShadow,
-    shadowOpacity: 0.15,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  reactionOption: {
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    backgroundColor: colors.card,
     borderRadius: radii.full,
-    minWidth: 80,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 6,
+    ...ambientShadow,
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 16,
   },
-  reactionOptionDefault: {
-    backgroundColor: "transparent",
-  },
-  reactionOptionActive: {
-    backgroundColor: colors.secondaryFixed,
-  },
-  reactionIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
+  pickerItemWrap: {
     alignItems: "center",
     justifyContent: "center",
   },
-  reactionLabel: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-    marginTop: 6,
+  pickerBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  reactionLabelDefault: {
-    color: colors.onSurfaceVariant,
+  pickerBubbleActive: {
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
-  reactionLabelActive: {
-    color: colors.secondary,
+  pickerTooltip: {
+    position: "absolute",
+    top: -34,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    backgroundColor: "rgba(28,27,35,0.92)",
   },
-  reactionCount: {
+  pickerTooltipText: {
+    color: "#FFFFFF",
     fontSize: 11,
-    color: colors.onSurfaceVariant,
-    fontFamily: fonts.bodyMedium,
-    marginTop: 2,
+    fontFamily: fonts.bodySemiBold,
   },
   dismissHint: {
     color: "rgba(255,255,255,0.7)",

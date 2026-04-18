@@ -30,6 +30,7 @@ import { useUserStore } from './context/UserContext';
 import { useThemeStore } from './context/ThemeContext';
 import WebShell from './components/WebShell';
 import CustomAlertModal from './components/CustomAlertModal';
+import { installContextMenuSuppressor } from './utils/suppressWebMenu';
 
 // Hold the native splash until fonts are loaded
 ExpoSplashScreen.preventAutoHideAsync();
@@ -57,6 +58,10 @@ export default function App() {
   useEffect(() => {
     loadUser();
     loadTheme();
+    // Web only: install a single document-level contextmenu suppressor that
+    // blocks the browser context menu / inspect element popup for any element
+    // tagged with data-no-context (e.g. the reaction long-press buttons).
+    installContextMenuSuppressor();
   }, [loadUser, loadTheme]);
 
   // ── Hide native splash once fonts are ready ──

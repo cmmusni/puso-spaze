@@ -65,6 +65,9 @@ import {
 } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useReactionsStore } from "../context/ReactionsStore";
+import { tapLight, tapMedium } from "../utils/haptics";
+import { noSelectStyle, suppressWebMenu } from "../utils/suppressWebMenu";
+import { usePressAnimation } from "../hooks/usePressAnimation";
 import MentionText from "../components/MentionText";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 import {
@@ -121,6 +124,24 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
+
+const REACTION_LABELS: Record<ReactionType, string> = {
+  PRAY: "Pray",
+  CARE: "Care",
+  SUPPORT: "Support",
+  LIKE: "Like",
+};
+
+// Per-reaction gradient palette (sourced from theme tokens).
+const REACTION_GRADIENTS: Record<
+  ReactionType,
+  (c: typeof defaultColors) => [string, string]
+> = {
+  PRAY: (c) => [c.primary, c.secondary],
+  CARE: (c) => [c.hot, c.fuchsia],
+  SUPPORT: (c) => [c.tertiary, c.primary],
+  LIKE: (c) => [c.secondary, c.primaryContainer],
+};
 const SYSTEM_USER_ID = "system-encouragement-bot";
 
 const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
@@ -268,7 +289,7 @@ export default function PostDetailScreen() {
   const { userId, username, role, avatarUrl } = useUser();
   const userAvatarUrl = avatarUrl;
   const isCoach = role === "COACH" || role === "ADMIN";
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isWide = Platform.OS === "web" && screenWidth >= 900;
   const isMedium =
     Platform.OS === "web" && screenWidth >= 600 && screenWidth < 900;
@@ -331,7 +352,58 @@ export default function PostDetailScreen() {
 
   // ── Floating reaction picker ──────────────────
   const [showPicker, setShowPicker] = useState(false);
+  const [pressedReaction, setPressedReaction] = useState<ReactionType | null>(
+    null,
+  );
+  // Picker anchor position (window coords). Set on long-press to place the
+  // picker just above the pressed reaction button.
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+  const reactionBtnRef = useRef<View>(null);
+  const reactionPress = usePressAnimation();
   const pickerAnim = useRef(new Animated.Value(0)).current;
+
+  // Estimated picker dimensions (4 bubbles × 44 + gaps + padding).
+  const PICKER_WIDTH = 224;
+  const PICKER_HEIGHT = 60;
+
+  const openPickerAt = (anchor: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => {
+    tapMedium();
+    let left = anchor.x + anchor.width / 2 - PICKER_WIDTH / 2;
+    left = Math.max(8, Math.min(left, screenWidth - PICKER_WIDTH - 8));
+    let top = anchor.y - PICKER_HEIGHT - 8;
+    if (top < 8) top = anchor.y + anchor.height + 8;
+    setPickerPos({ top, left });
+    setShowPicker(true);
+    Animated.timing(pickerAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const openPickerFromReactionBtn = () => {
+    const node = reactionBtnRef.current;
+    if (node && typeof (node as any).measureInWindow === "function") {
+      (node as any).measureInWindow(
+        (x: number, y: number, w: number, h: number) =>
+          openPickerAt({ x, y, width: w, height: h }),
+      );
+    } else {
+      openPickerAt({
+        x: screenWidth / 2 - 22,
+        y: screenHeight - 200,
+        width: 44,
+        height: 44,
+      });
+    }
+  };
 
   // ── Reactors modal ────────────────────────────
   type ReactorsTab = "ALL" | ReactionType;
@@ -1042,9 +1114,11 @@ export default function PostDetailScreen() {
               onLongPress={() => openCommentMenu(item)}
               disabled={isDeletingThisComment}
               activeOpacity={0.8}
+              {...suppressWebMenu()}
               style={[
                 styles.commentBubble,
                 isOwnComment ? styles.commentBubbleOwn : null,
+                noSelectStyle,
               ]}
             >
               {isDeletingThisComment ? (
@@ -1084,7 +1158,8 @@ export default function PostDetailScreen() {
                 handleCommentReaction(item, commentUserReaction ?? "LIKE")
               }
               onLongPress={() => setCommentPickerTarget(item)}
-              style={styles.commentLikeBtn}
+              {...suppressWebMenu()}
+              style={[styles.commentLikeBtn, noSelectStyle]}
             >
               {commentUserReaction ? (
                 <>
@@ -1411,26 +1486,40 @@ export default function PostDetailScreen() {
                   <View style={styles.reactionBar}>
                     <View style={styles.reactionButtons}>
                       <TouchableOpacity
+                        ref={reactionBtnRef as any}
                         onPress={() => handleReaction(userReaction ?? "PRAY")}
+                        onPressIn={reactionPress.onPressIn}
+                        onPressOut={reactionPress.onPressOut}
                         onLongPress={() => {
-                          setShowPicker(true);
-                          Animated.timing(pickerAnim, {
-                            toValue: 1,
-                            duration: 200,
-                            useNativeDriver: true,
-                          }).start();
+                          reactionPress.onLongPress();
+                          openPickerFromReactionBtn();
                         }}
                         delayLongPress={300}
-                        activeOpacity={0.75}
+                        activeOpacity={1}
+                        {...suppressWebMenu()}
                         style={[
                           styles.reactionBtn,
+                          noSelectStyle,
                         ]}
                       >
-                        {userReaction ? (
-                          renderReactionIcon(userReaction, 18, colors.primary)
-                        ) : (
-                          <PrayIcon size={18} color={colors.lightPrimary} />
-                        )}
+                        <Animated.View
+                          pointerEvents="none"
+                          style={[
+                            styles.reactionPressBg,
+                            { opacity: reactionPress.bgOpacity },
+                          ]}
+                        />
+                        <Animated.View
+                          style={{
+                            transform: [{ scale: reactionPress.scale }],
+                          }}
+                        >
+                          {userReaction ? (
+                            renderReactionIcon(userReaction, 18, colors.primary)
+                          ) : (
+                            <PrayIcon size={18} color={colors.lightPrimary} />
+                          )}
+                        </Animated.View>
                       </TouchableOpacity>
 
                       <View style={styles.countButton}>
@@ -1881,7 +1970,7 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Floating Reaction Picker Modal ── */}
+      {/* ── Floating Reaction Picker Modal (Facebook-style) ── */}
       <Modal
         visible={showPicker}
         transparent
@@ -1894,7 +1983,15 @@ export default function PostDetailScreen() {
           activeOpacity={1}
           onPress={closePicker}
         >
-          <View style={styles.modalCenter}>
+          <View
+            style={[
+              styles.pickerAnchorLayer,
+              pickerPos
+                ? { top: pickerPos.top, left: pickerPos.left }
+                : styles.modalCenter,
+            ]}
+            pointerEvents="box-none"
+          >
             <TouchableOpacity activeOpacity={1}>
               <Animated.View
                 style={[
@@ -1905,49 +2002,80 @@ export default function PostDetailScreen() {
                       {
                         scale: pickerAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0.6, 1],
+                          outputRange: [0.85, 1],
+                        }),
+                      },
+                      {
+                        translateY: pickerAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [12, 0],
                         }),
                       },
                     ],
                   },
                 ]}
               >
-                {REACTION_TYPES.map((type) => {
+                {REACTION_TYPES.map((type, i) => {
                   const active = userReaction === type;
-                  const count = counts[type] ?? 0;
+                  const isPressed = pressedReaction === type;
+                  const itemAnim = pickerAnim.interpolate({
+                    inputRange: [
+                      0,
+                      Math.min(0.15 + i * 0.12, 0.85),
+                      1,
+                    ],
+                    outputRange: [0, 0, 1],
+                  });
+                  const gradient = REACTION_GRADIENTS[type](colors);
                   return (
-                    <TouchableOpacity
-                      key={type}
-                      onPress={() => handleReactionFromPicker(type)}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.pickerOption,
-                        active && styles.pickerOptionActive,
-                      ]}
-                    >
-                      <View style={styles.pickerIconWrap}>
-                        {renderReactionIcon(type, 24, colors.card)}
-                      </View>
-                      <Text
-                        style={[
-                          styles.pickerLabel,
-                          active
-                            ? styles.pickerLabelActive
-                            : styles.pickerLabelDefault,
-                        ]}
-                      >
-                        {type === "PRAY"
-                          ? "Pray"
-                          : type === "CARE"
-                            ? "Care"
-                            : type === "LIKE"
-                              ? "Like"
-                              : "Support"}
-                      </Text>
-                      {count > 0 && (
-                        <Text style={styles.pickerCount}>{count}</Text>
+                    <View key={type} style={styles.pickerItemWrap}>
+                      {isPressed && (
+                        <View style={styles.pickerTooltip}>
+                          <Text style={styles.pickerTooltipText}>
+                            {REACTION_LABELS[type]}
+                          </Text>
+                        </View>
                       )}
-                    </TouchableOpacity>
+                      <Animated.View
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            {
+                              scale: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0.4, isPressed ? 1.25 : 1],
+                              }),
+                            },
+                            {
+                              translateY: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [16, isPressed ? -6 : 0],
+                              }),
+                            },
+                          ],
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => handleReactionFromPicker(type)}
+                          onPressIn={() => setPressedReaction(type)}
+                          onPressOut={() => setPressedReaction(null)}
+                          activeOpacity={1}
+                          accessibilityLabel={REACTION_LABELS[type]}
+                        >
+                          <LinearGradient
+                            colors={gradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={[
+                              styles.pickerBubble,
+                              active && styles.pickerBubbleActive,
+                            ]}
+                          >
+                            {renderReactionIcon(type, 24, colors.card)}
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    </View>
                   );
                 })}
               </Animated.View>
@@ -2543,9 +2671,20 @@ const createStyles = (colors: typeof defaultColors) =>
     reactionBtn: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "center",
       gap: 6,
-      paddingHorizontal: 4,
-      paddingVertical: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: radii.full,
+      overflow: "hidden",
+    },
+    // Tinted background that fades in while the reaction button is pressed.
+    // Provides visible feedback on web/PWA where haptics are unavailable.
+    reactionPressBg: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.primaryContainer,
+      opacity: 0,
+      borderRadius: radii.full,
     },
     reactionBtnActive: {
       backgroundColor: colors.primaryContainer + "30",
@@ -3047,22 +3186,53 @@ const createStyles = (colors: typeof defaultColors) =>
     // ── Floating Picker Modal ────────────────
     modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.25)" },
     modalCenter: { flex: 1, justifyContent: "center", alignItems: "center" },
+    // Anchor layer for the floating picker. When pickerPos is set we override
+    // top/left inline so the picker sits just above the long-pressed button.
+    pickerAnchorLayer: {
+      position: "absolute",
+    },
     pickerPill: {
       flexDirection: "row",
+      alignItems: "center",
       backgroundColor: colors.card,
       borderRadius: radii.full,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
       gap: 6,
       ...ambientShadow,
+      shadowOpacity: 0.18,
+      shadowRadius: 28,
+      elevation: 16,
     },
-    pickerOption: {
+    pickerItemWrap: {
       alignItems: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: radii.full,
-      minWidth: 76,
+      justifyContent: "center",
     },
+    pickerBubble: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    pickerBubbleActive: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    pickerTooltip: {
+      position: "absolute",
+      top: -34,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.full,
+      backgroundColor: "rgba(28,27,35,0.92)",
+    },
+    pickerTooltipText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontFamily: fonts.bodySemiBold,
+    },
+    // Legacy styles still used by the comment-reaction picker sheet.
     pickerOptionActive: {
       backgroundColor: colors.surfaceContainerLow,
       borderWidth: 2,
@@ -3083,12 +3253,6 @@ const createStyles = (colors: typeof defaultColors) =>
     },
     pickerLabelDefault: { color: colors.onSurfaceVariant },
     pickerLabelActive: { color: colors.secondary },
-    pickerCount: {
-      fontSize: 11,
-      color: colors.muted4,
-      fontFamily: fonts.bodySemiBold,
-      marginTop: 2,
-    },
 
     // ── Comment reaction picker ──────────────
     commentPickerBackdrop: {

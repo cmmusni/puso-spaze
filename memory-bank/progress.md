@@ -38,6 +38,7 @@
 - **User reporting** — `POST /api/posts/:postId/report` allows any user to flag content for review
 - **PWA Performance** — SW caching (Cloudinary cache-first, API network-first/stale fallback, static stale-while-revalidate); `expo-image` in PostCard/HomeScreen/PostDetailScreen with memory-disk caching; GET dedup in api.ts; gzip/brotli compression on server; `Cache-Control` on posts+stats; Cloudinary auto-quality+format at upload time
 - **Full-Stack Perf Pass** — Added DB indexes for high-traffic feed/moderation queries; dashboard stats now use SQL tag aggregation + TTL cache; coach review queue capped at 100 posts/comments; reaction state is synchronized across feed/detail via global store with optimistic rollback; chat polling is visibility/app-state adaptive; roster lists virtualized with FlatList
+- **Reaction Picker UX** — Facebook-style anchor-positioned gradient bubble picker with haptics (`expo-haptics`), press-scale animation, stagger entrance, tooltip labels, and context menu suppressor for web PWA
 - **Deploy Agent** — Pre-deploy checklist with Step -1 memory bank update, 12 deployment validation checks
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests), `break-it.mjs` (OWASP Top 10 adversarial suite)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
