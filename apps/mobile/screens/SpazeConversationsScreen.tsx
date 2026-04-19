@@ -27,6 +27,7 @@ import { useThemeStore } from "../context/ThemeContext";
 import { showConfirm } from "../utils/alertPlatform";
 import type { Conversation } from "../../../packages/types";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
+import { ConversationListSkeleton } from "../components/LoadingSkeletons";
 
 export default function SpazeConversationsScreen({ navigation }: any) {
   const { userId, role } = useUserStore();
@@ -395,7 +396,7 @@ export default function SpazeConversationsScreen({ navigation }: any) {
         ListEmptyComponent={
           loading ? (
             <View style={s.loadingWrap}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ConversationListSkeleton count={4} />
             </View>
           ) : (
             renderEmpty()
@@ -411,9 +412,9 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   safeArea: { flex: 1 },
 
   loadingWrap: {
-    paddingTop: 80,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingTop: 20,
+    alignItems: "stretch",
+    justifyContent: "flex-start",
   },
   listContent: {
     paddingHorizontal: spacing.md,

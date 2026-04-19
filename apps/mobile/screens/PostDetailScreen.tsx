@@ -81,6 +81,7 @@ import type {
   ReactionType,
   ReactionCounts,
 } from "../../../packages/types";
+import { PostDetailSkeleton } from "../components/LoadingSkeletons";
 
 type PostDetailRouteProp = RouteProp<
   {
@@ -1236,11 +1237,7 @@ export default function PostDetailScreen() {
   if (postLoading) {
     return (
       <SafeAreaView style={styles.screen}>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <PostDetailSkeleton />
       </SafeAreaView>
     );
   }

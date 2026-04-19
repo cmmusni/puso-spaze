@@ -781,6 +781,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
         transparent
         animationType="none"
         statusBarTranslucent
+        backdropColor="transparent"
         onRequestClose={closePicker}
       >
         <View style={styles.modalBackdrop}>
@@ -1290,7 +1291,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   roleBadge: {
     borderRadius: radii.full,
     paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   roleBadgeCoach: {
     backgroundColor: colors.primary,
@@ -1578,7 +1579,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   // ── Modal / Picker ────────────────────────
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(28,27,35,0.35)",
+    backgroundColor: "transparent",
   },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -49,6 +49,7 @@ import { useThemeStore } from "../context/ThemeContext";
 import type { Journal } from "../../../packages/types";
 import { showAlert } from "../utils/alertPlatform";
 import { BarChart } from "react-native-chart-kit";
+import { JournalListSkeleton } from "../components/LoadingSkeletons";
 
 // ── Mood config ──────────────────────────────
 const MOODS = [
@@ -966,7 +967,7 @@ export default function JournalScreen({ navigation }: any) {
 
       {loading ? (
         <View style={st.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <JournalListSkeleton count={4} />
         </View>
       ) : (
         <View style={st.mainRow}>
@@ -1129,7 +1130,7 @@ export default function JournalScreen({ navigation }: any) {
 // ── Styles ────────────────────────────────────
 const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
-  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  loadingWrap: { flex: 1, alignItems: "stretch", justifyContent: "flex-start" },
 
   // ── Layout ────────────────────────────────
   mainRow: { flex: 1, flexDirection: "row" },

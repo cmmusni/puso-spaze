@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 19, 2026 (5th deployment cycle)
+**Last Updated:** April 19, 2026 (6th deployment cycle)
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -43,6 +43,9 @@
 - **Coach Specialties** — Coaches and admins can now set and edit specialties (up to 10 tags, 30 chars each) displayed on their profiles; non-owner profile view shows specialties read-only; stored in `users.specialties TEXT[]` with new `PATCH /api/users/:userId/specialties` endpoint
 - **Profile Screen Redesign** — Complete ProfileScreen overhaul with SkeletonBox loading states, online status indicator (active within 15 min), specialties editing UI, improved contact visibility logic, better owner/non-owner split, and fullProfilePage rebuild
 - **Online Presence Tracking** — `lastActiveAt` now tracked in CoachProfile and GetMessagesResponse for displaying online status across chat/conversation views
+- **Reusable Loading Skeletons** — Added `LoadingSkeletons.tsx` and replaced spinner-only initial loading states across Home, Journal, Notifications, Chat, Coach list, Conversations list, and PostDetail with layout-matching skeleton placeholders
+- **Feed Freshness After Writes** — API client now applies `no-cache` headers for GET requests and invalidates in-flight `/api/posts` requests after create/update/delete so feed refreshes with fresh data immediately on Safari/web
+- **CORS Header Compatibility** — Server CORS allowed headers now include `Cache-Control` and `Pragma` to support explicit client cache-bypass request headers
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests), `break-it.mjs` (OWASP Top 10 adversarial suite)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
 

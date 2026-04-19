@@ -29,6 +29,7 @@ import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from ".
 import { useThemeStore } from "../context/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
 import type { Message } from "../../../packages/types";
+import { ChatMessageSkeleton } from "../components/LoadingSkeletons";
 
 const POLL_INTERVAL = 5000;
 const TYPING_POLL_INTERVAL = 2000;
@@ -457,7 +458,7 @@ export default function ChatScreen({ navigation, route }: any) {
       >
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ChatMessageSkeleton count={6} />
           </View>
         ) : (
           <>
@@ -682,8 +683,8 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   loadingWrap: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
   },
 
   // ── Date separator ────────────────────────

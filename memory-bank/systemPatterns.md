@@ -71,6 +71,8 @@
 - `getBaseUrl()` handles platform-specific URL resolution
 - All API functions prefixed with `api*` (e.g., `apiCreateUser`, `apiFetchPosts`)
 - High-traffic read endpoints use `deduplicatedGet()` to collapse duplicate concurrent GETs (feed, stats, coach roster/review, conversations)
+- GET requests include explicit cache-bypass headers (`Cache-Control: no-cache`, `Pragma: no-cache`) to avoid stale browser-served API responses on Safari/PWA
+- Mutating post endpoints invalidate in-flight `/api/posts` promises to force the next read to fetch fresh data after create/update/delete
 
 ### Performance Guardrails
 - Prisma schema includes explicit indexes for recurring high-traffic filters/sorts (`posts`, `comments`, `reactions`, `users.lastActiveAt`, `invite_codes.used`)
@@ -123,6 +125,11 @@
 - Dynamic overrides via inline conditional styles
 - Web touch devices support custom pull-to-refresh in `WebShell.tsx`; refresh sets a one-time session flag to skip splash on immediate reload
 - Web touch input controls (`input`, `textarea`, `select`, `[contenteditable=true]`) are globally forced to 16px in `WebShell.tsx` to prevent iOS Safari PWA focus zoom
+
+### Loading Skeleton Pattern
+- Shared skeleton components live in `apps/mobile/components/LoadingSkeletons.tsx` and are built from `SkeletonBox`
+- Screens render shape-matching placeholders (feed cards, journal rows, chat bubbles, notifications, conversations, coach cards, post detail) instead of generic centered spinners
+- Loading wrappers prefer `alignItems: 'stretch'` + `justifyContent: 'flex-start'` for realistic stacked layout while data is loading
 
 ### Design System ("The Sacred Journal")
 - All tokens in `constants/theme.ts`

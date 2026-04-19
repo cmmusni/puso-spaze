@@ -123,6 +123,13 @@ client.interceptors.request.use((config) => {
   if (_authToken) {
     config.headers.Authorization = `Bearer ${_authToken}`;
   }
+  // Safari (web) aggressively caches GET responses that have no explicit
+  // Cache-Control headers, which causes stale `/api/posts` lists right
+  // after a write. Force every GET to bypass the HTTP cache.
+  if ((config.method ?? 'get').toLowerCase() === 'get') {
+    config.headers['Cache-Control'] = 'no-cache';
+    config.headers['Pragma'] = 'no-cache';
+  }
   return config;
 });
 
@@ -167,6 +174,17 @@ function deduplicatedGet<T>(url: string, params?: Record<string, any>): Promise<
   });
   _inflight.set(key, request);
   return request;
+}
+
+/**
+ * Drop any in-flight GETs whose key starts with `urlPrefix`.
+ * Call after a write that mutates the resource so the next GET issues
+ * a fresh network request instead of reusing a stale in-flight promise.
+ */
+function invalidateInflight(urlPrefix: string) {
+  for (const key of Array.from(_inflight.keys())) {
+    if (key.startsWith(urlPrefix)) _inflight.delete(key);
+  }
 }
 
 // ── User endpoints ───────────────────────────
@@ -489,9 +507,11 @@ export async function apiCreatePost(
       const err = await response.json().catch(() => ({}));
       throw new Error(err.error ?? 'Failed to create post');
     }
+    invalidateInflight('/api/posts');
     return response.json();
   }
   const { data } = await client.post<CreatePostResponse>('/api/posts', body);
+  invalidateInflight('/api/posts');
   return data;
 }
 
@@ -507,6 +527,7 @@ export async function apiDeletePost(
     `/api/posts/${postId}`,
     { data: { userId } }
   );
+  invalidateInflight('/api/posts');
   return data;
 }
 
@@ -518,6 +539,7 @@ export async function apiUpdatePost(
     `/api/posts/${postId}`,
     body
   );
+  invalidateInflight('/api/posts');
   return data;
 }
 

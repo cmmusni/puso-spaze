@@ -36,6 +36,7 @@ import { colors as defaultColors, fonts, spacing, radii, ambientShadow } from '.
 import { useThemeStore } from '../context/ThemeContext';
 import { useScrollBarVisibility } from '../hooks/useScrollBarVisibility';
 import { useBadgeStore } from '../hooks/useNotifications';
+import { NotificationListSkeleton } from '../components/LoadingSkeletons';
 
 type NavigationType = DrawerNavigationProp<any>;
 
@@ -331,7 +332,7 @@ export default function NotificationsScreen() {
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <NotificationListSkeleton count={6} />
         </View>
       </SafeAreaView>
     );
@@ -547,8 +548,8 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   // Loading & empty
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
   },
   emptyContainer: {
     flex: 1,

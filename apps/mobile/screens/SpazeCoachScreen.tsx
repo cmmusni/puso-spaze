@@ -33,6 +33,7 @@ import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from ".
 import { useThemeStore } from "../context/ThemeContext";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import type { CoachProfile, Conversation } from "../../../packages/types";
+import { CoachListSkeleton } from "../components/LoadingSkeletons";
 
 const DEFAULT_SPECIALTIES = ["Wellness", "Support"];
 
@@ -366,7 +367,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
         ListEmptyComponent={
           loading ? (
             <View style={s.loadingWrap}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <CoachListSkeleton count={3} />
             </View>
           ) : (
             renderEmptyConversations()
@@ -384,9 +385,9 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   },
 
   loadingWrap: {
-    paddingTop: 80,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingTop: 20,
+    alignItems: "stretch",
+    justifyContent: "flex-start",
   },
   listContent: {
     paddingHorizontal: spacing.md,

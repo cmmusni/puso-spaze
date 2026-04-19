@@ -35,6 +35,7 @@ import { showAlert } from "../utils/alertPlatform";
 import PostCard from "../components/PostCard";
 import type { Post } from "../../../packages/types";
 import WebRightPanel from "../components/WebRightPanel";
+import { PostFeedSkeleton } from "../components/LoadingSkeletons";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
@@ -134,7 +135,7 @@ export default function HomeScreen() {
   const { unreadCount, refreshUnreadCount, requestWebPushPermission, webPushSubscribed, webPushSupported } = useNotifications(userId);
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
   const showPushBanner = Platform.OS === 'web' && webPushSupported && !webPushSubscribed && !pushBannerDismissed;
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isWide = width >= 900;
   const showRightPanel = width >= 1200;
 
@@ -227,6 +228,22 @@ export default function HomeScreen() {
   const [composing, setComposing] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState<string | null>(null);
   const [feelingPickerVisible, setFeelingPickerVisible] = useState(false);
+  const [feelingAnchor, setFeelingAnchor] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const feelingBtnRef = useRef<View>(null);
+  const FEELING_SHEET_WIDTH = 280;
+  const FEELING_SHEET_EST_HEIGHT = 260;
+  const openFeelingPicker = useCallback(() => {
+    const node: any = feelingBtnRef.current;
+    if (node && typeof node.measureInWindow === "function") {
+      node.measureInWindow((x: number, y: number, w: number, h: number) => {
+        setFeelingAnchor({ x, y, w, h });
+        setFeelingPickerVisible(true);
+      });
+    } else {
+      setFeelingAnchor(null);
+      setFeelingPickerVisible(true);
+    }
+  }, []);
   const feelingObj = selectedFeeling
     ? FEELING_OPTIONS.find((f) => f.key === selectedFeeling)
     : null;
@@ -573,10 +590,11 @@ export default function HomeScreen() {
                 <Text style={styles.composerActionText}>Photo</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                ref={feelingBtnRef}
                 style={styles.composerActionBtn}
                 activeOpacity={0.7}
                 disabled={composing}
-                onPress={() => setFeelingPickerVisible(true)}
+                onPress={openFeelingPicker}
               >
                 <Ionicons
                   name="happy-outline"
@@ -862,8 +880,11 @@ export default function HomeScreen() {
           />
 
           {loading && posts.length === 0 && (
-            <View style={styles.loaderOverlay}>
-              <ActivityIndicator size="large" color={colors.primary} />
+            <View
+              style={[styles.loaderOverlay, { paddingTop: topBarHeight }]}
+              pointerEvents="none"
+            >
+              <PostFeedSkeleton count={3} />
             </View>
           )}
 
@@ -907,6 +928,7 @@ export default function HomeScreen() {
         transparent
         animationType="fade"
         statusBarTranslucent
+        backdropColor="transparent"
         onRequestClose={() => setFeelingPickerVisible(false)}
       >
         <TouchableOpacity
@@ -914,11 +936,35 @@ export default function HomeScreen() {
           activeOpacity={1}
           onPress={() => setFeelingPickerVisible(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={styles.modalSheet}
-          >
+          {(() => {
+            const sheetStyle: any[] = [styles.modalSheet, { width: FEELING_SHEET_WIDTH, maxWidth: FEELING_SHEET_WIDTH }];
+            if (feelingAnchor) {
+              const margin = 8;
+              // Prefer placing above the button; fall back to below if not enough room
+              const spaceAbove = feelingAnchor.y;
+              const spaceBelow = height - (feelingAnchor.y + feelingAnchor.h);
+              const placeAbove = spaceAbove >= FEELING_SHEET_EST_HEIGHT + margin || spaceAbove > spaceBelow;
+              const top = placeAbove
+                ? Math.max(margin, feelingAnchor.y - FEELING_SHEET_EST_HEIGHT - margin)
+                : feelingAnchor.y + feelingAnchor.h + margin;
+              // Center horizontally on the button, then clamp into viewport\n
+              let left = feelingAnchor.x + feelingAnchor.w / 2 - FEELING_SHEET_WIDTH / 2;
+              left = Math.max(margin, Math.min(left, width - FEELING_SHEET_WIDTH - margin));
+              sheetStyle.push({ position: "absolute" as const, top, left });
+            } else {
+              // Fallback: center on screen if no anchor was measured
+              sheetStyle.push({
+                position: "absolute" as const,
+                top: Math.max(16, (height - FEELING_SHEET_EST_HEIGHT) / 2),
+                left: Math.max(16, (width - FEELING_SHEET_WIDTH) / 2),
+              });
+            }
+            return (
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={(e) => e.stopPropagation()}
+                style={sheetStyle}
+              >
             <Text style={styles.modalTitle}>How are you feeling?</Text>
             <View style={styles.feelingGrid}>
               {FEELING_OPTIONS.map((f) => {
@@ -962,6 +1008,8 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
           </TouchableOpacity>
+            );
+          })()}
         </TouchableOpacity>
       </Modal>
 
@@ -1426,8 +1474,8 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
   },
 
   // ── Empty state ──
@@ -1496,10 +1544,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   // ── Feeling picker modal ──
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
+    backgroundColor: "transparent",
   },
   modalSheet: {
     backgroundColor: colors.card,

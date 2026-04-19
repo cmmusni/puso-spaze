@@ -38,7 +38,7 @@ app.use(
   cors({
     origin: env.ALLOWED_ORIGINS,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma'],
   })
 );
 

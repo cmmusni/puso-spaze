@@ -1,8 +1,10 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 19, 2026 (5th deployment cycle)
+**Last Updated:** April 19, 2026 (6th deployment cycle)
 
 ## Current Work Focus
+- Cross-screen loading UX pass: replace spinner-heavy loading states with reusable skeleton placeholders
+- Web cache freshness hardening: prevent stale GET caching after writes (Safari/PWA-sensitive)
 - Coach specialties feature: editable specialty tags for coaches/admins with profile display
 - Profile screen redesign: skeleton loading, online status indicator, specialties UI, full contact management
 - Chat/conversation enhancements: lastActiveAt tracking for online presence
@@ -12,6 +14,18 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Loading Skeleton System + GET Cache Freshness Hardening (April 19, 2026)
+- **NEW COMPONENT**: Added `apps/mobile/components/LoadingSkeletons.tsx` with reusable skeleton presets for feed posts, journal cards, notifications, conversations, coach cards, chat bubbles, and post detail placeholders
+- **HOME FEED**: Replaced initial `ActivityIndicator` with `PostFeedSkeleton`; loading overlay now aligns below top bar; composer feeling picker now anchors to the pressed button via `measureInWindow` instead of always centering
+- **JOURNAL/NOTIFICATIONS/CHAT/CONVERSATIONS/COACH**: Replaced loading spinners with matching skeleton UIs and updated loading container alignment to top-stacked layouts
+- **POST DETAIL**: Replaced full-screen spinner with `PostDetailSkeleton`
+- **POSTCARD MODAL**: Made picker backdrop fully transparent and increased role badge vertical padding (`2 -> 4`) for better readability
+- **API CLIENT HARDENING** (`apps/mobile/services/api.ts`):
+  - Adds `Cache-Control: no-cache` + `Pragma: no-cache` headers to all GET requests to avoid stale browser cache responses after writes
+  - Adds `invalidateInflight(urlPrefix)` helper and applies it after create/update/delete post actions so next reads always refetch fresh data
+- **SERVER CORS UPDATE** (`server/src/index.ts`): Allows `Cache-Control` and `Pragma` headers in CORS `allowedHeaders`
+- **DEPLOY GUARDRAIL**: Restored `apps/mobile/app.json` `extra.apiUrl` back to production (`https://api.puso-spaze.org`) after local dev override to `http://localhost:4000`
 
 ### Coach Specialties + Profile Redesign (April 19, 2026)
 - **SCHEMA**: Added `users.specialties TEXT[]` for storing coach/admin specialty tags (e.g., ["Wellness", "Support"])
