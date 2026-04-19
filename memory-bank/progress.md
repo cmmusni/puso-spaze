@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 18, 2026
+**Last Updated:** April 19, 2026 (5th deployment cycle)
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -40,7 +40,9 @@
 - **Full-Stack Perf Pass** — Added DB indexes for high-traffic feed/moderation queries; dashboard stats now use SQL tag aggregation + TTL cache; coach review queue capped at 100 posts/comments; reaction state is synchronized across feed/detail via global store with optimistic rollback; chat polling is visibility/app-state adaptive; roster lists virtualized with FlatList
 - **Reaction Picker UX** — Facebook-style anchor-positioned gradient bubble picker with haptics (`expo-haptics`), press-scale animation, stagger entrance, tooltip labels, and context menu suppressor for web PWA
 - **Safari Reaction Tint Stability** — Reaction icons now remount on `type+color` key changes in feed/detail views, preventing stale tinted icons after select/deselect on Safari/WebKit composited layers
-- **Deploy Agent** — Pre-deploy checklist with Step -1 memory bank update, 12 deployment validation checks
+- **Coach Specialties** — Coaches and admins can now set and edit specialties (up to 10 tags, 30 chars each) displayed on their profiles; non-owner profile view shows specialties read-only; stored in `users.specialties TEXT[]` with new `PATCH /api/users/:userId/specialties` endpoint
+- **Profile Screen Redesign** — Complete ProfileScreen overhaul with SkeletonBox loading states, online status indicator (active within 15 min), specialties editing UI, improved contact visibility logic, better owner/non-owner split, and fullProfilePage rebuild
+- **Online Presence Tracking** — `lastActiveAt` now tracked in CoachProfile and GetMessagesResponse for displaying online status across chat/conversation views
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests), `break-it.mjs` (OWASP Top 10 adversarial suite)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
 

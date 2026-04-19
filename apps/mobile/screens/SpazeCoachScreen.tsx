@@ -153,6 +153,8 @@ export default function SpazeCoachScreen({ navigation }: any) {
   const renderCoachCard = (item: CoachProfile) => {
     const isStarting = startingChat === item.id;
     const grad = getAvatarColors(item.displayName);
+    const isOnline = !!item.lastActiveAt &&
+      Date.now() - new Date(item.lastActiveAt).getTime() < 15 * 60 * 1000;
 
     return (
       <TouchableOpacity
@@ -180,7 +182,7 @@ export default function SpazeCoachScreen({ navigation }: any) {
               </Text>
             </LinearGradient>
           )}
-          <View style={[s.onlineDot, { borderColor: colors.surfaceContainerLowest }]} />
+          <View style={[s.onlineDot, { borderColor: colors.surfaceContainerLowest, backgroundColor: isOnline ? colors.safe : colors.muted4 }]} />
         </View>
         <Text style={[s.coachCardName, { color: colors.onSurface }]} numberOfLines={1}>
           {item.displayName}
@@ -188,13 +190,13 @@ export default function SpazeCoachScreen({ navigation }: any) {
         <Text style={[s.coachCardRole, { color: colors.muted5 }]}>
           {item.role === "ADMIN" ? "Lead Coach" : "Wellness Coach"}
         </Text>
-        <View style={s.specialtyRow}>
-          {DEFAULT_SPECIALTIES.map((tag) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.specialtyRow} contentContainerStyle={s.specialtyRowContent}>
+          {(item.specialties && item.specialties.length > 0 ? item.specialties : DEFAULT_SPECIALTIES).map((tag) => (
             <View key={tag} style={[s.specialtyChip, { backgroundColor: colors.secondaryFixed }]}>
-              <Text style={[s.specialtyText, { color: colors.onSecondaryFixed }]}>{tag}</Text>
+              <Text style={[s.specialtyText, { color: colors.onSecondaryFixed }]} numberOfLines={1}>{tag}</Text>
             </View>
           ))}
-        </View>
+        </ScrollView>
         {isStarting ? (
           <View style={[s.coachMsgBtn, { backgroundColor: colors.secondary }]}>
             <ActivityIndicator size="small" color={colors.onPrimary} />
@@ -514,7 +516,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#22C55E",
+    backgroundColor: colors.safe,
     borderWidth: 2.5,
   },
   coachCardName: {
@@ -530,9 +532,13 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     marginBottom: 8,
   },
   specialtyRow: {
+    marginBottom: 12,
+    maxWidth: "100%" as any,
+  },
+  specialtyRowContent: {
     flexDirection: "row",
     gap: 4,
-    marginBottom: 12,
+    paddingHorizontal: 1,
   },
   specialtyChip: {
     paddingHorizontal: 8,

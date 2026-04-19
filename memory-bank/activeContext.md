@@ -1,24 +1,35 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 19, 2026
+**Last Updated:** April 19, 2026 (5th deployment cycle)
 
 ## Current Work Focus
-- Full-stack performance pass: DB indexing, dashboard aggregation/cache optimization, reaction-state sync, and list/polling load reduction
-- PIN auth flow update: username + PIN verification with non-unique PIN storage
-- Profile expansion: banner uploads, editable bio, and saved contact fields
-- Profile viewing parity: owner and non-owner profile rendering with read-only safeguards
-- Journal sharing controls: private/public toggle and public journal feed endpoint
-- Mobile UX refinements: notifications responsive polish and shared scroll-to-top trigger
-- Scroll-direction hide/show bars: top bar + bottom tab bar auto-hide on scroll down, reveal on scroll up
-- Refresh UX parity: native pull-to-refresh coverage + mobile web pull-to-refresh behavior
-- Streak system overhaul: visit-based streak counting + push reminders
-- Coach follow-up automation: pending chat reminders for unreplied member messages
-- App entry polish: animated splash flow + refreshed icon/splash asset set
-- Pre-deployment documentation update (memory bank + AGENTS.md sync)
-- Deploy agent enhanced with Step -1 (memory bank update before deploy)
-- Full QA test suite created and passing
+- Coach specialties feature: editable specialty tags for coaches/admins with profile display
+- Profile screen redesign: skeleton loading, online status indicator, specialties UI, full contact management
+- Chat/conversation enhancements: lastActiveAt tracking for online presence
+- Android native build completion (TASK001)
+- Public journal sharing (already implemented, needs final QA)
+- iOS native build validation
+- Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Coach Specialties + Profile Redesign (April 19, 2026)
+- **SCHEMA**: Added `users.specialties TEXT[]` for storing coach/admin specialty tags (e.g., ["Wellness", "Support"])
+- **MIGRATION**: New `server/prisma/migrations/20260419125058_add_specialties/migration.sql` to add specialties column
+- **USER API**: New `PATCH /api/users/:userId/specialties` endpoint in `userController.ts` that validates, trims, and stores up to 10 specialties (max 30 chars each)
+- **TYPES**: `CoachProfile` now includes `lastActiveAt` and `specialties`; `GetMessagesResponse` includes `otherLastActiveAt`
+- **PROFILE SCREEN REDESIGN** (`ProfileScreen.tsx` — 812 lines changed):
+  - Added `SkeletonBox` component for animated loading states (new file)
+  - Owner profile: Specialties editing UI (add/remove tags, save to API)
+  - Non-owner profile: Read-only specialties display
+  - Online status indicator: Shows "online" if user was active in last 15 min (non-owner only)
+  - Contact info visibility check: Only shows contact section if user has filled any contact fields
+  - Full profile restructure: Improved layout for specialties, updated data fetching to include user info
+- **USER CONTEXT**: Added `specialties: string[]` state and `updateSpecialties()` method; storage key `puso_specialties`
+- **API CLIENT**: New `apiUpdateSpecialties(userId, specialties)` function; updated `apiGetUserById()` call to fetch specialties
+- **CHAT SCREEN**: 95 lines updated to handle `otherLastActiveAt` for online presence display
+- **CONVERSATION CONTROLLER**: 13 lines updated to return `otherLastActiveAt` in message responses
+- **UI POLISH**: CoachDashboard mobile cards now full-width (changed `false` → `true` in card render); padding adjustments
 
 ### Safari Reaction Tint Cache Fix (April 19, 2026)
 - **ICON REMOUNT SAFEGUARD**: `renderReactionIcon()` in `PostCard.tsx` and `PostDetailScreen.tsx` now assigns a stable key composed of `reactionType + color` so reaction icon components remount when tint color changes

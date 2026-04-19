@@ -44,6 +44,7 @@ model User {
   tiktok               String?  // TikTok handle
   youtube              String?  // YouTube channel
   website              String?  // Personal website URL
+  specialties          String[] // Coach/Admin specialties (e.g. ["Wellness", "Support"])
   notificationsEnabled Boolean  @default(true)  // Daily reflection reminder push notifications
   streakCount          Int      @default(0)     // Consecutive days the user opened the HomeScreen
   lastStreakDate       DateTime?                 // Date (midnight UTC) of last streak-qualifying visit

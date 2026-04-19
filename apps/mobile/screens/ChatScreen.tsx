@@ -34,6 +34,16 @@ const POLL_INTERVAL = 5000;
 const TYPING_POLL_INTERVAL = 2000;
 const TYPING_DEBOUNCE_MS = 800;
 
+// ── Emoji picker palette (curated, no extra deps) ──
+const EMOJI_LIST = [
+  "😀","😁","😂","🤣","😊","😍","🥰","😘","😎","🤗",
+  "🤔","😴","😌","😢","😭","😡","🥺","😅","😇","🙃",
+  "👍","👎","👏","🙌","🙏","👋","💪","🤝","✌️","🤞",
+  "❤️","💔","💖","💕","💗","💙","💜","🧡","💛","💚",
+  "🔥","✨","🌟","⭐","🎉","🎊","💯","💫","☀️","🌙",
+  "🌈","☕","🍕","🍔","🍰","🎂","🌹","🌺","🍀","🕊️",
+];
+
 // ── Date separator helper ───────────────────
 const formatDateSeparator = (date: Date): string => {
   const now = new Date();
@@ -88,8 +98,15 @@ export default function ChatScreen({ navigation, route }: any) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
+  const [otherLastActiveAt, setOtherLastActiveAt] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isOtherOnline = useMemo(() => {
+    if (!otherLastActiveAt) return false;
+    return Date.now() - new Date(otherLastActiveAt).getTime() < 15 * 60 * 1000;
+  }, [otherLastActiveAt]);
 
   if (!conversationId) {
     return (
@@ -135,6 +152,7 @@ export default function ChatScreen({ navigation, route }: any) {
     try {
       const res = await apiFetchMessages(conversationId, userId);
       setMessages(res.messages);
+      setOtherLastActiveAt(res.otherLastActiveAt ?? null);
     } catch (err) {
       console.error("Failed to fetch messages:", err);
     } finally {
@@ -217,6 +235,11 @@ export default function ChatScreen({ navigation, route }: any) {
     typingTimerRef.current = setTimeout(() => {
       apiSetTyping(conversationId, userId).catch(() => {});
     }, TYPING_DEBOUNCE_MS);
+  };
+
+  // ── Append emoji to message text ──────────
+  const handleInsertEmoji = (emoji: string) => {
+    setText((prev) => prev + emoji);
   };
 
   // ── Send message ──────────────────────────
@@ -410,8 +433,15 @@ export default function ChatScreen({ navigation, route }: any) {
             <Text style={styles.topBarSubtitle}>All coaches can see this</Text>
           ) : (
             <View style={styles.topBarOnlineRow}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.topBarSubtitle}>Coach</Text>
+              <View
+                style={[
+                  styles.onlineDot,
+                  !isOtherOnline && { backgroundColor: "rgba(255,255,255,0.5)" },
+                ]}
+              />
+              <Text style={styles.topBarSubtitle}>
+                {isOtherOnline ? "Online" : "Offline"}
+              </Text>
             </View>
           )}
         </View>
@@ -498,8 +528,34 @@ export default function ChatScreen({ navigation, route }: any) {
                 </Text>
               </View>
             ) : (
-              <View style={[styles.inputBar, isWide && styles.inputBarWide]}>
-                <View style={styles.inputWrap}>
+              <View>
+                {showEmojiPicker && (
+                  <View style={[styles.emojiPanel, isWide && styles.inputBarWide]}>
+                    {EMOJI_LIST.map((emoji) => (
+                      <TouchableOpacity
+                        key={emoji}
+                        style={styles.emojiBtn}
+                        onPress={() => handleInsertEmoji(emoji)}
+                        activeOpacity={0.6}
+                      >
+                        <Text style={styles.emojiText}>{emoji}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                <View style={[styles.inputBar, isWide && styles.inputBarWide]}>
+                  <TouchableOpacity
+                    onPress={() => setShowEmojiPicker((v) => !v)}
+                    activeOpacity={0.7}
+                    style={styles.emojiToggleBtn}
+                  >
+                    <Ionicons
+                      name={showEmojiPicker ? "close-circle" : "happy-outline"}
+                      size={26}
+                      color={showEmojiPicker ? colors.secondary : colors.muted5}
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.inputWrap}>
                   <TextInput
                     style={[
                       styles.textInput,
@@ -545,6 +601,7 @@ export default function ChatScreen({ navigation, route }: any) {
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
+              </View>
               </View>
             )}
           </>
@@ -611,7 +668,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: "#4ADE80",
+    backgroundColor: colors.safe,
   },
   topBarSubtitle: {
     fontSize: 11,
@@ -879,5 +936,33 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   readOnlyText: {
     fontSize: 13,
     fontFamily: fonts.bodyMedium,
+  },
+  emojiToggleBtn: {
+    width: 36,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
+  },
+  emojiPanel: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.muted1,
+    maxHeight: 220,
+  },
+  emojiBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.md,
+  },
+  emojiText: {
+    fontSize: 24,
+    lineHeight: 28,
   },
 });

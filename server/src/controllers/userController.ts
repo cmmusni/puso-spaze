@@ -343,7 +343,9 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
         tiktok: true,
         youtube: true,
         website: true,
+        specialties: true,
         createdAt: true,
+        lastActiveAt: true,
       },
     });
 
@@ -836,6 +838,48 @@ export async function updatePin(req: Request, res: Response): Promise<void> {
     } else {
       console.error('[UserController] updatePin error:', err);
       res.status(500).json({ error: 'Failed to update PIN.' });
+    }
+  }
+}
+
+/**
+ * PATCH /api/users/:userId/specialties
+ * Body: { specialties: string[] }  — max 10 items, each max 30 chars
+ * Returns: { success: boolean, specialties: string[] }
+ */
+export async function updateSpecialties(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only update your own specialties.' });
+    return;
+  }
+
+  const raw = req.body.specialties;
+  if (!Array.isArray(raw)) {
+    res.status(400).json({ error: 'specialties must be an array.' });
+    return;
+  }
+
+  const specialties: string[] = raw
+    .map((s: any) => String(s).trim())
+    .filter((s) => s.length > 0)
+    .slice(0, 10)
+    .map((s) => s.slice(0, 30));
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { specialties },
+      select: { id: true, specialties: true },
+    });
+    res.json({ success: true, specialties: user.specialties });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+    } else {
+      console.error('[UserController] updateSpecialties error:', err);
+      res.status(500).json({ error: 'Failed to update specialties.' });
     }
   }
 }

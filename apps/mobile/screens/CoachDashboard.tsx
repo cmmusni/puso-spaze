@@ -1305,8 +1305,8 @@ export default function CoachDashboard() {
           {/* ── Members & Coaches (mobile / narrow web) ── */}
           {!isWide && (
             <View style={s.mobileCardsSection}>
-              {membersCardEl(false)}
-              {coachesCardEl(false)}
+              {membersCardEl(true)}
+              {coachesCardEl(true)}
             </View>
           )}
         </ScrollView>
@@ -1337,7 +1337,7 @@ const createStyles = (colors: typeof defaultColors, isDark = false) =>
     scrollContent: {
       paddingHorizontal: Platform.OS === "web" ? 24 : 16,
       paddingTop: Platform.OS === "web" ? 12 : 8,
-      paddingBottom: 40,
+      paddingBottom: 100,
     },
 
     // ── Loading ──────────────────────────────

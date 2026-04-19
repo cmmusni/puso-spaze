@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole, ContactInfo } from '../../../packages/types';
-import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications, setAuthToken, onSessionInvalid } from '../services/api';
+import { apiCreateUser, apiToggleAnonymous, apiToggleNotifications, setAuthToken, onSessionInvalid, apiUpdateSpecialties } from '../services/api';
 
 // ── Storage keys ─────────────────────────────
 const USER_ID_KEY    = 'puso_user_id';
@@ -25,6 +25,7 @@ const AVATAR_URL_KEY = 'puso_avatar_url';   // Profile picture URL
 const BANNER_URL_KEY = 'puso_banner_url';   // Profile banner image URL
 const BIO_KEY        = 'puso_bio';          // About Me bio text
 const CONTACTS_KEY   = 'puso_contacts';     // Public contact fields (JSON)
+const SPECIALTIES_KEY = 'puso_specialties'; // Coach/Admin specialties (JSON array)
 const NOTIFICATIONS_KEY = 'puso_notifications'; // Daily reflection reminders on/off
 const JWT_TOKEN_KEY  = 'puso_jwt_token';     // JWT auth token from server
 
@@ -60,6 +61,7 @@ export interface UserState {
   bannerUrl: string | null;
   bio: string | null;
   contacts: ContactInfo;
+  specialties: string[];
   isAnonymous: boolean;
   notificationsEnabled: boolean;
   isLoggedIn: boolean;
@@ -103,6 +105,9 @@ export interface UserState {
   /** Update the user's contact info in storage and state */
   updateContacts: (contacts: ContactInfo) => Promise<void>;
 
+  /** Update the user's specialties in storage and state */
+  updateSpecialties: (specialties: string[]) => Promise<void>;
+
   /** Read current device owner binding username (if any). */
   getDeviceOwner: () => Promise<string | null>;
 
@@ -132,6 +137,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   bannerUrl: null,
   bio: null,
   contacts: {},
+  specialties: [],
   isAnonymous: false,
   notificationsEnabled: true,
   isLoggedIn: false,
@@ -154,6 +160,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         const bio = await storage.getItem(BIO_KEY);
         const contactsRaw = await storage.getItem(CONTACTS_KEY);
         const contacts: ContactInfo = contactsRaw ? JSON.parse(contactsRaw) : {};
+        const specialtiesRaw = await storage.getItem(SPECIALTIES_KEY);
+        const specialties: string[] = specialtiesRaw ? JSON.parse(specialtiesRaw) : [];
 
         // Restore JWT token for API calls
         const savedToken = await storage.getItem(JWT_TOKEN_KEY);
@@ -162,7 +170,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           console.log('[UserStore] JWT token restored');
         }
 
-        set({ userId, username, role: role ?? 'USER', avatarUrl, bannerUrl, bio: bio ?? null, contacts, isAnonymous, notificationsEnabled, isLoggedIn: true, isLoading: false });
+        set({ userId, username, role: role ?? 'USER', avatarUrl, bannerUrl, bio: bio ?? null, contacts, specialties, isAnonymous, notificationsEnabled, isLoggedIn: true, isLoading: false });
         console.log('[UserStore] User loaded successfully');
 
         // Register auto-logout callback for stale sessions (user deleted from DB)
@@ -275,12 +283,13 @@ export const useUserStore = create<UserState>((set, get) => ({
       await storage.removeItem(BANNER_URL_KEY);
       await storage.removeItem(BIO_KEY);
       await storage.removeItem(CONTACTS_KEY);
+      await storage.removeItem(SPECIALTIES_KEY);
       await storage.removeItem(JWT_TOKEN_KEY);
       setAuthToken(null);
     } catch (err) {
       console.warn('[UserStore] Could not clear session:', err);
     }
-    set({ userId: null, username: null, role: null, avatarUrl: null, bannerUrl: null, bio: null, contacts: {}, isAnonymous: false, notificationsEnabled: true, isLoggedIn: false, isLoading: false });
+    set({ userId: null, username: null, role: null, avatarUrl: null, bannerUrl: null, bio: null, contacts: {}, specialties: [], isAnonymous: false, notificationsEnabled: true, isLoggedIn: false, isLoading: false });
   },
 
   updateUsername: async (newUsername: string) => {
@@ -358,6 +367,16 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ contacts });
     } catch (err) {
       console.warn('[UserStore] Could not persist contacts:', err);
+      throw err;
+    }
+  },
+
+  updateSpecialties: async (specialties: string[]) => {
+    try {
+      await storage.setItem(SPECIALTIES_KEY, JSON.stringify(specialties));
+      set({ specialties });
+    } catch (err) {
+      console.warn('[UserStore] Could not persist specialties:', err);
       throw err;
     }
   },

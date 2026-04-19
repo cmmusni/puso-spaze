@@ -30,7 +30,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useFocusEffect, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+} from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import type { RouteProp } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -50,6 +54,7 @@ import {
   apiUpdateBio,
   apiGetContacts,
   apiUpdateContacts,
+  apiUpdateSpecialties,
   apiUploadAvatar,
   apiUploadBanner,
   apiGetPin,
@@ -64,6 +69,7 @@ import {
 import { usePosts } from "../hooks/usePosts";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import PostCard from "../components/PostCard";
+import SkeletonBox from "../components/SkeletonBox";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal, ContactInfo } from "../../../packages/types";
 
@@ -85,15 +91,69 @@ const PROFILE_TABS = ["TIMELINE", "ABOUT", "CONTACT", "PREFERENCES"] as const;
 type ProfileTab = (typeof PROFILE_TABS)[number];
 
 const CONTACT_FIELDS = [
-  { key: "phone", icon: "call-outline", label: "Phone", placeholder: "+1 234 567 8900", scheme: "tel:" },
-  { key: "contactEmail", icon: "mail-outline", label: "Email", placeholder: "you@example.com", scheme: "mailto:" },
-  { key: "facebook", icon: "logo-facebook", label: "Facebook", placeholder: "facebook.com/username", scheme: "" },
-  { key: "instagram", icon: "logo-instagram", label: "Instagram", placeholder: "@yourusername", scheme: "" },
-  { key: "linkedin", icon: "logo-linkedin", label: "LinkedIn", placeholder: "linkedin.com/in/you", scheme: "" },
-  { key: "twitter", icon: "logo-twitter", label: "Twitter / X", placeholder: "@yourusername", scheme: "" },
-  { key: "tiktok", icon: "musical-notes-outline", label: "TikTok", placeholder: "@yourusername", scheme: "" },
-  { key: "youtube", icon: "logo-youtube", label: "YouTube", placeholder: "youtube.com/@channel", scheme: "" },
-  { key: "website", icon: "globe-outline", label: "Website", placeholder: "yourwebsite.com", scheme: "" },
+  {
+    key: "phone",
+    icon: "call-outline",
+    label: "Phone",
+    placeholder: "+1 234 567 8900",
+    scheme: "tel:",
+  },
+  {
+    key: "contactEmail",
+    icon: "mail-outline",
+    label: "Email",
+    placeholder: "you@example.com",
+    scheme: "mailto:",
+  },
+  {
+    key: "facebook",
+    icon: "logo-facebook",
+    label: "Facebook",
+    placeholder: "facebook.com/username",
+    scheme: "",
+  },
+  {
+    key: "instagram",
+    icon: "logo-instagram",
+    label: "Instagram",
+    placeholder: "@yourusername",
+    scheme: "",
+  },
+  {
+    key: "linkedin",
+    icon: "logo-linkedin",
+    label: "LinkedIn",
+    placeholder: "linkedin.com/in/you",
+    scheme: "",
+  },
+  {
+    key: "twitter",
+    icon: "logo-twitter",
+    label: "Twitter / X",
+    placeholder: "@yourusername",
+    scheme: "",
+  },
+  {
+    key: "tiktok",
+    icon: "musical-notes-outline",
+    label: "TikTok",
+    placeholder: "@yourusername",
+    scheme: "",
+  },
+  {
+    key: "youtube",
+    icon: "logo-youtube",
+    label: "YouTube",
+    placeholder: "youtube.com/@channel",
+    scheme: "",
+  },
+  {
+    key: "website",
+    icon: "globe-outline",
+    label: "Website",
+    placeholder: "yourwebsite.com",
+    scheme: "",
+  },
 ] as const;
 
 /** Pure date formatter — no component deps, safe to hoist */
@@ -119,6 +179,7 @@ export default function ProfileScreen() {
     bannerUrl,
     bio,
     contacts,
+    specialties,
     isAnonymous,
     notificationsEnabled,
     updateUsername,
@@ -126,6 +187,7 @@ export default function ProfileScreen() {
     updateBannerUrl,
     updateBio,
     updateContacts,
+    updateSpecialties,
     logoutUser,
     toggleAnonymous,
     toggleNotifications,
@@ -174,10 +236,14 @@ export default function ProfileScreen() {
 
   // ── Avatar upload state ───────────────────
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
 
   // ── Banner upload state ───────────────────
   const [uploadingBanner, setUploadingBanner] = useState(false);
+
+  // ── Image preview state (avatar or banner) ──
+  const [imagePreviewType, setImagePreviewType] = useState<
+    "avatar" | "banner" | null
+  >(null);
 
   // ── Bio edit state ────────────────────────
   const [isEditingBio, setIsEditingBio] = useState(false);
@@ -190,6 +256,14 @@ export default function ProfileScreen() {
     contacts ?? {},
   );
   const [savingContacts, setSavingContacts] = useState(false);
+
+  // ── Specialties edit state ────────────────
+  const [isEditingSpecialties, setIsEditingSpecialties] = useState(false);
+  const [editedSpecialties, setEditedSpecialties] = useState<string[]>(
+    specialties ?? [],
+  );
+  const [newSpecialty, setNewSpecialty] = useState("");
+  const [savingSpecialties, setSavingSpecialties] = useState(false);
 
   // ── Coach chat state ─────────────────────
   const [startingCoachChat, setStartingCoachChat] = useState(false);
@@ -221,14 +295,21 @@ export default function ProfileScreen() {
     tiktok?: string | null;
     youtube?: string | null;
     website?: string | null;
+    lastActiveAt?: string | null;
+    specialties?: string[];
   } | null>(null);
 
   // ── Resolved profile values (owner vs other) ──
-  const displayName = isOwner ? (username ?? "User") : (otherUser?.displayName ?? "User");
+  const displayName = isOwner
+    ? (username ?? "User")
+    : (otherUser?.displayName ?? "User");
   const profileRole = isOwner ? role : otherUser?.role;
   const profileAvatarUrl = isOwner ? avatarUrl : otherUser?.avatarUrl;
   const profileBannerUrl = isOwner ? bannerUrl : otherUser?.bannerUrl;
   const profileBio = isOwner ? bio : otherUser?.bio;
+  const profileSpecialties: string[] = isOwner
+    ? (specialties ?? [])
+    : (otherUser?.specialties ?? []);
   const profileContacts: ContactInfo = isOwner
     ? (contacts ?? {})
     : {
@@ -244,6 +325,19 @@ export default function ProfileScreen() {
       };
   const initial = displayName.charAt(0).toUpperCase();
   const roleLabel = ROLE_LABELS[profileRole ?? "USER"] ?? "Spaze Member";
+
+  // ── Check if profile has any contact info (for non-owner view) ──
+  const hasContactInfo = useMemo(() => {
+    return CONTACT_FIELDS.some(({ key }) => !!(profileContacts as any)?.[key]);
+  }, [profileContacts]);
+
+  // ── Online status: owner is always online; others within last 15 min ──
+  const isOnline = useMemo(() => {
+    if (isOwner) return true;
+    const last = otherUser?.lastActiveAt;
+    if (!last) return false;
+    return Date.now() - new Date(last).getTime() < 15 * 60 * 1000;
+  }, [isOwner, otherUser?.lastActiveAt]);
 
   // ── Responsive avatar size ────────────────
   const avatarSize = isMedium ? 100 : 88;
@@ -266,6 +360,7 @@ export default function ProfileScreen() {
           fetches.push(
             apiGetPin(profileUserId).catch(() => ({ pin: null })),
             apiGetContacts(profileUserId).catch(() => ({ contacts: {} })),
+            apiGetUserById(profileUserId).catch(() => ({ user: null })),
           );
         } else {
           fetches.push(
@@ -283,9 +378,14 @@ export default function ProfileScreen() {
         if (isOwner) {
           const pinRes = results[2];
           const contactsRes = results[3];
+          const userRes = results[4];
           setPinCode(pinRes.pin);
           await updateContacts(contactsRes.contacts);
           setEditedContacts(contactsRes.contacts);
+          if (userRes.user?.specialties) {
+            await updateSpecialties(userRes.user.specialties);
+            setEditedSpecialties(userRes.user.specialties);
+          }
         } else {
           const userRes = results[2];
           if (userRes.user) setOtherUser(userRes.user);
@@ -487,6 +587,43 @@ export default function ProfileScreen() {
     }
   };
 
+  // ── Specialties editing ───────────────────
+  const handleCancelSpecialties = () => {
+    setIsEditingSpecialties(false);
+    setEditedSpecialties(specialties ?? []);
+    setNewSpecialty("");
+  };
+
+  const handleAddSpecialty = () => {
+    const trimmed = newSpecialty.trim();
+    if (!trimmed) return;
+    setEditedSpecialties((prev) => [...prev, trimmed]);
+    setNewSpecialty("");
+  };
+  handleAddSpecialty;
+
+  const handleRemoveSpecialty = (index: number) => {
+    setEditedSpecialties((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveSpecialties = async () => {
+    if (!userId) return;
+    setSavingSpecialties(true);
+    try {
+      await apiUpdateSpecialties(userId, editedSpecialties);
+      await updateSpecialties(editedSpecialties);
+      setIsEditingSpecialties(false);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ??
+        err?.message ??
+        "Failed to update specialties.";
+      showAlert("Error", msg);
+    } finally {
+      setSavingSpecialties(false);
+    }
+  };
+
   // ── PIN editing ───────────────────────────
   const handleEditPin = () => {
     setEditedPin(pinCode ?? "");
@@ -544,9 +681,157 @@ export default function ProfileScreen() {
       <SafeAreaView
         style={[s.safeArea, { backgroundColor: colors.background }]}
       >
-        <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+        <ScrollView
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Skeleton Banner */}
+          <View style={[s.bannerWrap, isWide && s.bannerWrapWide]}>
+            <SkeletonBox width="100%" height={225} borderRadius={radii.xl} />
+          </View>
+
+          {/* Skeleton Profile Header */}
+          <View
+            style={[
+              s.profileSectionBase,
+              isMedium && s.profileSectionMedium,
+              isSmall && s.profileSectionSmall,
+            ]}
+          >
+            <View style={[s.profileHeader, isMedium && s.profileHeaderMedium]}>
+              {/* Skeleton Avatar */}
+              <SkeletonBox
+                width={avatarSize}
+                height={avatarSize}
+                borderRadius={radii.full}
+                style={{ borderWidth: 4, borderColor: colors.card }}
+              />
+              {/* Skeleton Name + Badge */}
+              <View style={[s.profileMeta, { gap: spacing.sm }]}>
+                <SkeletonBox width={140} height={20} borderRadius={radii.md} />
+                <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                  <SkeletonBox
+                    width={72}
+                    height={18}
+                    borderRadius={radii.full}
+                  />
+                  <SkeletonBox
+                    width={100}
+                    height={18}
+                    borderRadius={radii.md}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Skeleton Journey Stats */}
+          <View style={[s.statsSection, isWide && s.statsSectionWide]}>
+            <SkeletonBox
+              width={90}
+              height={16}
+              borderRadius={radii.md}
+              style={{ marginBottom: spacing.md }}
+            />
+            <View style={[s.statsRow, isMedium && s.statsRowMedium]}>
+              {[1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    s.statCard,
+                    { backgroundColor: colors.card, gap: spacing.sm },
+                  ]}
+                >
+                  <SkeletonBox width={24} height={24} borderRadius={radii.sm} />
+                  <SkeletonBox width={50} height={28} borderRadius={radii.md} />
+                  <SkeletonBox width={70} height={11} borderRadius={radii.sm} />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Skeleton Tab Bar */}
+          <View style={[s.tabBarWrap, isWide && s.tabBarWrapWide]}>
+            <View style={{ flexDirection: "row", gap: spacing.lg }}>
+              {[60, 50, 65, 90].map((w, i) => (
+                <SkeletonBox
+                  key={i}
+                  width={w}
+                  height={14}
+                  borderRadius={radii.sm}
+                  style={{ marginVertical: spacing.md }}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Skeleton Post Cards */}
+          <View style={[s.contentArea, isWide && s.contentAreaWide]}>
+            <View style={[s.mainCol, isWide && s.mainColWide]}>
+              <SkeletonBox
+                width={90}
+                height={11}
+                borderRadius={radii.sm}
+                style={{ marginBottom: spacing.sm }}
+              />
+              {[1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={{
+                    backgroundColor: colors.surfaceContainerLowest,
+                    borderRadius: radii.xl,
+                    padding: spacing.md,
+                    marginBottom: spacing.md,
+                    gap: spacing.sm,
+                    ...ambientShadow,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                    }}
+                  >
+                    <SkeletonBox
+                      width={36}
+                      height={36}
+                      borderRadius={radii.full}
+                    />
+                    <View style={{ gap: 4 }}>
+                      <SkeletonBox
+                        width={100}
+                        height={12}
+                        borderRadius={radii.sm}
+                      />
+                      <SkeletonBox
+                        width={60}
+                        height={10}
+                        borderRadius={radii.sm}
+                      />
+                    </View>
+                  </View>
+                  <SkeletonBox
+                    width="100%"
+                    height={14}
+                    borderRadius={radii.sm}
+                  />
+                  <SkeletonBox
+                    width="85%"
+                    height={14}
+                    borderRadius={radii.sm}
+                  />
+                  <SkeletonBox
+                    width="60%"
+                    height={14}
+                    borderRadius={radii.sm}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -569,24 +854,31 @@ export default function ProfileScreen() {
       >
         {/* ── Gradient Banner ── */}
         <View style={[s.bannerWrap, isWide && s.bannerWrapWide]}>
-          {resolvedBannerUri ? (
-            <Image
-              source={{ uri: resolvedBannerUri }}
-              style={[s.banner, isWide && s.bannerWide]}
-              resizeMode="cover"
-            />
-          ) : (
-            <LinearGradient
-              colors={
-                isWide
-                  ? [colors.primaryContainer, colors.secondary]
-                  : [colors.primary, colors.secondary]
-              }
-              start={{ x: 0, y: 0 }}
-              end={isWide ? { x: 0, y: 1 } : { x: 1, y: 1 }}
-              style={[s.banner, isWide && s.bannerWide]}
-            />
-          )}
+          <TouchableOpacity
+            onPress={() => {
+              if (resolvedBannerUri) setImagePreviewType("banner");
+            }}
+            activeOpacity={resolvedBannerUri ? 0.7 : 1}
+          >
+            {resolvedBannerUri ? (
+              <Image
+                source={{ uri: resolvedBannerUri }}
+                style={[s.banner, isWide && s.bannerWide]}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={
+                  isWide
+                    ? [colors.primaryContainer, colors.secondary]
+                    : [colors.primary, colors.secondary]
+                }
+                start={{ x: 0, y: 0 }}
+                end={isWide ? { x: 0, y: 1 } : { x: 1, y: 1 }}
+                style={[s.banner, isWide && s.bannerWide]}
+              />
+            )}
+          </TouchableOpacity>
           {uploadingBanner && (
             <View style={s.bannerUploadOverlay}>
               <ActivityIndicator size="small" color="#fff" />
@@ -616,7 +908,7 @@ export default function ProfileScreen() {
             {/* Avatar */}
             <TouchableOpacity
               onPress={() => {
-                if (resolvedAvatarUri) setAvatarPreviewVisible(true);
+                if (resolvedAvatarUri) setImagePreviewType("avatar");
               }}
               activeOpacity={resolvedAvatarUri ? 0.7 : 1}
               style={s.avatarOuter}
@@ -639,10 +931,7 @@ export default function ProfileScreen() {
                       colors.surfaceContainerHigh,
                       colors.surfaceVariant,
                     ]}
-                    style={[
-                      StyleSheet.absoluteFillObject,
-                      s.avatarPlaceholder,
-                    ]}
+                    style={[StyleSheet.absoluteFillObject, s.avatarPlaceholder]}
                   >
                     <Text
                       style={[
@@ -658,7 +947,15 @@ export default function ProfileScreen() {
                   </LinearGradient>
                 )}
               </View>
-              <View style={[s.onlineDot, { borderColor: colors.card }]} />
+              <View
+                style={[
+                  s.onlineDot,
+                  {
+                    borderColor: colors.card,
+                    backgroundColor: isOnline ? colors.safe : colors.muted4,
+                  },
+                ]}
+              />
               {uploadingAvatar && (
                 <View style={s.avatarUploadOverlay}>
                   <ActivityIndicator size="small" color={colors.onPrimary} />
@@ -671,7 +968,10 @@ export default function ProfileScreen() {
                   disabled={uploadingAvatar}
                   style={[
                     s.cameraBadge,
-                    { backgroundColor: colors.primary, borderColor: colors.card },
+                    {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.card,
+                    },
                   ]}
                   activeOpacity={0.8}
                 >
@@ -907,6 +1207,31 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Specialties (coach/admin) ── */}
+        {(profileRole === "COACH" || profileRole === "ADMIN") &&
+          profileSpecialties.length > 0 && (
+            <View style={s.specialtiesRow}>
+              {profileSpecialties.map((sp, i) => (
+                <View
+                  key={i}
+                  style={[
+                    s.specialtyChip,
+                    { backgroundColor: colors.secondaryFixed },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.specialtyChipText,
+                      { color: colors.onSecondaryFixed },
+                    ]}
+                  >
+                    {sp}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
         {/* ── Journey ── */}
         <View style={[s.statsSection, isWide && s.statsSectionWide]}>
           <View style={s.journeyHeading}>
@@ -954,7 +1279,13 @@ export default function ProfileScreen() {
               <Text style={[s.statNumber, { color: colors.onSurface }]}>
                 {encouragementsGiven}
               </Text>
-              <Text style={[s.statLabel, { color: colors.onSurfaceVariant }]}>
+              <Text
+                style={[
+                  s.statLabel,
+                  { color: colors.onSurfaceVariant },
+                  isSmall && { fontSize: 10 },
+                ]}
+              >
                 Encouragements Given
               </Text>
             </View>
@@ -968,9 +1299,17 @@ export default function ProfileScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.tabBar}
           >
-            {PROFILE_TABS.filter(
-              (tab) => isOwner || tab !== "PREFERENCES",
-            ).map((tab) => (
+            {PROFILE_TABS.filter((tab) => {
+              // Always show all tabs to owner
+              if (isOwner) return true;
+              // Hide all tabs from non-owners if profile has no contact info
+              // (ABOUT/PREFERENCES are private, CONTACT is empty, TIMELINE alone is not useful)
+              if (!hasContactInfo) return false;
+              // Hide ABOUT and PREFERENCES from non-owners
+              if (tab === "ABOUT" || tab === "PREFERENCES") return false;
+              // Show TIMELINE and CONTACT
+              return true;
+            }).map((tab) => (
               <TouchableOpacity
                 key={tab}
                 onPress={() => setActiveTab(tab)}
@@ -1206,6 +1545,184 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            {/* Specialties card — ABOUT tab, coach/admin only */}
+            {activeTab === "ABOUT" &&
+              isOwner &&
+              (role === "COACH" || role === "ADMIN") && (
+                <View
+                  style={[
+                    s.tabCard,
+                    { backgroundColor: colors.surfaceContainerLowest },
+                  ]}
+                >
+                  <View style={s.aboutHeader}>
+                    <Text style={[s.tabCardLabel, { color: colors.primary }]}>
+                      SPECIALTIES
+                    </Text>
+                    {!isEditingSpecialties && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEditedSpecialties(specialties ?? []);
+                          setIsEditingSpecialties(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="pencil"
+                          size={15}
+                          color={colors.onSurfaceVariant}
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {isEditingSpecialties ? (
+                    <>
+                      {editedSpecialties.length > 0 && (
+                        <View style={s.specialtiesEditChips}>
+                          {editedSpecialties.map((sp, i) => (
+                            <TouchableOpacity
+                              key={i}
+                              style={[
+                                s.specialtyChipEdit,
+                                { backgroundColor: colors.secondaryFixed },
+                              ]}
+                              onPress={() => handleRemoveSpecialty(i)}
+                              activeOpacity={0.7}
+                            >
+                              <Text
+                                style={[
+                                  s.specialtyChipText,
+                                  { color: colors.onSecondaryFixed },
+                                ]}
+                              >
+                                {sp}
+                              </Text>
+                              <Ionicons
+                                name="close"
+                                size={13}
+                                color={colors.onSecondaryFixed}
+                                style={{ marginLeft: 4 }}
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                      {editedSpecialties.length < 10 && (
+                        <View style={s.specialtyInputRow}>
+                          <TextInput
+                            style={[
+                              s.specialtyInput,
+                              {
+                                backgroundColor: colors.surfaceContainerHigh,
+                                color: colors.onSurface,
+                                borderColor: colors.outline,
+                              },
+                            ]}
+                            value={newSpecialty}
+                            onChangeText={setNewSpecialty}
+                            placeholder="Add a specialty..."
+                            placeholderTextColor={colors.muted3}
+                            maxLength={30}
+                            onSubmitEditing={handleAddSpecialty}
+                            returnKeyType="done"
+                          />
+                          {newSpecialty.trim().length > 0 && (
+                            <TouchableOpacity
+                              style={[
+                                s.specialtyAddBtn,
+                                { backgroundColor: colors.secondaryFixed },
+                              ]}
+                              onPress={handleAddSpecialty}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="add"
+                                size={20}
+                                color={colors.onSecondaryFixed}
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                      <View style={s.bioEditActions}>
+                        <TouchableOpacity
+                          onPress={handleCancelSpecialties}
+                          style={[s.cancelBtn, { borderColor: colors.outline }]}
+                        >
+                          <Text
+                            style={[
+                              s.cancelBtnText,
+                              { color: colors.onSurfaceVariant },
+                            ]}
+                          >
+                            Cancel
+                          </Text>
+                        </TouchableOpacity>
+                        {!savingSpecialties &&
+                          editedSpecialties?.length > 0 && (
+                            <TouchableOpacity
+                              onPress={handleSaveSpecialties}
+                              style={[
+                                s.saveBtn,
+                                {
+                                  backgroundColor: colors.primary,
+                                },
+                              ]}
+                            >
+                              {savingSpecialties ? (
+                                <ActivityIndicator
+                                  size="small"
+                                  color={colors.onPrimary}
+                                />
+                              ) : (
+                                <Text
+                                  style={[
+                                    s.saveBtnText,
+                                    { color: colors.onPrimary },
+                                  ]}
+                                >
+                                  Save
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      {profileSpecialties.length === 0 ? (
+                        <Text
+                          style={[s.contactEmptyText, { color: colors.muted4 }]}
+                        >
+                          Tap the pencil to add your specialties.
+                        </Text>
+                      ) : (
+                        <View style={s.specialtiesEditChips}>
+                          {profileSpecialties.map((sp, i) => (
+                            <View
+                              key={i}
+                              style={[
+                                s.specialtyChip,
+                                { backgroundColor: colors.secondaryFixed },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  s.specialtyChipText,
+                                  { color: colors.onSecondaryFixed },
+                                ]}
+                              >
+                                {sp}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
+              )}
+
             {/* CONTACT Tab */}
             {activeTab === "CONTACT" && (
               <View
@@ -1439,7 +1956,9 @@ export default function ProfileScreen() {
                           s.messageCoachBtn,
                           { backgroundColor: colors.secondary },
                         ]}
-                        onPress={() => profileUserId && handleMessageCoach(profileUserId)}
+                        onPress={() =>
+                          profileUserId && handleMessageCoach(profileUserId)
+                        }
                         disabled={startingCoachChat}
                         activeOpacity={0.7}
                       >
@@ -1703,94 +2222,113 @@ export default function ProfileScreen() {
                 </Text>
               </View>
 
-              {!isOwner && (profileRole === "COACH" || profileRole === "ADMIN") && (
-                <View
-                  style={[
-                    s.sideCard,
-                    { backgroundColor: colors.surfaceContainerLowest },
-                  ]}
-                >
-                  <Text style={[s.tabCardLabel, { color: colors.primary }]}>
-                    CONNECTION
-                  </Text>
-                  <Text
-                    style={[s.contactNote, { color: colors.onSurfaceVariant }]}
-                  >
-                    {profileRole === "ADMIN"
-                      ? "Reach out through the secure admin channel."
-                      : "Send a message to start a private coaching session."}
-                  </Text>
-                  <TouchableOpacity
+              {!isOwner &&
+                (profileRole === "COACH" || profileRole === "ADMIN") && (
+                  <View
                     style={[
-                      s.messageCoachBtn,
-                      { backgroundColor: colors.secondary },
+                      s.sideCard,
+                      { backgroundColor: colors.surfaceContainerLowest },
                     ]}
-                    onPress={() => profileUserId && handleMessageCoach(profileUserId)}
-                    disabled={startingCoachChat}
-                    activeOpacity={0.7}
                   >
-                    {startingCoachChat ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={colors.onPrimary}
-                      />
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="chatbubble-ellipses"
-                          size={18}
+                    <Text style={[s.tabCardLabel, { color: colors.primary }]}>
+                      CONNECTION
+                    </Text>
+                    <Text
+                      style={[
+                        s.contactNote,
+                        { color: colors.onSurfaceVariant },
+                      ]}
+                    >
+                      {profileRole === "ADMIN"
+                        ? "Reach out through the secure admin channel."
+                        : "Send a message to start a private coaching session."}
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        s.messageCoachBtn,
+                        { backgroundColor: colors.secondary },
+                      ]}
+                      onPress={() =>
+                        profileUserId && handleMessageCoach(profileUserId)
+                      }
+                      disabled={startingCoachChat}
+                      activeOpacity={0.7}
+                    >
+                      {startingCoachChat ? (
+                        <ActivityIndicator
+                          size="small"
                           color={colors.onPrimary}
                         />
-                        <Text
-                          style={[
-                            s.messageCoachText,
-                            { color: colors.onPrimary },
-                          ]}
-                        >
-                          {profileRole === "ADMIN"
-                            ? "Open Admin Channel"
-                            : "Message Coach"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
+                      ) : (
+                        <>
+                          <Ionicons
+                            name="chatbubble-ellipses"
+                            size={18}
+                            color={colors.onPrimary}
+                          />
+                          <Text
+                            style={[
+                              s.messageCoachText,
+                              { color: colors.onPrimary },
+                            ]}
+                          >
+                            {profileRole === "ADMIN"
+                              ? "Open Admin Channel"
+                              : "Message Coach"}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
             </View>
           )}
         </View>
       </ScrollView>
 
-      {/* ── Avatar Preview Modal ── */}
-      {resolvedAvatarUri && (
+      {/* ── Image Preview Modal (Avatar or Banner) ── */}
+      {imagePreviewType && (
         <Modal
-          visible={avatarPreviewVisible}
+          visible={imagePreviewType !== null}
           transparent
           animationType="fade"
-          onRequestClose={() => setAvatarPreviewVisible(false)}
+          onRequestClose={() => setImagePreviewType(null)}
         >
           <TouchableOpacity
             style={s.previewOverlay}
             activeOpacity={1}
-            onPress={() => setAvatarPreviewVisible(false)}
+            onPress={() => setImagePreviewType(null)}
           >
             <Image
-              source={{ uri: resolvedAvatarUri }}
-              style={s.previewImage}
+              source={{
+                uri:
+                  imagePreviewType === "avatar"
+                    ? resolvedAvatarUri!
+                    : resolvedBannerUri!,
+              }}
+              style={
+                imagePreviewType === "avatar"
+                  ? s.previewImage
+                  : s.previewBannerImage
+              }
               resizeMode="cover"
             />
             {isOwner && (
               <TouchableOpacity
                 style={[s.previewEditBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
-                  setAvatarPreviewVisible(false);
-                  handlePickAvatar();
+                  setImagePreviewType(null);
+                  if (imagePreviewType === "avatar") {
+                    handlePickAvatar();
+                  } else {
+                    handlePickBanner();
+                  }
                 }}
                 activeOpacity={0.8}
               >
                 <Ionicons name="camera" size={18} color={colors.onPrimary} />
                 <Text style={[s.previewEditText, { color: colors.onPrimary }]}>
-                  Edit Photo
+                  {imagePreviewType === "avatar" ? "Edit Photo" : "Edit Banner"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -1890,7 +2428,7 @@ const createStyles = (colors: typeof defaultColors) =>
       width: 14,
       height: 14,
       borderRadius: 7,
-      backgroundColor: "#22C55E",
+      backgroundColor: colors.safe,
       borderWidth: 2.5,
       borderColor: colors.card,
     },
@@ -1924,6 +2462,11 @@ const createStyles = (colors: typeof defaultColors) =>
       height: 240,
       borderRadius: radii.full,
     },
+    previewBannerImage: {
+      width: "90%" as any,
+      height: 240,
+      borderRadius: radii.xl,
+    },
     previewEditBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -1952,6 +2495,7 @@ const createStyles = (colors: typeof defaultColors) =>
       gap: 6,
       flex: 1,
       minWidth: 0,
+      marginBottom: spacing.xs,
     },
     displayName: { fontSize: 18, fontFamily: fonts.displayBold },
     displayNameMedium: { fontSize: 24 },
@@ -2155,6 +2699,7 @@ const createStyles = (colors: typeof defaultColors) =>
     tabCard: {
       borderRadius: radii.xl,
       padding: spacing.lg,
+      marginBottom: spacing.md,
       ...ambientShadow,
     },
     tabCardLabel: {
@@ -2162,14 +2707,14 @@ const createStyles = (colors: typeof defaultColors) =>
       fontFamily: fonts.displayBold,
       textTransform: "uppercase" as any,
       letterSpacing: 1,
-      marginBottom: spacing.md,
+      marginBottom: spacing.sm,
     },
     aboutText: { fontSize: 14, fontFamily: fonts.bodyRegular, lineHeight: 22 },
     aboutHeader: {
       flexDirection: "row" as any,
-      alignItems: "center" as any,
+      alignItems: "start" as any,
       justifyContent: "space-between" as any,
-      marginBottom: spacing.md,
+      marginBottom: spacing.sm,
     },
     bioInput: {
       borderRadius: radii.md,
@@ -2329,6 +2874,59 @@ const createStyles = (colors: typeof defaultColors) =>
     sideCol: { flex: 1, gap: spacing.md, marginTop: 20 },
     sideCard: { borderRadius: radii.xl, padding: spacing.lg, ...ambientShadow },
     sideText: { fontSize: 14, fontFamily: fonts.bodyRegular, lineHeight: 22 },
+
+    // ── Specialties ──────────────────────────
+    specialtiesRow: {
+      flexDirection: "row" as any,
+      flexWrap: "wrap" as any,
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+    },
+    specialtyChip: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      borderRadius: radii.full,
+    },
+    specialtyChipEdit: {
+      flexDirection: "row" as any,
+      alignItems: "center" as any,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      borderRadius: radii.full,
+    },
+    specialtyChipText: {
+      fontSize: 12,
+      fontFamily: fonts.bodySemiBold,
+    },
+    specialtiesEditChips: {
+      flexDirection: "row" as any,
+      flexWrap: "wrap" as any,
+      gap: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    specialtyInputRow: {
+      flexDirection: "row" as any,
+      alignItems: "center" as any,
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    specialtyInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 8,
+      fontSize: 14,
+      fontFamily: fonts.bodyRegular,
+    },
+    specialtyAddBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.md,
+      alignItems: "center" as any,
+      justifyContent: "center" as any,
+    },
 
     // ── Empty ───────────────────────────────
     emptyText: {

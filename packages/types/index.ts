@@ -15,6 +15,7 @@ export const REACTION_EMOJI: Record<ReactionType, string> = {
   PRAY:  '🙇',
   CARE: '❤️‍🩹',
   SUPPORT:  '🫶',
+  LIKE: '👍',
 };
 
 export interface ContactInfo {
@@ -230,13 +231,15 @@ export interface CoachProfile {
   displayName: string;
   role: UserRole;
   avatarUrl?: string | null;
+  lastActiveAt?: string | null;
+  specialties?: string[];
 }
 
 export interface GetCoachesResponse { coaches: CoachProfile[]; }
 export interface GetConversationsResponse { conversations: Conversation[]; }
 export interface GetOrCreateConversationRequest { userId: string; coachId: string; }
 export interface GetOrCreateConversationResponse { conversation: Conversation; }
-export interface GetMessagesResponse { messages: Message[]; }
+export interface GetMessagesResponse { messages: Message[]; otherLastActiveAt?: string | null; }
 export interface SendMessageRequest { senderId: string; content: string; }
 export interface SendMessageResponse { message: Message; }
 

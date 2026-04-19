@@ -79,7 +79,12 @@ export default function BottomTabBar({ currentRoute, onNavigate, isCoach, unread
               key={tab.key}
               onPress={() => {
                 if (active) {
-                  triggerScrollToTop();
+                  if (tab.route === "Profile") {
+                    onNavigate(tab.route);
+                  } else {
+                    triggerScrollToTop();
+                  }
+                  
                 } else {
                   onNavigate(tab.route);
                 }

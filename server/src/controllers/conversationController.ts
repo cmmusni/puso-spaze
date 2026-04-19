@@ -14,7 +14,7 @@ import { createNotification } from '../services/notificationService';
 export async function getCoaches(_req: Request, res: Response): Promise<void> {
   const coaches = await prisma.user.findMany({
     where: { role: { in: ['COACH', 'ADMIN'] } },
-    select: { id: true, displayName: true, role: true, avatarUrl: true },
+    select: { id: true, displayName: true, role: true, avatarUrl: true, lastActiveAt: true, specialties: true },
     orderBy: { displayName: 'asc' },
   });
 
@@ -219,6 +219,16 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
     include: { sender: { select: { displayName: true, role: true, avatarUrl: true } } },
   });
 
+  // Determine the "other" participant relative to the requester.
+  // For coaches viewing a conversation they're not in, fall back to the user.
+  const otherUserId = isParticipant
+    ? (conversation.userId === userId ? conversation.coachId : conversation.userId)
+    : conversation.userId;
+  const otherUser = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: { lastActiveAt: true },
+  });
+
   res.json({
     messages: messages.map((m) => ({
       id: m.id,
@@ -228,6 +238,7 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
       createdAt: m.createdAt.toISOString(),
       sender: m.sender,
     })),
+    otherLastActiveAt: otherUser?.lastActiveAt?.toISOString() ?? null,
   });
 }
 

@@ -99,10 +99,11 @@ User Input → Client Validation → API Request → Express Router
 7. **Visit-based streaks**: Streaks are updated from Home screen visits (`POST /api/users/:userId/record-visit`) rather than inferred from posting/journal activity; reminders are sent before local day-end.
 8. **Coach response nudges**: Pending member messages trigger coach reminders every 15 minutes once a 1-hour reply threshold is crossed.
 9. **Profile enrichment**: Users can maintain richer profile data including banner image, bio, and public contact fields (including `website`); client state persists these fields locally and syncs via dedicated user endpoints.
-10. **Profile routing modes**: The Profile screen supports owner and non-owner rendering via optional route `userId`; owner-only edit actions are hidden when viewing another user.
-11. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
-12. **Coach roster visibility**: The coach dashboard uses dedicated authenticated roster endpoints for members and coaches/admins so staff directories are available without inferring from conversations.
-13. **Performance-first read paths**: High-frequency reads are bounded and optimized via DB indexes, dashboard TTL caching + SQL tag aggregation, deduplicated client GETs, adaptive chat polling, and shared reaction state across feed/detail surfaces.
+10. **Coach specialties**: Coaches and admins can tag themselves with up to 10 specialty areas (max 30 chars each, e.g., "Wellness", "Grief Support"); specialties displayed on coach profiles (read-only for non-owners, editable for owner coaches); stored in `users.specialties TEXT[]` and exposed via `PATCH /api/users/:userId/specialties`
+11. **Profile routing modes**: The Profile screen supports owner and non-owner rendering via optional route `userId`; owner-only edit actions are hidden when viewing another user.
+12. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
+13. **Coach roster visibility**: The coach dashboard uses dedicated authenticated roster endpoints for members and coaches/admins so staff directories are available without inferring from conversations.
+14. **Performance-first read paths**: High-frequency reads are bounded and optimized via DB indexes, dashboard TTL caching + SQL tag aggregation, deduplicated client GETs, adaptive chat polling, and shared reaction state across feed/detail surfaces.
 
 ## Known Quirks
 

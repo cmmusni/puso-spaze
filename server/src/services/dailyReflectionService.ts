@@ -24,8 +24,26 @@ let genericCache: CachedReflection | null = null;
 /** Per-user personalised cache — keyed by `userId:dateKey` */
 const userCache = new Map<string, CachedReflection>();
 
+/** Recent verse-reference history (most recent last). Used to avoid repeats. */
+const RECENT_LIMIT = 30;
+const recentGenericRefs: string[] = [];
+const recentUserRefs = new Map<string, string[]>(); // userId -> refs
+
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+/** Extract a Bible verse reference like "Psalm 34:18" or "1 Peter 5:7" from a reflection. */
+function extractVerseRef(text: string): string | null {
+  const m = text.match(/\b((?:[123]\s+)?[A-Z][a-zA-Z]+)\s+(\d+):(\d+(?:[-,]\d+)*)/);
+  return m ? `${m[1].replace(/\s+/g, ' ')} ${m[2]}:${m[3]}` : null;
+}
+
+function pushRecent(list: string[], ref: string): void {
+  const idx = list.indexOf(ref);
+  if (idx >= 0) list.splice(idx, 1);
+  list.push(ref);
+  while (list.length > RECENT_LIMIT) list.shift();
 }
 
 const FALLBACKS = [
@@ -36,8 +54,13 @@ const FALLBACKS = [
   '"Cast all your anxiety on Him because He cares for you." — 1 Peter 5:7\n\nYour worries are safe in His hands. Ipasa mo sa Kanya lahat ng bumabagabag sa\'yo ngayon.',
 ];
 
-function getFallback(): string {
-  return FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+function getFallback(recent: string[]): string {
+  const unused = FALLBACKS.filter((f) => {
+    const ref = extractVerseRef(f);
+    return ref ? !recent.includes(ref) : true;
+  });
+  const pool = unused.length > 0 ? unused : FALLBACKS;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 /**
@@ -52,12 +75,18 @@ export async function getDailyReflection(): Promise<string> {
   }
 
   if (!env.OPENAI_API_KEY) {
-    const fb = getFallback();
+    const fb = getFallback(recentGenericRefs);
+    const ref = extractVerseRef(fb);
+    if (ref) pushRecent(recentGenericRefs, ref);
     genericCache = { dateKey: key, content: fb };
     return fb;
   }
 
-  try {
+  const avoidLine = recentGenericRefs.length
+    ? `\n- Do NOT use any of these recently used verses: ${recentGenericRefs.join('; ')}. Pick a different verse.`
+    : '';
+
+  const generate = async (): Promise<string | null> => {
     const completion = await openai.chat.completions.create({
       model: 'gpt-5.4-mini',
       messages: [
@@ -71,7 +100,7 @@ Your reflection should be:
 - Start with a Bible verse (include the reference)
 - Follow with a brief, warm reflection connecting the verse to real Gen Z struggles (anxiety, self-worth, loneliness, purpose, pressure, mental health)
 - Hopeful, gentle, and encouraging — never preachy or judgmental
-- A different theme each day — cycle through hope, rest, courage, identity, trust, gratitude, peace, and purpose`,
+- A different theme each day — cycle through hope, rest, courage, identity, trust, gratitude, peace, and purpose${avoidLine}`,
         },
         {
           role: 'user',
@@ -81,19 +110,42 @@ Your reflection should be:
       max_completion_tokens: 200,
       temperature: 0.85,
     });
+    return completion.choices[0]?.message?.content?.trim() ?? null;
+  };
 
-    const content = completion.choices[0]?.message?.content?.trim();
+  try {
+    let content = await generate();
+    // Retry once if the verse is in recent history
+    if (content) {
+      const ref = extractVerseRef(content);
+      if (ref && recentGenericRefs.includes(ref)) {
+        const retry = await generate();
+        if (retry) {
+          const retryRef = extractVerseRef(retry);
+          if (!retryRef || !recentGenericRefs.includes(retryRef)) {
+            content = retry;
+          }
+        }
+      }
+    }
+
     if (!content) {
-      const fb = getFallback();
+      const fb = getFallback(recentGenericRefs);
+      const ref = extractVerseRef(fb);
+      if (ref) pushRecent(recentGenericRefs, ref);
       genericCache = { dateKey: key, content: fb };
       return fb;
     }
 
+    const ref = extractVerseRef(content);
+    if (ref) pushRecent(recentGenericRefs, ref);
     genericCache = { dateKey: key, content };
     return content;
   } catch (error) {
     console.error('❌ Error generating daily reflection:', error);
-    const fb = getFallback();
+    const fb = getFallback(recentGenericRefs);
+    const ref = extractVerseRef(fb);
+    if (ref) pushRecent(recentGenericRefs, ref);
     genericCache = { dateKey: key, content: fb };
     return fb;
   }
@@ -126,7 +178,12 @@ export async function getPersonalisedDailyReflection(
     .map((c, i) => `${i + 1}. ${c.slice(0, 120)}`)
     .join('\n');
 
-  try {
+  const userRecent = recentUserRefs.get(userId) ?? [];
+  const avoidLine = userRecent.length
+    ? `\n- Do NOT use any of these recently used verses for this user: ${userRecent.join('; ')}. Pick a different verse.`
+    : '';
+
+  const generate = async (): Promise<string | null> => {
     const completion = await openai.chat.completions.create({
       model: 'gpt-5.4-mini',
       messages: [
@@ -143,7 +200,7 @@ Your reflection should be:
 - Follow with a brief, warm, personalised reflection that acknowledges what they've been sharing
 - Hopeful, gentle, and encouraging — never preachy or judgmental
 - NEVER quote or repeat the user's exact words back to them
-- Do NOT mention that you read their posts`,
+- Do NOT mention that you read their posts${avoidLine}`,
         },
         {
           role: 'user',
@@ -153,12 +210,34 @@ Your reflection should be:
       max_completion_tokens: 200,
       temperature: 0.85,
     });
+    return completion.choices[0]?.message?.content?.trim() ?? null;
+  };
 
-    const content = completion.choices[0]?.message?.content?.trim();
+  try {
+    let content = await generate();
+    if (content) {
+      const ref = extractVerseRef(content);
+      if (ref && userRecent.includes(ref)) {
+        const retry = await generate();
+        if (retry) {
+          const retryRef = extractVerseRef(retry);
+          if (!retryRef || !userRecent.includes(retryRef)) {
+            content = retry;
+          }
+        }
+      }
+    }
+
     if (!content) {
       return getDailyReflection();
     }
 
+    const ref = extractVerseRef(content);
+    if (ref) {
+      const list = recentUserRefs.get(userId) ?? [];
+      pushRecent(list, ref);
+      recentUserRefs.set(userId, list);
+    }
     userCache.set(cacheKey, { dateKey: key, content });
     return content;
   } catch (error) {

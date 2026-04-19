@@ -409,6 +409,18 @@ export async function apiUpdateContacts(
 // ── Post endpoints ───────────────────────────
 
 /**
+ * PATCH /api/users/:userId/specialties
+ * Updates the user's specialties.
+ */
+export async function apiUpdateSpecialties(
+  userId: string,
+  specialties: string[]
+): Promise<{ success: boolean; specialties: string[] }> {
+  const { data } = await client.patch(`/api/users/${userId}/specialties`, { specialties });
+  return data;
+}
+
+/**
  * GET /api/posts
  * Returns all SAFE-moderated posts. Optional search query.
  */

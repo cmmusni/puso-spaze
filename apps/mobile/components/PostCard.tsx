@@ -526,12 +526,19 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
               </LinearGradient>
             )}
 
-            <View>
+            <View style={{ flexShrink: 1, flex: 1, }}>
               <View style={styles.authorNameRow}>
-                <Text style={[styles.authorName, isMedium && { fontSize: 15 }, isWide && { fontSize: 16 }]}>{displayName}</Text>
+                <Text
+                  style={[styles.authorName, isMedium && { fontSize: 15 }, isWide && { fontSize: 16 }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {displayName}
+                </Text>
                 {isOwnAnonymousPost && (
                   <Text
-                    style={[styles.authorSubtitle, { color: colors.secondary, maxWidth: isSmall ? 100 : isMedium ? 200 : isWide ? 320 : 'auto' }]}
+                    adjustsFontSizeToFit
+                    style={[styles.authorSubtitle, { color: colors.secondary }]}
                     numberOfLines={1}
                   >
                     {"● Posted as "}{post.anonDisplayName ?? "Anonymous"}
@@ -1220,6 +1227,8 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
+    flex: 1,
   },
   headerRight: {
     flexDirection: "row",
@@ -1268,12 +1277,15 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   authorNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 2,
+    flexShrink: 1,
   },
   authorName: {
     color: colors.onSurface,
     fontFamily: fonts.displaySemiBold,
     fontSize: 14,
+    flexShrink: 1,
+    minWidth: 50,
   },
   roleBadge: {
     borderRadius: radii.full,
@@ -1331,11 +1343,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontSize: 12,
   },
   menuButton: {
-    width: 32,
-    height: 32,
+    width: 16,
+    height: 22,
     borderRadius: 16,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   // ── Body ──────────────────────────────────
   content: {
