@@ -65,6 +65,7 @@ import {
   getBaseUrl,
   resolveAvatarUrl,
   apiFetchPublicJournals,
+  apiDeleteAccount,
 } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
@@ -205,6 +206,10 @@ export default function ProfileScreen() {
   const isWide = width >= 900;
   const isMedium = width < 900 && width >= 600;
   const isSmall = width < 600;
+  // WebSidebar (wide web only) renders its own Sign Out button.
+  // On native — even at tablet widths ≥ 900 — there's no sidebar,
+  // so we must keep the in-page Sign Out visible.
+  const showInPageSignOut = isOwner && (Platform.OS !== 'web' || !isWide);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollToTopTrigger = useScrollBarVisibility(
@@ -662,6 +667,43 @@ export default function ProfileScreen() {
       setSavingPin(false);
     }
   };
+
+  // ── Delete account (Google Play policy: in-app account deletion) ──
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const performDeleteAccount = useCallback(async () => {
+    if (!userId) {
+      showAlert("Error", "User session not found.");
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      await apiDeleteAccount(userId);
+      // Clear session locally; logoutUser handles secure-store + navigation reset.
+      await logoutUser();
+      showAlert(
+        "Account deleted",
+        "Your account and all associated data have been permanently removed."
+      );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ??
+        err?.message ??
+        "Failed to delete account. Please try again.";
+      showAlert("Error", msg);
+    } finally {
+      setDeletingAccount(false);
+    }
+  }, [userId, logoutUser]);
+
+  const handleDeleteAccount = useCallback(() => {
+    showConfirm(
+      "Delete account?",
+      "This permanently deletes your account, posts, journals, comments, reactions, and chat history. This cannot be undone."
+    ).then((ok) => {
+      if (ok) performDeleteAccount();
+    });
+  }, [performDeleteAccount]);
 
   const resolvedAvatarUri = useMemo(
     () => resolveAvatarUrl(profileAvatarUrl) || null,
@@ -1131,7 +1173,7 @@ export default function ProfileScreen() {
                       </View>
                     )}
                     <View style={s.actionBtns}>
-                      {isOwner && !isWide && (
+                      {showInPageSignOut && (
                         <TouchableOpacity
                           onPress={logoutUser}
                           activeOpacity={0.85}
@@ -1915,6 +1957,8 @@ export default function ProfileScreen() {
                 {/* Coach / Admin contact CTA — visible only to non-coach viewers */}
                 {!isOwner &&
                   (profileRole === "COACH" || profileRole === "ADMIN") &&
+                  role !== "COACH" &&
+                  role !== "ADMIN" &&
                   !isEditingContacts && (
                     <View
                       style={[
@@ -2196,6 +2240,59 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* ── Danger zone: account deletion (Google Play policy) ── */}
+                <View
+                  style={[
+                    s.dangerZone,
+                    { borderTopColor: colors.surfaceVariant },
+                  ]}
+                >
+                  <Text
+                    style={[s.dangerLabel, { color: colors.onSurface }]}
+                  >
+                    Delete Account
+                  </Text>
+                  <Text
+                    style={[s.dangerDesc, { color: colors.onSurfaceVariant }]}
+                  >
+                    Permanently remove your account and all your posts,
+                    journals, comments, reactions, and chat history. This
+                    cannot be undone.
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleDeleteAccount}
+                    disabled={deletingAccount}
+                    activeOpacity={0.85}
+                    style={[
+                      s.deleteAccountBtn,
+                      { borderColor: colors.errorText },
+                    ]}
+                  >
+                    {deletingAccount ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={colors.errorText}
+                      />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="trash-outline"
+                          size={16}
+                          color={colors.errorText}
+                        />
+                        <Text
+                          style={[
+                            s.deleteAccountBtnText,
+                            { color: colors.errorText },
+                          ]}
+                        >
+                          Delete my account
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
@@ -2223,7 +2320,9 @@ export default function ProfileScreen() {
               </View>
 
               {!isOwner &&
-                (profileRole === "COACH" || profileRole === "ADMIN") && (
+                (profileRole === "COACH" || profileRole === "ADMIN") &&
+                role !== "COACH" &&
+                role !== "ADMIN" && (
                   <View
                     style={[
                       s.sideCard,
@@ -2799,6 +2898,36 @@ const createStyles = (colors: typeof defaultColors) =>
       borderWidth: 1,
     },
     editPinBtnText: { fontSize: 12, fontFamily: fonts.bodySemiBold },
+
+    // ── Danger Zone (account deletion) ───────
+    dangerZone: {
+      marginTop: spacing.lg,
+      paddingTop: spacing.lg,
+      borderTopWidth: 1,
+    },
+    dangerLabel: {
+      fontSize: 14,
+      fontFamily: fonts.displaySemiBold,
+      marginBottom: 4,
+    },
+    dangerDesc: {
+      fontSize: 12,
+      fontFamily: fonts.bodyRegular,
+      lineHeight: 18,
+      marginBottom: spacing.md,
+    },
+    deleteAccountBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      alignSelf: "flex-start",
+    },
+    deleteAccountBtnText: { fontSize: 13, fontFamily: fonts.bodySemiBold },
 
     // ── Contact Field ────────────────────────
     contactFieldRow: {

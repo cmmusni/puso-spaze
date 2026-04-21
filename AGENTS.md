@@ -104,6 +104,8 @@ User Input → Client Validation → API Request → Express Router
 12. **Public journal sharing**: Journals remain private by default, but entries can opt into a public feed using `isPublic`; public journal reads are exposed through a separate unauthenticated endpoint.
 13. **Coach roster visibility**: The coach dashboard uses dedicated authenticated roster endpoints for members and coaches/admins so staff directories are available without inferring from conversations.
 14. **Performance-first read paths**: High-frequency reads are bounded and optimized via DB indexes, dashboard TTL caching + SQL tag aggregation, deduplicated client GETs, adaptive chat polling, and shared reaction state across feed/detail surfaces.
+15. **In-app account deletion**: Users can permanently delete their own account inside Profile preferences to satisfy Google Play policy; the delete path is owner-only and relies on database cascade deletes plus explicit RecoveryRequest cleanup.
+16. **Reaction extensibility**: Reaction types are treated as a shared contract across Prisma enums, API validation, notification copy, shared types, and client picker/icon rendering; new reactions must update all layers together.
 
 ## Known Quirks
 
@@ -121,8 +123,10 @@ User Input → Client Validation → API Request → Express Router
 - Coach review queue is capped to the first 100 posts/comments per request; older review items remain accessible only after backlog reduction
 - Coach/admin roster is exposed via authenticated coach endpoints (`GET /api/coach/members`, `GET /api/coach/coaches`)
 - Notification delivery is fire-and-forget — push failures are logged but not retried (Scenario 9)
+- New-member-post notifications broadcast to all coaches/admins and may need tuning if staff volume becomes noisy
 - PIN login (displayName + PIN) has no rate limiting — brute-force risk remains (Scenario 11)
 - Recovery request endpoint is public (no auth) — potential spam vector (Scenario 12)
+- Local Android Studio builds can still hit NDK issues; EAS production profile is pinned to NDK `26.1.10909125` as the release path workaround
 
 ## Quality Docs
 

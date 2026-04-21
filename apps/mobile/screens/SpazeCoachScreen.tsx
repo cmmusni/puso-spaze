@@ -480,7 +480,8 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // ── Coach carousel ────────────────────────
   coachScroll: {
-    paddingRight: spacing.md,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
     gap: 12,
   },
   coachCard: {

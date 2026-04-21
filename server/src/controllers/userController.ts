@@ -883,3 +883,56 @@ export async function updateSpecialties(req: Request, res: Response): Promise<vo
     }
   }
 }
+
+/**
+ * DELETE /api/users/:userId
+ * Permanently deletes the user's account and all associated data.
+ *
+ * Required by Google Play account-deletion policy (2024+).
+ * The caller must be authenticated AND own the account being deleted.
+ *
+ * Cascades (via Prisma onDelete: Cascade in schema):
+ *   - posts, comments, reactions, comment reactions
+ *   - notifications, journals
+ *   - conversations (as user OR as coach), messages
+ *
+ * Also explicitly clears:
+ *   - any RecoveryRequest rows referencing this displayName
+ */
+export async function deleteAccount(req: Request, res: Response): Promise<void> {
+  const { userId } = req.params;
+
+  if (req.user?.userId !== userId) {
+    res.status(403).json({ error: 'You can only delete your own account.' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, displayName: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    // Hard delete. Cascade rules in schema.prisma remove related rows.
+    await prisma.$transaction([
+      // Recovery requests are not FK-linked to User.id (they reference displayName),
+      // so clear them explicitly.
+      prisma.recoveryRequest.deleteMany({ where: { displayName: user.displayName } }),
+      prisma.user.delete({ where: { id: userId } }),
+    ]);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    if (err.code === 'P2025') {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    console.error('[UserController] deleteAccount error:', err);
+    res.status(500).json({ error: 'Failed to delete account.' });
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useMemo } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -82,7 +82,11 @@ export default function WebRightPanel({ topBarHeight = 54 }: { topBarHeight?: nu
   const graceQuote = DAILY_GRACE_QUOTES[new Date().getDate() % DAILY_GRACE_QUOTES.length];
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: topBarHeight + 24 }]} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.container, { paddingTop: topBarHeight + 24 }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Trending Reflections */}
       <View style={styles.panelCard}>
         <View style={styles.cardHeader}>
@@ -248,6 +252,11 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     paddingRight: 24,
     paddingBottom: 16,
     backgroundColor: colors.background,
+  },
+  // Extra bottom padding so the last card clears the BottomTabBar
+  // (always present on native, even on tablets ≥ 1200px wide).
+  scrollContent: {
+    paddingBottom: Platform.OS === "web" ? 24 : 170,
   },
   panelCard: {
     backgroundColor: colors.surfaceContainerLowest,

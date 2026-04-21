@@ -150,7 +150,11 @@ export async function notifyReaction(params: {
   // Don't notify system bot
   if (params.postAuthorId === 'system-encouragement-bot') return;
 
-  const emoji = params.reactionType === 'PRAY' ? '🙏' : params.reactionType === 'CARE' ? '💙' : '🤝';
+  const emoji =
+    params.reactionType === 'PRAY' ? '🙏'
+    : params.reactionType === 'CARE' ? '💙'
+    : params.reactionType === 'SAD' ? '😢'
+    : '🤝';
   
   await createNotification({
     userId: params.postAuthorId,
@@ -382,3 +386,45 @@ export async function notifyCoachesOfFlaggedContent(params: {
     console.error('❌ Failed to notify coaches of flagged content:', error);
   }
 }
+
+/**
+ * Notifies all coaches/admins when a member publishes a new post.
+ * Skips the post author (in case the author is themselves a coach/admin)
+ * so coaches don't get notified about their own posts.
+ */
+export async function notifyCoachesOfNewMemberPost(params: {
+  postId: string;
+  authorId: string;
+  authorName: string;
+  contentPreview: string;
+}): Promise<void> {
+  try {
+    const coaches = await prisma.user.findMany({
+      where: {
+        role: { in: ['COACH', 'ADMIN'] },
+        id: { not: params.authorId },
+      },
+      select: { id: true },
+    });
+
+    if (coaches.length === 0) return;
+
+    const preview =
+      params.contentPreview.substring(0, 80) +
+      (params.contentPreview.length > 80 ? '...' : '');
+
+    await notifySystem({
+      userIds: coaches.map((c) => c.id),
+      title: '📝 New Member Post',
+      body: `${params.authorName}: "${preview}"`,
+      data: {
+        postId: params.postId,
+        authorId: params.authorId,
+        screen: 'PostDetail',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Failed to notify coaches of new member post:', error);
+  }
+}
+

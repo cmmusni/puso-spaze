@@ -197,7 +197,15 @@ export default function JournalScreen({ navigation }: any) {
   const handleComposeScroll = useCallback(
     (e: { nativeEvent: NativeScrollEvent }) => {
       const offsetY = e.nativeEvent.contentOffset.y;
-      setShowFab(offsetY > writeCardBottomY.current);
+      const viewportH = e.nativeEvent.layoutMeasurement?.height ?? 0;
+      // Show FAB once the user has scrolled enough that the write card's
+      // bottom edge is above the top of the viewport (i.e. write card is
+      // scrolled off screen). Fall back to a simple offset threshold if
+      // viewport height is not available.
+      const threshold = viewportH > 0
+        ? writeCardBottomY.current - viewportH * 0.25
+        : writeCardBottomY.current;
+      setShowFab(offsetY > Math.max(threshold, 120));
     },
     [],
   );
@@ -725,7 +733,11 @@ export default function JournalScreen({ navigation }: any) {
 
   // ── sidePanel (wide screens only) ─────────
   const sidePanelContent = (
-    <ScrollView style={st.sidePanel} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={st.sidePanel}
+      contentContainerStyle={st.sidePanelContent}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={st.sidePanelTitle}>Your Journey</Text>
       {journeyCards}
     </ScrollView>
@@ -834,7 +846,7 @@ export default function JournalScreen({ navigation }: any) {
           textAlignVertical="top"
         />
         {/* Ruled lines visual */}
-        <View style={st.ruledLines}>
+        <View style={st.ruledLines} pointerEvents="none">
           {[...Array(6)].map((_, i) => (
             <View key={i} style={st.ruledLine} />
           ))}
@@ -1140,7 +1152,7 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   composeScroll: { flex: 1 },
   composeContent: {
     padding: 28,
-    paddingBottom: 120,
+    paddingBottom: 200,
     ...(Platform.OS === "web"
       ? { maxWidth: 720, alignSelf: "center" as any, width: "100%" as any }
       : {}),
@@ -1363,9 +1375,16 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
 
   // ── Side panel ────────────────────────────
   sidePanel: {
+    flex: 1,
     maxWidth: 450,
-    padding: 20,
     backgroundColor: colors.surfaceContainerLow,
+  },
+  // Padded inner container so the ScrollView can size itself to the
+  // mainRow and scroll its content. Bottom padding clears the
+  // BottomTabBar on native (always present, even on tablets).
+  sidePanelContent: {
+    padding: 20,
+    paddingBottom: Platform.OS === "web" ? 24 : 120,
   },
   sidePanelTitle: {
     fontSize: 20,
@@ -1586,12 +1605,13 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   // ── FAB ───────────────────────────────────
   fab: {
     position: "absolute",
-    bottom: Platform.OS === "ios" ? 32 : 24,
+    bottom: Platform.OS === "ios" ? 100 : 90,
     right: 24,
     borderRadius: radii.full,
     ...ambientShadow,
     shadowOpacity: 0.15,
     elevation: 6,
+    zIndex: 50,
   },
   fabGradient: {
     flexDirection: "row",

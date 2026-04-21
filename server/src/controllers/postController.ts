@@ -10,7 +10,7 @@ import { notifyMentionsInPost } from '../services/mentionService';
 import { generateAnonUsername } from '../utils/generateAnonUsername';
 import { stripHtmlTags } from '../utils/sanitize';
 import { uploadBuffer } from '../config/cloudinary';
-import { createNotification, notifyCoachesOfFlaggedContent } from '../services/notificationService';
+import { createNotification, notifyCoachesOfFlaggedContent, notifyCoachesOfNewMemberPost } from '../services/notificationService';
 
 // ── POST /api/posts ───────────────────────────
 /**
@@ -33,7 +33,7 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     : null;
 
   // ── Verify user exists ────────────────────
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, isAnonymous: true, anonDisplayName: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, displayName: true, isAnonymous: true, anonDisplayName: true, role: true } });
   if (!user) {
     res.status(404).json({ error: 'User not found.' });
     return;
@@ -105,6 +105,20 @@ export async function createPost(req: Request, res: Response): Promise<void> {
     }).catch((err) => {
       console.error('Failed to send post mention notifications:', err);
     });
+
+    // Notify coaches/admins whenever a member (USER role) publishes a post.
+    // Coach/admin posts don't trigger this to avoid noisy self-notifications
+    // across the staff cohort.
+    if (user.role === 'USER') {
+      notifyCoachesOfNewMemberPost({
+        postId: post.id,
+        authorId: post.userId,
+        authorName: notifyName,
+        contentPreview: post.content,
+      }).catch((err) => {
+        console.error('Failed to notify coaches of new member post:', err);
+      });
+    }
   }
 
   res.status(201).json({

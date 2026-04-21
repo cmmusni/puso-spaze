@@ -17,7 +17,6 @@ import {
   useWindowDimensions,
   StatusBar,
   TextInput,
-  FlatList,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -675,8 +674,6 @@ export default function CoachDashboard() {
     [s]
   );
 
-  const keyExtractById = useCallback((item: { id: string }) => item.id, []);
-
   const membersCardEl = (compact = false) => (
     <View style={s.membersCard}>
       <View style={s.membersHeader}>
@@ -686,22 +683,32 @@ export default function CoachDashboard() {
       </View>
       {members.length === 0 ? (
         <Text style={s.sentimentNote}>No members yet.</Text>
-      ) : (
-        <FlatList
-          data={members}
-          renderItem={renderMemberItem}
-          keyExtractor={keyExtractById}
-          style={compact ? s.membersScroll : undefined}
-          // When inline (non-compact) we're already inside the outer ScrollView,
-          // so disable inner scrolling and let the parent handle it.
-          scrollEnabled={compact}
-          nestedScrollEnabled={compact}
+      ) : compact ? (
+        <ScrollView
+          style={s.membersScroll}
+          nestedScrollEnabled
           showsVerticalScrollIndicator={false}
-          initialNumToRender={12}
-          maxToRenderPerBatch={12}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS !== "web"}
-        />
+        >
+          {members.map((item) => (
+            <React.Fragment key={item.id}>
+              {renderMemberItem({ item } as { item: MemberSummary })}
+            </React.Fragment>
+          ))}
+        </ScrollView>
+      ) : (
+        // Inline (non-compact) lives inside the outer ScrollView — render plain views
+        // to avoid the "VirtualizedLists nested inside ScrollViews" warning.
+        <ScrollView
+          style={s.membersScroll}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+        >
+          {members.map((item) => (
+            <React.Fragment key={item.id}>
+              {renderMemberItem({ item } as { item: MemberSummary })}
+            </React.Fragment>
+          ))}
+        </ScrollView>
       )}
     </View>
   );
@@ -719,20 +726,30 @@ export default function CoachDashboard() {
       </View>
       {coaches.length === 0 ? (
         <Text style={s.sentimentNote}>No coaches yet.</Text>
-      ) : (
-        <FlatList
-          data={coaches}
-          renderItem={renderCoachItem}
-          keyExtractor={keyExtractById}
-          style={compact ? s.coachesScroll : undefined}
-          scrollEnabled={compact}
-          nestedScrollEnabled={compact}
+      ) : compact ? (
+        <ScrollView
+          style={s.coachesScroll}
+          nestedScrollEnabled
           showsVerticalScrollIndicator={false}
-          initialNumToRender={12}
-          maxToRenderPerBatch={12}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS !== "web"}
-        />
+        >
+          {coaches.map((item) => (
+            <React.Fragment key={item.id}>
+              {renderCoachItem({ item } as { item: CoachSummary })}
+            </React.Fragment>
+          ))}
+        </ScrollView>
+      ) : (
+        <ScrollView
+          style={s.coachesScroll}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+        >
+          {coaches.map((item) => (
+            <React.Fragment key={item.id}>
+              {renderCoachItem({ item } as { item: CoachSummary })}
+            </React.Fragment>
+          ))}
+        </ScrollView>
       )}
     </View>
   );
@@ -1305,8 +1322,8 @@ export default function CoachDashboard() {
           {/* ── Members & Coaches (mobile / narrow web) ── */}
           {!isWide && (
             <View style={s.mobileCardsSection}>
-              {membersCardEl(true)}
-              {coachesCardEl(true)}
+              {membersCardEl(false)}
+              {coachesCardEl(false)}
             </View>
           )}
         </ScrollView>
@@ -1337,7 +1354,7 @@ const createStyles = (colors: typeof defaultColors, isDark = false) =>
     scrollContent: {
       paddingHorizontal: Platform.OS === "web" ? 24 : 16,
       paddingTop: Platform.OS === "web" ? 12 : 8,
-      paddingBottom: 100,
+      paddingBottom: 110,
     },
 
     // ── Loading ──────────────────────────────
@@ -1865,6 +1882,7 @@ const createStyles = (colors: typeof defaultColors, isDark = false) =>
       ...(isDark ? {} : ambientShadow),
       borderWidth: isDark ? 1 : 0,
       borderColor: isDark ? colors.outlineVariant + "60" : "transparent",
+      marginBottom: 70
     },
     coachesHeader: {
       flexDirection: "row",

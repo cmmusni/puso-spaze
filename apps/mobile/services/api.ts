@@ -138,7 +138,9 @@ client.interceptors.response.use(
   (res) => res,
   (error) => {
     if (__DEV__) {
-      console.error('[API Error]', error?.response?.data ?? error.message);
+      // Use console.warn (not console.error) so expected/handled API errors
+      // don't trigger React Native's LogBox red banner overlay on screen.
+      console.warn('[API Error]', error?.response?.data ?? error.message);
     }
     if (error?.response?.status === 401) {
       // Token expired or invalid — clear it so the app can prompt re-login
@@ -386,6 +388,18 @@ export async function apiUpdatePin(
   pin: string
 ): Promise<{ success: boolean; pin: string }> {
   const { data } = await client.patch(`/api/users/${userId}/pin`, { pin });
+  return data;
+}
+
+/**
+ * DELETE /api/users/:userId
+ * Permanently deletes the authenticated user's account and all related data.
+ * Required by Google Play account-deletion policy.
+ */
+export async function apiDeleteAccount(
+  userId: string
+): Promise<{ success: boolean }> {
+  const { data } = await client.delete(`/api/users/${userId}`);
   return data;
 }
 

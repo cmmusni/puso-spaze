@@ -2,7 +2,7 @@
 
 **Status:** In Progress
 **Added:** April 11, 2026
-**Updated:** April 17, 2026
+**Updated:** April 22, 2026
 
 ## Original Request
 Build an APK of the app and test on a connected Android tablet.
@@ -24,7 +24,7 @@ Build an APK of the app and test on a connected Android tablet.
 
 ## Progress Tracking
 
-**Overall Status:** In Progress - 60%
+**Overall Status:** In Progress - 75%
 
 ### Subtasks
 | ID | Description | Status | Updated | Notes |
@@ -32,8 +32,8 @@ Build an APK of the app and test on a connected Android tablet.
 | 1.1 | Connect tablet | Complete | Apr 11 | Verified via adb devices |
 | 1.2 | EAS local build | Blocked | Apr 11 | Failed, using Android Studio instead |
 | 1.3 | Expo prebuild | Complete | Apr 11 | android/ folder generated |
-| 1.4 | Android Studio import | In Progress | Apr 11 | Gradle sync running |
-| 1.5 | Build & run on device | Not Started | — | — |
+| 1.4 | Android Studio import | In Progress | Apr 22 | Native project generation still works; emulator launch path also used |
+| 1.5 | Build & run on device | In Progress | Apr 22 | `npx expo run:android --port 8082` completed and emulator launch attempted |
 
 ## Progress Log
 ### April 11, 2026
@@ -44,3 +44,8 @@ Build an APK of the app and test on a connected Android tablet.
 
 ### April 17, 2026
 - Deployment precheck run confirms task remains in progress; no new Android Studio build output captured in this pass.
+
+### April 22, 2026
+- `npx expo run:android --port 8082` completed successfully from `apps/mobile/`.
+- Pixel tablet emulator launch was attempted (`Pixel_Tablet_35`) for additional native validation.
+- Generated `apps/mobile/android/` output was treated as local build output and kept out of the deploy set; source-of-truth native release path remains EAS production from TASK007 until full device smoke tests are complete.

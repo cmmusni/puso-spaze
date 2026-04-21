@@ -17,7 +17,8 @@
     "production": {
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "ndk": "26.1.10909125"
       },
       "ios": {
         "simulator": false
@@ -29,7 +30,7 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./play-store-key.json",
-        "track": "internal"
+        "track": "production"
       }
     }
   }

@@ -5,7 +5,7 @@
 
 export type ModerationStatus = 'SAFE' | 'FLAGGED' | 'REVIEW';
 
-export type ReactionType = 'PRAY' | 'CARE' | 'SUPPORT' | 'LIKE';
+export type ReactionType = 'PRAY' | 'CARE' | 'SUPPORT' | 'LIKE' | 'SAD';
 
 export type UserRole = 'USER' | 'COACH' | 'ADMIN';
 
@@ -13,6 +13,7 @@ export type NotificationType = 'REACTION' | 'COMMENT' | 'ENCOURAGEMENT' | 'SYSTE
 
 export const REACTION_EMOJI: Record<ReactionType, string> = {
   PRAY:  '🙇',
+  SAD: '😢',
   CARE: '❤️‍🩹',
   SUPPORT:  '🫶',
   LIKE: '👍',
@@ -132,6 +133,7 @@ export interface Journal {
 
 export interface ReactionCounts {
   PRAY?: number;
+  SAD?: number;
   CARE?: number;
   SUPPORT?: number;
   LIKE?: number;

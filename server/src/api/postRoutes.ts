@@ -197,7 +197,7 @@ router.post(
     param('postId').isUUID().withMessage('postId must be a valid UUID'),
     param('commentId').isUUID().withMessage('commentId must be a valid UUID'),
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
-    body('type').isIn(['PRAY', 'CARE', 'SUPPORT', 'LIKE']).withMessage('type must be PRAY, CARE, SUPPORT, or LIKE'),
+    body('type').isIn(['PRAY', 'CARE', 'SUPPORT', 'LIKE', 'SAD']).withMessage('type must be PRAY, CARE, SUPPORT, LIKE, or SAD'),
     validate,
   ],
   upsertCommentReaction

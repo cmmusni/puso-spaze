@@ -157,6 +157,8 @@ export default function HomeScreen() {
   const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
   const lastScrollY = useRef(0);
   const topBarTranslateY = useRef(new Animated.Value(0)).current;
+  const fabTranslateY = useRef(new Animated.Value(0)).current;
+  const BOTTOM_TAB_BAR_HEIGHT = 70;
   const barsShown = useRef(true);
   const SCROLL_DIR_THRESHOLD = 10;
   const [topBarHeight, setTopBarHeight] = useState(54);
@@ -165,12 +167,19 @@ export default function HomeScreen() {
     if (barsShown.current === visible) return;
     barsShown.current = visible;
     setBarsVisible(visible);
-    Animated.timing(topBarTranslateY, {
-      toValue: visible ? 0 : -topBarHeight - 10,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [setBarsVisible, topBarTranslateY, topBarHeight]);
+    Animated.parallel([
+      Animated.timing(topBarTranslateY, {
+        toValue: visible ? 0 : -topBarHeight - 10,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fabTranslateY, {
+        toValue: visible ? 0 : BOTTOM_TAB_BAR_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [setBarsVisible, topBarTranslateY, fabTranslateY, topBarHeight]);
 
   const handleScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
     const offsetY = e.nativeEvent.contentOffset.y;
@@ -283,6 +292,7 @@ export default function HomeScreen() {
       barsShown.current = true;
       setBarsVisible(true);
       topBarTranslateY.setValue(0);
+      fabTranslateY.setValue(0);
     });
     return unsubscribe;
   }, [navigation, route.params?.highlightPostId, setBarsVisible, topBarTranslateY]);
@@ -889,7 +899,12 @@ export default function HomeScreen() {
           )}
 
           {showFab && (
-            <View style={styles.fabWrap}>
+            <Animated.View
+              style={[
+                styles.fabWrap,
+                { transform: [{ translateY: fabTranslateY }] },
+              ]}
+            >
               <View style={{ flex: 1 }} />
 
               {/* FAB */}
@@ -915,7 +930,7 @@ export default function HomeScreen() {
                   />
                 </LinearGradient>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </View>
 
@@ -1512,11 +1527,12 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
   // ── FAB & Journal button ──
   fabWrap: {
     position: "absolute",
-    bottom: 24,
-    left: 20,
-    right: 20,
+    bottom: Platform.OS === "ios" ? 100 : 90,
+    left: 16,
+    right: 16,
     flexDirection: "row",
     alignItems: "center",
+    zIndex: 50,
   },
   journalBtn: {
     borderRadius: radii.full,

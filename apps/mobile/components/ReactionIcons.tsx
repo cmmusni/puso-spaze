@@ -37,6 +37,16 @@ export function LikeIcon({ size = 16, color = "#fff", style }: IconProps) {
   );
 }
 
+export function SadIcon({ size = 16, color = "#fff", style }: IconProps) {
+  return (
+    <Image
+      source={require("../assets/sad-icon.png")}
+      style={[{ width: size, height: size, tintColor: color }, style]}
+      resizeMode="contain"
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   segment: {
     position: "absolute",

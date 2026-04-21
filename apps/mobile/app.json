@@ -31,10 +31,11 @@
       },
       "googleServicesFile": "./google-services.json",
       "package": "com.pusospaze.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "INTERNET",
-        "VIBRATE"
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
       ]
     },
     "web": {

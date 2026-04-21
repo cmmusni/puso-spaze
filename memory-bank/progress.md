@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 19, 2026 (6th deployment cycle)
+**Last Updated:** April 22, 2026 (7th deployment cycle)
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -46,6 +46,12 @@
 - **Reusable Loading Skeletons** — Added `LoadingSkeletons.tsx` and replaced spinner-only initial loading states across Home, Journal, Notifications, Chat, Coach list, Conversations list, and PostDetail with layout-matching skeleton placeholders
 - **Feed Freshness After Writes** — API client now applies `no-cache` headers for GET requests and invalidates in-flight `/api/posts` requests after create/update/delete so feed refreshes with fresh data immediately on Safari/web
 - **CORS Header Compatibility** — Server CORS allowed headers now include `Cache-Control` and `Pragma` to support explicit client cache-bypass request headers
+- **In-App Account Deletion** — Authenticated users can now permanently delete their own account from Profile -> Preferences; server hard-deletes the user and cascaded data, while the client logs out and clears local session state
+- **Google Play Release Config** — Android app config now includes `POST_NOTIFICATIONS`, `versionCode` 5, and EAS production builds pin NDK `26.1.10909125` with submit track set to `production`
+- **SAD Reaction** — Reaction model now supports `SAD` end-to-end across Prisma, shared types, validation, feed/detail reaction pickers, icons, counts, and notifications
+- **Coach Alerts for New Member Posts** — Coaches/admins now receive a system notification when a regular member publishes a new post
+- **Android Branding Assets** — App icons, splash art, PWA icons, overview imagery, and Android phone/tablet screenshots refreshed for release materials
+- **Android/Tablet Layout Polish** — Home/Journal FAB spacing, coach dashboard/member list scrolling, right-rail bottom padding, and coach carousel spacing adjusted to clear native bottom chrome on tablets and phones
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests), `break-it.mjs` (OWASP Top 10 adversarial suite)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
 
@@ -59,7 +65,8 @@
 - **Needs update**: Functional tests need daily reflection, user stats, Cloudinary, and persistent anon name tests
 
 ## What's Left to Build
-- Android APK build (in progress — EAS build + Android Studio)
+- Google Play production build + submission smoke test (TASK007)
+- Android APK / native build validation (TASK001)
 - Validate and finalize profile expansion (banner upload, bio editing, contacts CRUD)
 - Validate and finalize public journal sharing feed (`GET /api/journals/public` + `isPublic` create/update flow)
 - iOS build and testing
@@ -70,7 +77,7 @@
 - Rate limiting on PIN login and recovery requests
 
 ## Current Status
-The platform is **functional and deployed** on web. All core features are complete: posts, comments, reactions, moderation, journal, chat, daily reflections, Cloudinary image uploads, persistent anonymous names, comprehensive coach moderation dashboard, and full QA coverage. JWT auth + PIN-based cross-device login + account recovery protect all write endpoints. A comprehensive security audit fixed 15 vulnerabilities. Image uploads migrated to Cloudinary (Railway ephemeral filesystem fix). Latest performance hardening adds indexed query paths, cached dashboard aggregates, reduced list/polling load, and shared reaction-state synchronization. Focus is on native deployment, production env var setup, and UI polish.
+The platform is **functional and deployed** on web and is now in Google Play production-readiness work. Core features remain complete across posts, comments, reactions, moderation, journal, chat, daily reflections, Cloudinary image uploads, persistent anonymous names, coach moderation tooling, and full QA coverage. Recent work adds in-app account deletion for Play policy compliance, SAD reaction support, refreshed Android branding/screenshots, and additional tablet/native spacing polish. Focus is on EAS production build validation, Play listing completion, and remaining native smoke tests.
 
 ## Known Issues
 - `JWT_SECRET` uses a hardcoded default in dev — must be overridden in production (startup warning logged)
@@ -83,3 +90,4 @@ The platform is **functional and deployed** on web. All core features are comple
 - `AppConfig` model exists in schema but has no corresponding service (unused)
 - `OPENAI_API_KEY` not set → moderation returns SAFE for everything (dangerous in prod)
 - Post image uploads use header-based MIME check only (no magic bytes like avatars)
+- New member-post coach notifications may be noisy for staff at scale; delivery behavior needs monitoring after rollout

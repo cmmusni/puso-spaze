@@ -29,7 +29,7 @@ import type {
   ReactionCounts,
 } from "../../../packages/types";
 import type { RootStackParamList } from "../navigation/AppNavigator";
-import { PrayIcon, SupportIcon, LikeIcon } from "./ReactionIcons";
+import { PrayIcon, SupportIcon, LikeIcon, SadIcon } from "./ReactionIcons";
 import {
   apiGetReactions,
   apiGetReactors,
@@ -52,7 +52,7 @@ import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 
-const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
+const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE", "SAD"];
 const SYSTEM_USER_ID = "system-encouragement-bot";
 
 const REACTION_LABELS: Record<ReactionType, string> = {
@@ -60,6 +60,7 @@ const REACTION_LABELS: Record<ReactionType, string> = {
   CARE: "Care",
   SUPPORT: "Support",
   LIKE: "Like",
+  SAD: "Sad",
 };
 
 // Per-reaction gradient palette (sourced from theme tokens).
@@ -71,6 +72,7 @@ const REACTION_GRADIENTS: Record<
   CARE: (c) => [c.hot, c.fuchsia],
   SUPPORT: (c) => [c.tertiary, c.primary],
   LIKE: (c) => [c.secondary, c.primaryContainer],
+  SAD: (c) => [c.tertiary, c.onSurfaceVariant],
 };
 
 const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
@@ -106,6 +108,7 @@ function renderReactionIcon(type: ReactionType, size: number, color: string) {
   if (type === "SUPPORT")
     return <SupportIcon key={k} size={size} color={color} />;
   if (type === "LIKE") return <LikeIcon key={k} size={size} color={color} />;
+  if (type === "SAD") return <SadIcon key={k} size={size} color={color} />;
   return <Ionicons key={k} name={getCareIcon()} size={size} color={color} />;
 }
 

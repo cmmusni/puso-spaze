@@ -37,7 +37,7 @@ import {
   RouteProp,
   useFocusEffect,
 } from "@react-navigation/native";
-import { PrayIcon, SupportIcon, LikeIcon } from "../components/ReactionIcons";
+import { PrayIcon, SupportIcon, LikeIcon, SadIcon } from "../components/ReactionIcons";
 import {
   apiGetPostById,
   apiGetReactions,
@@ -124,13 +124,14 @@ function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d`;
 }
 
-const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE"];
+const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE", "SAD"];
 
 const REACTION_LABELS: Record<ReactionType, string> = {
   PRAY: "Pray",
   CARE: "Care",
   SUPPORT: "Support",
   LIKE: "Like",
+  SAD: "Sad",
 };
 
 // Per-reaction gradient palette (sourced from theme tokens).
@@ -142,6 +143,7 @@ const REACTION_GRADIENTS: Record<
   CARE: (c) => [c.hot, c.fuchsia],
   SUPPORT: (c) => [c.tertiary, c.primary],
   LIKE: (c) => [c.secondary, c.primaryContainer],
+  SAD: (c) => [c.tertiary, c.onSurfaceVariant],
 };
 const SYSTEM_USER_ID = "system-encouragement-bot";
 
@@ -232,6 +234,7 @@ function renderReactionIcon(type: ReactionType, size: number, color: string) {
   if (type === "SUPPORT")
     return <SupportIcon key={k} size={size} color={color} />;
   if (type === "LIKE") return <LikeIcon key={k} size={size} color={color} />;
+  if (type === "SAD") return <SadIcon key={k} size={size} color={color} />;
   return <Ionicons key={k} name={getCareIcon()} size={size} color={color} />;
 }
 
@@ -2139,7 +2142,9 @@ export default function PostDetailScreen() {
                           ? "Care"
                           : type === "LIKE"
                             ? "Like"
-                            : "Support"}
+                            : type === "SAD"
+                              ? "Sad"
+                              : "Support"}
                     </Text>
                   </TouchableOpacity>
                 );

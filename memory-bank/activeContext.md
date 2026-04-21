@@ -1,8 +1,11 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 19, 2026 (6th deployment cycle)
+**Last Updated:** April 22, 2026 (7th deployment cycle)
 
 ## Current Work Focus
+- Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
+- Android/tablet polish: refreshed Android screenshot sets, bottom-tab/FAB clearance, dashboard/right-panel scroll padding
+- Reaction model expansion: SAD reaction added end-to-end across API, schema, icons, and feed/detail UI
 - Cross-screen loading UX pass: replace spinner-heavy loading states with reusable skeleton placeholders
 - Web cache freshness hardening: prevent stale GET caching after writes (Safari/PWA-sensitive)
 - Coach specialties feature: editable specialty tags for coaches/admins with profile display
@@ -14,6 +17,26 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Google Play Release Readiness + Android Asset Refresh (April 22, 2026)
+- **PLAY POLICY / ACCOUNT DELETION**: Added owner-only `DELETE /api/users/:userId` in `userController.ts` and registered it in `userRoutes.ts`; deletion hard-removes the user via Prisma transaction and explicitly clears `RecoveryRequest` rows by `displayName`
+- **PROFILE DANGER ZONE**: `ProfileScreen.tsx` now exposes an in-app "Delete my account" action under Preferences using `showConfirm()` plus `apiDeleteAccount()`, then clears local session via `logoutUser()`
+- **PLAY BUILD CONFIG**: `apps/mobile/eas.json` pins Android NDK `26.1.10909125` for production builds and switches submit track from `internal` to `production`; `apps/mobile/app.json` now requests `POST_NOTIFICATIONS` and bumps `versionCode` to `5`
+- **ANDROID BRAND ASSETS**: Refreshed app icons/splash assets under `apps/mobile/assets/` and matching web/public icons under `apps/mobile/public/`; overview site now uses Android phone/tablet screenshots instead of iPhone/iPad imagery
+- **PRIVACY POLICY**: `apps/mobile/overview/privacy-policy.html` now documents in-app account deletion (Profile -> Preferences -> Delete Account) and the immediate hard-delete behavior
+- **TASK TRACKING**: Added active task `TASK007-google-play-release-readiness.md` and updated task index to track Play release work separately from the older Android native build task
+
+### SAD Reaction + Staff Awareness Notifications (April 22, 2026)
+- **REACTION MODEL**: Added `SAD` to the shared `ReactionType` union (`packages/types/index.ts`), Prisma enum (`server/prisma/schema.prisma`), and migration `server/prisma/migrations/20260421210845_add_sad_reaction/migration.sql`
+- **UI ICONOGRAPHY**: New `SadIcon` in `ReactionIcons.tsx` backed by `apps/mobile/assets/sad-icon.png`; PostCard and PostDetail reaction pickers now include the SAD option with label, gradient, counts, and icon rendering
+- **API VALIDATION**: Comment reaction routes in `server/src/api/postRoutes.ts` now allow `SAD`
+- **NOTIFICATIONS**: Reaction notifications map `SAD` to `😢`; new `notifyCoachesOfNewMemberPost()` alerts all coaches/admins when a regular member publishes a post
+
+### Android/Tablet Layout Polish (April 22, 2026)
+- **HOME FAB**: Home screen now animates the floating action button together with the top bar and keeps it above the native BottomTabBar using platform-aware bottom spacing
+- **JOURNAL FAB + SIDE PANEL**: Journal FAB bottom spacing increased to clear the BottomTabBar; side panel switched to a padded scroll-content container; ruled lines are now `pointerEvents="none"`
+- **COACH DASHBOARD**: Replaced nested FlatLists with ScrollView-based rendering in member/coach cards to avoid virtualized-list warnings inside the outer ScrollView; mobile card spacing and bottom clearance adjusted
+- **WEB RIGHT PANEL / SPAZE COACH**: Added extra native bottom padding for right-rail content and adjusted coach carousel padding for tablet/native comfort
 
 ### Loading Skeleton System + GET Cache Freshness Hardening (April 19, 2026)
 - **NEW COMPONENT**: Added `apps/mobile/components/LoadingSkeletons.tsx` with reusable skeleton presets for feed posts, journal cards, notifications, conversations, coach cards, chat bubbles, and post detail placeholders
@@ -225,6 +248,10 @@
 - BUG-001 through BUG-015: Race conditions, validation gaps, XSS, null bytes, IDOR, error handling (see `memory-bank/bug-fixes.md` for details)
 
 ## Next Steps
+- Run the production Android EAS build and verify Play track submission flow with the pinned NDK setup
+- Smoke-test delete-account behavior on device/emulator: account removal, logout, and inability to reauthenticate after deletion
+- Review coach-notification volume from the new member-post alerts in production and confirm it is not too noisy for staff
+- Finalize Google Play listing assets and store metadata using the refreshed Android screenshots
 - Monitor dashboard cache hit behavior and query timings in production logs after deploy
 - Deploy all changes to production (set `JWT_SECRET`, `ADMIN_SECRET`, Cloudinary env vars)
 - Verify scheduler behavior in production logs (streak 9 PM PHT, pending chat every 15 min)

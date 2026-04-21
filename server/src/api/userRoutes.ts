@@ -7,7 +7,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import multer from 'multer';
-import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, uploadBanner, updateBio, getContacts, updateContacts, getPin, updatePin, getUserStats, recordVisit, updateSpecialties } from '../controllers/userController';
+import { createUser, getUserById, searchUsers, updateUsername, toggleAnonymous, toggleNotifications, checkUsername, uploadAvatar, uploadBanner, updateBio, getContacts, updateContacts, getPin, updatePin, getUserStats, recordVisit, updateSpecialties, deleteAccount } from '../controllers/userController';
 import { validate } from '../middlewares/validate';
 import { requireAuth } from '../middlewares/requireAuth';
 import { isValidImageBuffer } from '../utils/validateImageMagicBytes';
@@ -265,6 +265,16 @@ router.patch(
     validate,
   ],
   updateSpecialties
+);
+
+router.delete(
+  '/:userId',
+  requireAuth,
+  [
+    param('userId').isUUID().withMessage('userId must be a valid UUID'),
+    validate,
+  ],
+  deleteAccount
 );
 
 export default router;

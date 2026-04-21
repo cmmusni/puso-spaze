@@ -1,7 +1,8 @@
 # Tasks Index
 
 ## In Progress
-- [TASK001] Android native build — Setting up via Expo EAS + Android Studio (updated Apr 17)
+- [TASK007] Google Play Store release readiness — Permissions, account-deletion endpoint + UI, production EAS config, Android screenshot/icon refresh; pending EAS build + Play listing submission (updated Apr 22)
+- [TASK001] Android native build — Emulator launch + expo run:android attempted; still needs device smoke test and APK verification (updated Apr 22)
 
 ## Pending
 _No pending tasks_

@@ -73,6 +73,7 @@
 - High-traffic read endpoints use `deduplicatedGet()` to collapse duplicate concurrent GETs (feed, stats, coach roster/review, conversations)
 - GET requests include explicit cache-bypass headers (`Cache-Control: no-cache`, `Pragma: no-cache`) to avoid stale browser-served API responses on Safari/PWA
 - Mutating post endpoints invalidate in-flight `/api/posts` promises to force the next read to fetch fresh data after create/update/delete
+- Account-deletion flow uses `DELETE /api/users/:userId`; client calls `apiDeleteAccount()` and then clears local auth state via `logoutUser()`
 
 ### Performance Guardrails
 - Prisma schema includes explicit indexes for recurring high-traffic filters/sorts (`posts`, `comments`, `reactions`, `users.lastActiveAt`, `invite_codes.used`)
@@ -158,6 +159,12 @@
 - `PATCH /api/coach/posts/:id/flag` / `comments/:id/flag` — coaches can flag SAFE content for re-review
 - `GET /api/coach/members` — view all platform members
 - Moderation actions send notifications to the content author
+- `notifyCoachesOfNewMemberPost()` broadcasts a system notification to all coaches/admins whenever a regular member publishes a new post
+
+### Reaction Model
+- Shared reaction domain now supports `PRAY`, `CARE`, `SUPPORT`, `LIKE`, and `SAD`
+- Prisma enum, shared types, picker UIs, counts, and notification rendering must stay aligned whenever reactions change
+- Image-backed reaction icons live in `components/ReactionIcons.tsx`; new icons require matching asset files under `apps/mobile/assets/`
 
 ### Coach Dashboard Panel Pattern
 - Wide layouts use a scrollable right rail to host secondary dashboard cards (sentiment, chats, members, coaches)
@@ -177,6 +184,7 @@
 - `Profile` route can receive optional `userId`
 - Owner view (`route userId` absent or equals session user) shows editable controls (avatar/banner upload, contacts editor, preferences)
 - Non-owner view fetches public profile data and hides owner-only actions
+- Owner preferences now include a destructive in-app account deletion path required for Play policy compliance
 
 ### Public Journal Sharing
 - Journal model includes `isPublic` (default false)

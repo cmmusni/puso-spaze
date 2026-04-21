@@ -115,6 +115,7 @@ enum ReactionType {
   CARE
   SUPPORT
   LIKE
+  SAD
 }
 
 // ── Reaction ──────────────────────────────────
