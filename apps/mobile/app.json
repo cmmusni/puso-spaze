@@ -31,7 +31,7 @@
       },
       "googleServicesFile": "./google-services.json",
       "package": "com.pusospaze.app",
-      "versionCode": 6,
+      "versionCode": 8,
       "permissions": [
         "INTERNET",
         "VIBRATE",

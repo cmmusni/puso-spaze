@@ -78,3 +78,9 @@ Get the Android app ready for a first **Production**-track release on the Google
 - Refreshed Android phone screenshots (`feed`, `journal`, `login`, `notifications`, `profile`, `spaze-coach`) to newer captures under `apps/mobile/assets/screens/android-phone/`.
 - Added Play listing collateral assets: `feature-graphic.png`, `play-store-icon-512.png`, and feature tile set `apps/mobile/assets/features/01-05.png`.
 - Added `apps/mobile/overview/child-safety.html` for additional policy/compliance documentation support.
+
+### April 22, 2026 (deploy gate pass)
+- Bumped Android `versionCode` from `6` to `7` in `apps/mobile/app.json` for the current production upload sequence.
+- Refreshed release-facing app and PWA branding assets in `apps/mobile/assets/` and `apps/mobile/public/` (`icon`, `adaptive-icon`, `logo`, `splash`, `apple-touch-icon`, `favicon`, `icon-192`, `icon-512`, and web `icon.png`) to keep store and web shell branding aligned.
+- Logged into Railway CLI, linked the `Postgres` service, and verified production Prisma state against `DATABASE_PUBLIC_URL` / `hopper.proxy.rlwy.net:42841`.
+- `npx prisma migrate deploy` reported no pending migrations; `npx prisma migrate status` reported production schema up to date.

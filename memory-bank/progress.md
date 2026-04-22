@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (9th deployment cycle)
+**Last Updated:** April 22, 2026 (10th deployment cycle)
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -50,13 +50,14 @@
 - **Feed Freshness After Writes** — API client now applies `no-cache` headers for GET requests and invalidates in-flight `/api/posts` requests after create/update/delete so feed refreshes with fresh data immediately on Safari/web
 - **CORS Header Compatibility** — Server CORS allowed headers now include `Cache-Control` and `Pragma` to support explicit client cache-bypass request headers
 - **In-App Account Deletion** — Authenticated users can now permanently delete their own account from Profile -> Preferences; server hard-deletes the user and cascaded data, while the client logs out and clears local session state
-- **Google Play Release Config** — Android app config now includes `POST_NOTIFICATIONS`, `versionCode` 6, and EAS production builds pin NDK `26.1.10909125` with submit track set to `production`
+- **Google Play Release Config** — Android app config now includes `POST_NOTIFICATIONS`, `versionCode` 7, and EAS production builds pin NDK `26.1.10909125` with submit track set to `production`
 - **SAD Reaction** — Reaction model now supports `SAD` end-to-end across Prisma, shared types, validation, feed/detail reaction pickers, icons, counts, and notifications
 - **Coach Alerts for New Member Posts** — Coaches/admins now receive a system notification when a regular member publishes a new post
 - **Android Branding Assets** — App icons, splash art, PWA icons, overview imagery, and Android phone/tablet screenshots refreshed for release materials
 - **Android/Tablet Layout Polish** — Home/Journal FAB spacing, coach dashboard/member list scrolling, right-rail bottom padding, and coach carousel spacing adjusted to clear native bottom chrome on tablets and phones
 - **Play Listing Asset Pack** — Feature graphic, 512x512 Play icon, feature tiles, and refreshed Android phone screenshots prepared for Play Console submission materials
-- **Android Version Bump** — `android.versionCode` advanced to `6` in app config to keep Play upload sequence moving forward
+- **Android Version Bump** — `android.versionCode` advanced to `7` in app config to keep Play upload sequence moving forward
+- **Production Prisma Verification** — Railway Postgres public database URL was used to run `prisma migrate deploy` and `prisma migrate status`; production schema is confirmed up to date
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests), `break-it.mjs` (OWASP Top 10 adversarial suite)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
 

@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (9th deployment cycle)
+**Last Updated:** April 22, 2026 (11th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,22 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Play Asset Refresh + VersionCode 8 Bump (April 22, 2026)
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` increased from `7` to `8` for the next Play submission iteration (previous v7 bundle was generated then re-cut after another asset refresh)
+- **BRANDING ASSETS (APP + PWA)**: Re-refreshed release-facing icon/splash assets in `apps/mobile/assets/` (`icon.png`, `adaptive-icon.png`, `logo.png`, `splash.png`, `play-store-icon-512.png`) and mirrored web/public icons (`apple-touch-icon.png`, `favicon.png`, `icon-192.png`, `icon-512.png`, `icon.png`)
+- **DEPLOY AGENT TIGHTENING**: `.github/agents/deploy.agent.md` updated to add explicit "never run EAS/native build" hard constraints and an auto-stage/commit/push step on `READY TO DEPLOY`
+- **DEPLOY CONTEXT**: Change set is config + binary asset refresh + agent doc only (no API/schema/runtime logic edits)
+
+### Production Prisma Verification via Railway (April 22, 2026)
+- **RAILWAY AUTH + SERVICE LINK**: Logged into Railway CLI, confirmed project `active-apps` / environment `production`, and linked the `Postgres` service
+- **PRODUCTION DB CHECK**: Ran Prisma against Railway's public database URL (`DATABASE_PUBLIC_URL`, host `hopper.proxy.rlwy.net:42841`) instead of the internal host used by `railway run`
+- **RESULT**: `prisma migrate deploy` reported no pending migrations and `prisma migrate status` confirmed the production schema is up to date
+
+### Play Asset Refresh + VersionCode 7 Bump (April 22, 2026)
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` increased from `6` to `7` for the current Play submission iteration
+- **BRANDING ASSETS (APP + PWA)**: Refreshed release-facing icon/splash assets in `apps/mobile/assets/` (`icon.png`, `adaptive-icon.png`, `logo.png`, `splash.png`, `play-store-icon-512.png`) and mirrored web/public icons (`apple-touch-icon.png`, `favicon.png`, `icon-192.png`, `icon-512.png`, `icon.png`)
+- **DEPLOY CONTEXT**: Change set is config + binary asset refresh only (no API/schema/runtime logic edits)
 
 ### Pull-to-Refresh Parity + Reaction Re-hydration Follow-up (April 22, 2026)
 - **HOME + PROFILE PTR PARITY**: Added web/PWA touch pull-to-refresh support to `HomeScreen.tsx` and `ProfileScreen.tsx` using new hook `apps/mobile/hooks/useWebPullToRefresh.ts`; native keeps `RefreshControl`
