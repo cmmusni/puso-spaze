@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (7th deployment cycle)
+**Last Updated:** April 22, 2026 (8th deployment cycle)
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -52,6 +52,8 @@
 - **Coach Alerts for New Member Posts** — Coaches/admins now receive a system notification when a regular member publishes a new post
 - **Android Branding Assets** — App icons, splash art, PWA icons, overview imagery, and Android phone/tablet screenshots refreshed for release materials
 - **Android/Tablet Layout Polish** — Home/Journal FAB spacing, coach dashboard/member list scrolling, right-rail bottom padding, and coach carousel spacing adjusted to clear native bottom chrome on tablets and phones
+- **Play Listing Asset Pack** — Feature graphic, 512x512 Play icon, feature tiles, and refreshed Android phone screenshots prepared for Play Console submission materials
+- **Android Version Bump** — `android.versionCode` advanced to `6` in app config to keep Play upload sequence moving forward
 - **QA Test Suites** — `full-qa-pass.mjs` (100+ tests, 18 sections), `new-features-qa.mjs` (anon names + stats), `functional.test.ts` (56 spec tests), `break-it.mjs` (OWASP Top 10 adversarial suite)
 - **QA Alignment** — Full QA pass script now matches current API contracts for PIN login, recovery requests, report endpoint naming, and notification toggle payloads
 

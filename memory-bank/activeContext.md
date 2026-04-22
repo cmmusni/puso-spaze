@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (7th deployment cycle)
+**Last Updated:** April 22, 2026 (8th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,12 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Play Listing Asset Finalization + Version Bump (April 22, 2026)
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` increased from `5` to `6` for the next Play submission artifact
+- **PHONE SCREENSHOT REFRESH**: Updated Android phone screenshots in `apps/mobile/assets/screens/android-phone/` (`feed`, `journal`, `login`, `notifications`, `profile`, `spaze-coach`)
+- **NEW PLAY LISTING ASSETS**: Added `apps/mobile/assets/feature-graphic.png`, `apps/mobile/assets/play-store-icon-512.png`, and curated feature tiles under `apps/mobile/assets/features/01-05.png`
+- **ADDITIONAL OVERVIEW DOC**: Added `apps/mobile/overview/child-safety.html` for policy/compliance references alongside the existing privacy policy materials
 
 ### Google Play Release Readiness + Android Asset Refresh (April 22, 2026)
 - **PLAY POLICY / ACCOUNT DELETION**: Added owner-only `DELETE /api/users/:userId` in `userController.ts` and registered it in `userRoutes.ts`; deletion hard-removes the user via Prisma transaction and explicitly clears `RecoveryRequest` rows by `displayName`

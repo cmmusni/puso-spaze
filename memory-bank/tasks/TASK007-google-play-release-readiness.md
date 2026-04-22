@@ -72,3 +72,9 @@ Get the Android app ready for a first **Production**-track release on the Google
 - Verified `POST_NOTIFICATIONS` permission remains present for Android 13+.
 - Corrected adaptive icon background back to the theme canvas color (`#FCF8FF`) so release assets stay aligned with the app theme and deployment checklist.
 - Release readiness work now also includes refreshed Android phone/tablet screenshot folders under `apps/mobile/assets/screens/` and mirrored web/public overview assets.
+
+### April 22, 2026 (later)
+- Bumped Android `versionCode` from `5` to `6` for the next Play upload cycle.
+- Refreshed Android phone screenshots (`feed`, `journal`, `login`, `notifications`, `profile`, `spaze-coach`) to newer captures under `apps/mobile/assets/screens/android-phone/`.
+- Added Play listing collateral assets: `feature-graphic.png`, `play-store-icon-512.png`, and feature tile set `apps/mobile/assets/features/01-05.png`.
+- Added `apps/mobile/overview/child-safety.html` for additional policy/compliance documentation support.
