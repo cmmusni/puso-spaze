@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (11th deployment cycle)
+**Last Updated:** April 22, 2026 (12th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,10 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### VersionCode Rollback to 7 (April 22, 2026)
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` reverted from `8` back to `7` to match the artifact currently being submitted to Play Console (no v8 bundle was uploaded)
+- **DEPLOY CONTEXT**: Single config change only
 
 ### Play Asset Refresh + VersionCode 8 Bump (April 22, 2026)
 - **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` increased from `7` to `8` for the next Play submission iteration (previous v7 bundle was generated then re-cut after another asset refresh)
