@@ -69,6 +69,8 @@ import {
 } from "../services/api";
 import { usePosts } from "../hooks/usePosts";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
+import { useWebPullToRefresh } from "../hooks/useWebPullToRefresh";
+import { useReactionsStore } from "../context/ReactionsStore";
 import PostCard from "../components/PostCard";
 import SkeletonBox from "../components/SkeletonBox";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
@@ -208,7 +210,8 @@ export default function ProfileScreen() {
   const isSmall = width < 600;
   // WebSidebar (wide web only) renders its own Sign Out button.
   // On native — even at tablet widths ≥ 900 — there's no sidebar,
-  // so we must keep the in-page Sign Out visible.
+  // so we keep the in-page Sign Out visible (with extra top margin
+  // applied in styles so it doesn't sit awkwardly near the banner).
   const showInPageSignOut = isOwner && (Platform.OS !== 'web' || !isWide);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -412,8 +415,16 @@ export default function ProfileScreen() {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
+    // Tell PostCards to re-hydrate their reactions from the server.
+    useReactionsStore.getState().requestRefresh();
     loadData();
   }, [loadData]);
+
+  // Web/PWA pull-to-refresh (no-op on native; native uses RefreshControl)
+  const webPtr = useWebPullToRefresh({
+    onRefresh: handleRefresh,
+    enabled: imagePreviewType === null,
+  });
 
   // ── Stats ─────────────────────────────────
   const myPosts = useMemo(
@@ -882,7 +893,15 @@ export default function ProfileScreen() {
     <SafeAreaView style={[s.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
       <ScrollView
-        ref={scrollViewRef}
+        ref={(node) => {
+          (scrollViewRef as any).current = node;
+          if (Platform.OS === 'web' && node) {
+            const scrollNode = (node as any).getScrollableNode?.();
+            webPtr.attach(scrollNode ?? null);
+          } else {
+            webPtr.attach(null);
+          }
+        }}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -934,6 +953,7 @@ export default function ProfileScreen() {
             s.profileSectionBase,
             isMedium && s.profileSectionMedium,
             isSmall && s.profileSectionSmall,
+            isWide && s.profileSectionWide,
           ]}
         >
           {isOwner && (
@@ -1023,7 +1043,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             {/* Name + Actions */}
-            <View style={s.profileMeta}>
+            <View style={[s.profileMeta, isWide && s.profileMetaWide]}>
               {isEditing ? (
                 isMedium ? (
                   <View style={s.editRow}>
@@ -1173,7 +1193,7 @@ export default function ProfileScreen() {
                       </View>
                     )}
                     <View style={s.actionBtns}>
-                      {showInPageSignOut && (
+                      {showInPageSignOut && !isWide && (
                         <TouchableOpacity
                           onPress={logoutUser}
                           activeOpacity={0.85}
@@ -1241,6 +1261,29 @@ export default function ProfileScreen() {
                           })}
                         </Text>
                       </View>
+                    )}
+                    {showInPageSignOut && isWide && (
+                      <TouchableOpacity
+                        onPress={logoutUser}
+                        activeOpacity={0.85}
+                        style={s.signOutBtnWideWrap}
+                      >
+                        <LinearGradient
+                          colors={[colors.primary, colors.secondary]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={s.signOutBtn}
+                        >
+                          <Text
+                            style={[
+                              s.signOutBtnText,
+                              { color: colors.onPrimary },
+                            ]}
+                          >
+                            Sign Out
+                          </Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
                     )}
                   </View>
                 </>
@@ -2385,6 +2428,41 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
+      {/* ── Web/PWA pull-to-refresh indicator (no-op on native) ── */}
+      {Platform.OS === 'web' && (webPtr.pullDistance > 0 || webPtr.refreshing) && (
+        <View
+          pointerEvents="none"
+          style={[
+            s.webPtrIndicator,
+            {
+              top: 16 + Math.max(0, webPtr.pullDistance - 28),
+              opacity: webPtr.refreshing ? 1 : Math.min(1, webPtr.pullDistance / 60),
+            },
+          ]}
+        >
+          <View
+            style={[
+              s.webPtrCircle,
+              { backgroundColor: colors.surfaceContainerHigh },
+              webPtr.willTrigger && { backgroundColor: colors.primaryContainer },
+            ]}
+          >
+            {webPtr.refreshing ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons
+                name="arrow-down"
+                size={18}
+                color={webPtr.willTrigger ? colors.primary : colors.muted4}
+                style={{
+                  transform: [{ rotate: webPtr.willTrigger ? '180deg' : '0deg' }],
+                }}
+              />
+            )}
+          </View>
+        </View>
+      )}
+
       {/* ── Image Preview Modal (Avatar or Banner) ── */}
       {imagePreviewType && (
         <Modal
@@ -2502,6 +2580,11 @@ const createStyles = (colors: typeof defaultColors) =>
       paddingHorizontal: spacing.sm,
       marginBottom: spacing.sm,
     },
+    profileSectionWide: {
+      marginTop: -28,
+      paddingHorizontal: spacing.xl,
+      marginBottom: spacing.lg,
+    },
     profileHeader: {
       flexDirection: "row",
       alignItems: "flex-end",
@@ -2556,6 +2639,21 @@ const createStyles = (colors: typeof defaultColors) =>
       justifyContent: "center",
       gap: spacing.xl,
     },
+    webPtrIndicator: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      alignItems: "center",
+      zIndex: 5,
+    },
+    webPtrCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+      ...ambientShadow,
+    },
     previewImage: {
       width: 240,
       height: 240,
@@ -2581,6 +2679,7 @@ const createStyles = (colors: typeof defaultColors) =>
 
     // ── Profile Meta ────────────────────────
     profileMeta: { flex: 1, paddingBottom: spacing.xs },
+    profileMetaWide: { paddingTop: spacing.xl },
     nameActionRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -2599,6 +2698,8 @@ const createStyles = (colors: typeof defaultColors) =>
     displayName: { fontSize: 18, fontFamily: fonts.displayBold },
     displayNameMedium: { fontSize: 24 },
     actionBtns: { flexDirection: "row", gap: spacing.sm },
+    actionBtnsWide: { marginTop: spacing.lg },
+    signOutBtnWideWrap: { marginLeft: "auto" as any },
     signOutBtn: {
       paddingHorizontal: 16,
       paddingVertical: 7,

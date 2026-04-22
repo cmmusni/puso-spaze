@@ -169,27 +169,28 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   const setReactions = useReactionsStore((s) => s.setReactions);
   const applyToggle = useReactionsStore((s) => s.applyToggle);
   const rollback = useReactionsStore((s) => s.rollback);
+  const refreshTick = useReactionsStore((s) => s.refreshTick);
   const userReaction = reactionState?.userReaction ?? null;
   const counts = reactionState?.counts ?? {};
   const localTotal = reactionState?.total ?? (post.reactionCount ?? 0);
 
-  // ── Fetch counts on mount ─────────────────────
-  // Only fetch from the server if the store has no data for this post yet.
-  // This avoids refetching on remount (e.g. when coming back from PostDetail)
-  // which can race with an in-flight POST and overwrite the store with stale
-  // server state.
+  // ── Fetch counts on mount, and re-fetch on global refresh ─────
+  // On first mount, only hit the server if the store has no entry yet
+  // (avoids racing with an in-flight POST after returning from PostDetail).
+  // When refreshTick bumps (pull-to-refresh), force a re-fetch to pick up
+  // changes made by other clients.
   useEffect(() => {
-    if (useReactionsStore.getState().byPostId[post.id]) return;
+    const hasEntry = !!useReactionsStore.getState().byPostId[post.id];
+    const isInitialMount = refreshTick === 0;
+    if (isInitialMount && hasEntry) return;
     apiGetReactions(post.id, userId ?? undefined)
       .then((data) => {
-        // Don't clobber if a write set state while the fetch was in flight.
-        if (useReactionsStore.getState().byPostId[post.id]) return;
         setReactions(post.id, data.counts, data.userReaction);
       })
       .catch(() => {
         /* keep defaults */
       });
-  }, [post.id, userId, setReactions]);
+  }, [post.id, userId, setReactions, refreshTick]);
 
   // ── Floating picker ───────────────────────────
   const [showPicker, setShowPicker] = useState(false);

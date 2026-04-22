@@ -17,6 +17,12 @@ export interface PostReactionState {
 
 interface ReactionsStore {
   byPostId: Record<string, PostReactionState>;
+  /**
+   * Increments on each global refresh request (e.g. pull-to-refresh).
+   * PostCards subscribe to this to re-hydrate their reactions from the
+   * server without remounting.
+   */
+  refreshTick: number;
   /** Replace state for a post (used after a fresh server fetch). */
   setReactions: (
     postId: string,
@@ -32,6 +38,8 @@ interface ReactionsStore {
   rollback: (postId: string, snapshot: PostReactionState | null) => void;
   /** Get current state synchronously. */
   get: (postId: string) => PostReactionState | undefined;
+  /** Bump refreshTick so subscribed PostCards re-fetch their reactions. */
+  requestRefresh: () => void;
 }
 
 function totalOf(counts: ReactionCounts): number {
@@ -40,6 +48,7 @@ function totalOf(counts: ReactionCounts): number {
 
 export const useReactionsStore = create<ReactionsStore>((set, get) => ({
   byPostId: {},
+  refreshTick: 0,
 
   setReactions: (postId, counts, userReaction) => {
     set((state) => {
@@ -110,4 +119,8 @@ export const useReactionsStore = create<ReactionsStore>((set, get) => ({
   },
 
   get: (postId) => get().byPostId[postId],
+
+  requestRefresh: () => {
+    set((state) => ({ refreshTick: state.refreshTick + 1 }));
+  },
 }));

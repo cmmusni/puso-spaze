@@ -535,7 +535,7 @@ export default function PostDetailScreen() {
   }, [route.params?.post, routePostId]);
 
   // ── Load reactions + comments on mount ───────
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
     if (!post?.id) return;
     setCommentsLoading(true);
     const hadStoreReactions = !!useReactionsStore.getState().byPostId[post.id];
@@ -544,9 +544,11 @@ export default function PostDetailScreen() {
         apiGetReactions(post.id, userId ?? undefined),
         apiGetComments(post.id, userId ?? undefined),
       ]);
-      // Only seed reactions from the server when the store had nothing yet.
-      // Otherwise we'd race with in-flight optimistic toggles and revert them.
-      if (!hadStoreReactions) {
+      // Seed reactions from the server when the store had nothing yet,
+      // OR when the caller forces (e.g. pull-to-refresh) — at which point
+      // any optimistic toggle in flight has been superseded by the user's
+      // explicit refresh request.
+      if (!hadStoreReactions || force) {
         setReactionsInStore(post.id, reactData.counts, reactData.userReaction);
       }
       setComments(commentData.comments);
@@ -645,7 +647,9 @@ export default function PostDetailScreen() {
   // ── Refresh handler ───────────────────────────
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    // Tell other PostCards (e.g. comment-author cards if any) to re-hydrate.
+    useReactionsStore.getState().requestRefresh();
+    await loadData(true);
     setRefreshing(false);
   };
 

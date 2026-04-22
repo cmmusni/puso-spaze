@@ -84,6 +84,7 @@
 - `context/ReactionsStore.ts` centralizes post reaction counts + current user reaction keyed by `postId`
 - `PostCard` and `PostDetailScreen` read/write the same store state so reactions stay synchronized across feed/detail surfaces
 - Reaction writes use optimistic `applyToggle()` snapshots with `rollback()` on API failure to preserve UX speed without stale-clobber regressions
+- Store exposes `refreshTick` + `requestRefresh()` so screen-level pull-to-refresh actions can trigger explicit reaction re-hydration without forcing full remounts
 
 ### Adaptive Polling Pattern
 - Chat polling switched from fixed intervals to adaptive timeout loops
@@ -125,6 +126,7 @@
 - Breakpoints: `isMedium` (≥600), `twoCol` (≥700), `isWide` (web ≥900)
 - Dynamic overrides via inline conditional styles
 - Web touch devices support custom pull-to-refresh in `WebShell.tsx`; refresh sets a one-time session flag to skip splash on immediate reload
+- Screen-level web pull-to-refresh hook (`hooks/useWebPullToRefresh.ts`) can be attached to scroll nodes (e.g., `FlatList.getScrollableNode()` or `ScrollView.getScrollableNode()`) for PWA parity where `RefreshControl` is unsupported on react-native-web
 - Web touch input controls (`input`, `textarea`, `select`, `[contenteditable=true]`) are globally forced to 16px in `WebShell.tsx` to prevent iOS Safari PWA focus zoom
 
 ### Loading Skeleton Pattern

@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (8th deployment cycle)
+**Last Updated:** April 22, 2026 (9th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,13 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Pull-to-Refresh Parity + Reaction Re-hydration Follow-up (April 22, 2026)
+- **HOME + PROFILE PTR PARITY**: Added web/PWA touch pull-to-refresh support to `HomeScreen.tsx` and `ProfileScreen.tsx` using new hook `apps/mobile/hooks/useWebPullToRefresh.ts`; native keeps `RefreshControl`
+- **ANDROID SPINNER VISIBILITY**: Added `progressViewOffset={topBarHeight}` in Home feed `RefreshControl` so Android spinner clears the absolute top bar
+- **REACTION STATE RELOAD SIGNAL**: `ReactionsStore.ts` now exposes `refreshTick` + `requestRefresh()`; Home/Profile/PostDetail refresh flows trigger global reaction re-hydration for visible cards
+- **COACH RIGHT PANEL FILTER FIX**: `WebRightPanel.tsx` now filters fetched conversations to those owned by the current coach (`c.coachId === userId`) before rendering side-panel previews
+- **ASSET CLEANUP**: Replaced `apps/mobile/assets/favicon.png` and removed legacy placeholders `icon-old.png` and `logo-old.png`
 
 ### Play Listing Asset Finalization + Version Bump (April 22, 2026)
 - **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` increased from `5` to `6` for the next Play submission artifact
@@ -254,6 +261,8 @@
 - BUG-001 through BUG-015: Race conditions, validation gaps, XSS, null bytes, IDOR, error handling (see `memory-bank/bug-fixes.md` for details)
 
 ## Next Steps
+- Validate pull-to-refresh behavior on Home + Profile across Android emulator and installed PWA (gesture threshold, indicator visibility, refresh trigger stability)
+- Verify coach right-panel conversation filter against real multi-coach data to ensure no cross-coach leakage in previews
 - Run the production Android EAS build and verify Play track submission flow with the pinned NDK setup
 - Smoke-test delete-account behavior on device/emulator: account removal, logout, and inability to reauthenticate after deletion
 - Review coach-notification volume from the new member-post alerts in production and confirm it is not too noisy for staff

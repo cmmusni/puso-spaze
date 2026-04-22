@@ -38,6 +38,8 @@ import WebRightPanel from "../components/WebRightPanel";
 import { PostFeedSkeleton } from "../components/LoadingSkeletons";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
+import { useWebPullToRefresh } from "../hooks/useWebPullToRefresh";
+import { useReactionsStore } from "../context/ReactionsStore";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
 
 type HomeNav = DrawerNavigationProp<MainDrawerParamList, "Home">;
@@ -323,12 +325,22 @@ export default function HomeScreen() {
   }, [navigation]);
 
   const handleRefresh = useCallback(async () => {
+    // Tell PostCards to re-hydrate their reactions from the server
+    // (covers reactions made by other clients since last fetch).
+    useReactionsStore.getState().requestRefresh();
     await Promise.all([
       fetchPosts(searchQuery || undefined),
       refreshUnreadCount(),
       loadStats(),
     ]);
   }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats]);
+
+  // Web/PWA pull-to-refresh (no-op on native; native uses RefreshControl).
+  // Disabled while a modal is open so its scrolls don't trigger feed refresh.
+  const webPtr = useWebPullToRefresh({
+    onRefresh: handleRefresh,
+    enabled: !feelingPickerVisible && !showPushBanner,
+  });
 
   const handleDeletePost = useCallback(() => {
     fetchPosts();
@@ -862,7 +874,16 @@ export default function HomeScreen() {
       <View style={styles.contentRow}>
         <View style={styles.feedColumn}>
           <FlatList
-            ref={flatListRef}
+            ref={(node) => {
+              (flatListRef as any).current = node;
+              // On web, hand the underlying scroll DOM node to the PTR hook
+              if (Platform.OS === 'web' && node) {
+                const scrollNode = (node as any).getScrollableNode?.();
+                webPtr.attach(scrollNode ?? null);
+              } else {
+                webPtr.attach(null);
+              }
+            }}
             data={posts}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
@@ -885,6 +906,7 @@ export default function HomeScreen() {
                 onRefresh={handleRefresh}
                 tintColor={colors.primary}
                 colors={[colors.primary]}
+                progressViewOffset={topBarHeight}
               />
             }
           />
@@ -895,6 +917,42 @@ export default function HomeScreen() {
               pointerEvents="none"
             >
               <PostFeedSkeleton count={3} />
+            </View>
+          )}
+
+          {/* Web/PWA pull-to-refresh indicator (no-op on native) */}
+          {Platform.OS === 'web' && (webPtr.pullDistance > 0 || webPtr.refreshing) && (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.webPtrIndicator,
+                {
+                  top: topBarHeight + Math.max(0, webPtr.pullDistance - 28),
+                  opacity: webPtr.refreshing ? 1 : Math.min(1, webPtr.pullDistance / 60),
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.webPtrCircle,
+                  webPtr.willTrigger && styles.webPtrCircleReady,
+                ]}
+              >
+                {webPtr.refreshing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons
+                    name="arrow-down"
+                    size={18}
+                    color={webPtr.willTrigger ? colors.primary : colors.muted4}
+                    style={{
+                      transform: [
+                        { rotate: webPtr.willTrigger ? '180deg' : '0deg' },
+                      ],
+                    }}
+                  />
+                )}
+              </View>
             </View>
           )}
 
@@ -1491,6 +1549,27 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     bottom: 0,
     alignItems: "stretch",
     justifyContent: "flex-start",
+  },
+
+  // ── Web/PWA pull-to-refresh indicator ──
+  webPtrIndicator: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 5,
+  },
+  webPtrCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceContainerHigh,
+    alignItems: "center",
+    justifyContent: "center",
+    ...ambientShadow,
+  },
+  webPtrCircleReady: {
+    backgroundColor: colors.primaryContainer,
   },
 
   // ── Empty state ──

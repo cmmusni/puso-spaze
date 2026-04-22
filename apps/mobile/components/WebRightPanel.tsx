@@ -51,7 +51,11 @@ export default function WebRightPanel({ topBarHeight = 54 }: { topBarHeight?: nu
       apiGetDashboardStats(userId ?? undefined).then(setStats);
       if (isCoach && userId) {
         apiFetchConversations(userId)
-          .then((res) => setConversations(res.conversations))
+          .then((res) =>
+            setConversations(
+              res.conversations.filter((c) => c.coachId === userId),
+            ),
+          )
           .catch(() => {});
       } else {
         apiFetchCoaches()

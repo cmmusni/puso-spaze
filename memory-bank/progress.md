@@ -1,6 +1,6 @@
 # Progress — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (8th deployment cycle)
+**Last Updated:** April 22, 2026 (9th deployment cycle)
 
 ## What Works
 - **Authentication** — Username-based login (custom or anonymous), coach login via invite codes, device binding (native + web), **JWT token auth on all protected endpoints**, **PIN-based cross-device login** (6-digit PIN auto-generated, used for login from new devices)
@@ -34,6 +34,9 @@
 - **Web deployment** — Vercel (frontend), Railway (server + database)
 - **Responsive UI** — Mobile-first design with breakpoints for tablet and wide web
 - **Refresh UX Parity** — Native pull-to-refresh coverage on major data screens (including Journal) plus web touch pull-to-refresh indicator/gesture with one-time splash skip on reload
+- **Home/Profile Web PTR + Android Offset Fix** — Home and Profile now have web/PWA pull-to-refresh with on-screen indicator; Home native refresh spinner is offset below the absolute top bar to keep refresh feedback visible on Android
+- **Global Reaction Re-hydration on Refresh** — Pull-to-refresh now bumps a shared reaction refresh tick so PostCards re-fetch reaction counts/user state after explicit refresh requests
+- **Coach Conversation Right-Panel Isolation** — Web right panel now filters conversation previews to the current coach's conversations only
 - **PWA Input Zoom Guard** — Touch-web TextInput controls are forced to 16px in WebShell to prevent iPhone Safari auto-zoom on focus
 - **User reporting** — `POST /api/posts/:postId/report` allows any user to flag content for review
 - **PWA Performance** — SW caching (Cloudinary cache-first, API network-first/stale fallback, static stale-while-revalidate); `expo-image` in PostCard/HomeScreen/PostDetailScreen with memory-disk caching; GET dedup in api.ts; gzip/brotli compression on server; `Cache-Control` on posts+stats; Cloudinary auto-quality+format at upload time
@@ -47,7 +50,7 @@
 - **Feed Freshness After Writes** — API client now applies `no-cache` headers for GET requests and invalidates in-flight `/api/posts` requests after create/update/delete so feed refreshes with fresh data immediately on Safari/web
 - **CORS Header Compatibility** — Server CORS allowed headers now include `Cache-Control` and `Pragma` to support explicit client cache-bypass request headers
 - **In-App Account Deletion** — Authenticated users can now permanently delete their own account from Profile -> Preferences; server hard-deletes the user and cascaded data, while the client logs out and clears local session state
-- **Google Play Release Config** — Android app config now includes `POST_NOTIFICATIONS`, `versionCode` 5, and EAS production builds pin NDK `26.1.10909125` with submit track set to `production`
+- **Google Play Release Config** — Android app config now includes `POST_NOTIFICATIONS`, `versionCode` 6, and EAS production builds pin NDK `26.1.10909125` with submit track set to `production`
 - **SAD Reaction** — Reaction model now supports `SAD` end-to-end across Prisma, shared types, validation, feed/detail reaction pickers, icons, counts, and notifications
 - **Coach Alerts for New Member Posts** — Coaches/admins now receive a system notification when a regular member publishes a new post
 - **Android Branding Assets** — App icons, splash art, PWA icons, overview imagery, and Android phone/tablet screenshots refreshed for release materials

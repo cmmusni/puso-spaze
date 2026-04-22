@@ -212,3 +212,13 @@
 - **Fix**: (1) Updated `deepStripNullBytes()` to also strip null bytes from object keys. (2) Extended the global middleware to also strip null bytes from `req.query` string values. (3) Updated `stripHtmlTags()` to also remove null bytes (defense-in-depth for controllers that process multipart text fields). (4) Added `containsNullBytes()` utility for future use.
 - **Files Changed**: `server/src/utils/sanitize.ts`, `server/src/index.ts`
 - **Pattern**: Null Byte Injection — sanitize at MULTIPLE layers: global middleware for JSON bodies + query params, and controller-level sanitize functions (stripHtmlTags) for multipart bodies.
+
+---
+
+### BUG-018 — HomeScreen pull-to-refresh broken on Android & PWA
+- **Severity**: 🟠 High (core feed refresh appeared broken)
+- **Date**: 2026-04-22
+- **Root Cause**: (1) Android: HomeScreen `topBar` is `position: 'absolute'`, so the native `RefreshControl` spinner spawned at scrollTop=0 was rendered *behind* the bar — refresh fired but was invisible. (2) PWA/Web: `react-native-web` does not implement `RefreshControl`, so there was no PTR at all in standalone PWA mode (browser PTR is also disabled there).
+- **Fix**: (1) Added `progressViewOffset={topBarHeight}` to the `RefreshControl` so the Android spinner drops below the topBar. (2) Added a new web-only hook `useWebPullToRefresh` (touch-based, damped, with overscroll-behavior: contain to suppress browser PTR), wired it to the FlatList's `getScrollableNode()` on web, and rendered a themed circular spinner overlay positioned below the topBar. Hook is a no-op on native.
+- **Files Changed**: `apps/mobile/screens/HomeScreen.tsx`, `apps/mobile/hooks/useWebPullToRefresh.ts` (new)
+- **Pattern**: Platform Parity — `RefreshControl` is a no-op on `react-native-web`. For PWA/web PTR, build a touch-based fallback and gate it behind `Platform.OS === 'web'`. Also: when a screen uses an absolute-positioned top bar, always pass `progressViewOffset` to `RefreshControl` so the native spinner clears the bar.
