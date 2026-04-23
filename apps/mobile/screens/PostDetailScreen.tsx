@@ -784,7 +784,19 @@ export default function PostDetailScreen() {
       setDeletingCommentId(comment.id);
       try {
         await apiDeleteComment(post.id, comment.id, userId);
-        setComments((prev) => prev.filter((item) => item.id !== comment.id));
+        // Remove the comment whether it's a top-level comment or a nested reply.
+        setComments((prev) =>
+          prev
+            .filter((item) => item.id !== comment.id)
+            .map((item) =>
+              item.replies && item.replies.length > 0
+                ? {
+                    ...item,
+                    replies: item.replies.filter((r) => r.id !== comment.id),
+                  }
+                : item,
+            ),
+        );
       } catch (err: any) {
         const msg =
           err?.response?.data?.error ??

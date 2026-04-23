@@ -246,3 +246,19 @@
 - **Fix**: Reduced the highlight scroll to a single `setTimeout(..., 350)` call with a `cancelled` cleanup flag, and switched the web call to `block: 'nearest'` so the viewport doesn't move when the new post is already visible (the common case after composing from the top of the feed).
 - **Files Changed**: `apps/mobile/screens/HomeScreen.tsx`
 - **Pattern**: Animation Race — when a smooth scroll target may re-render due to concurrent data refetch, fire the scroll exactly once after layout settles, and use `block: 'nearest'` to no-op when already in view.
+
+### BUG-022 — Deleting a reply leaves it on screen until refresh
+- **Severity**: 🟢 Low
+- **Date**: 2026-04-23
+- **Root Cause**: `performDeleteComment` in `PostDetailScreen.tsx` updated state with `prev.filter((item) => item.id !== comment.id)`, which only inspects top-level comments. Replies live inside each parent comment's `replies` array, so deleting a reply succeeded server-side but the local list was untouched — the reply remained visible until the user pulled to refresh.
+- **Fix**: After the successful `apiDeleteComment` call, also map over remaining comments and rebuild each `replies` array with the deleted id filtered out.
+- **Files Changed**: `apps/mobile/screens/PostDetailScreen.tsx`
+- **Pattern**: Nested State Update — when comments support replies (or any 1-level nested collection), delete/update handlers must walk both the top-level array and each parent's nested children array.
+
+### BUG-023 — Newly posted comment shows fallback initial avatar until refresh
+- **Severity**: 🟢 Low
+- **Date**: 2026-04-23
+- **Root Cause**: `createComment` in `server/src/controllers/commentController.ts` only included `user.displayName` in the Prisma include and the JSON response. The client's `renderCommentItem` reads `item.user?.avatarUrl`/`item.user?.role`, so the freshly inserted comment fell back to the gradient-initial avatar. After pull-to-refresh, `getComments` returned the full `{ displayName, role, avatarUrl }` shape and the avatar appeared.
+- **Fix**: Updated the `prisma.comment.create` include to `{ displayName, role, avatarUrl }` and propagated those fields through the response (including the anonymous branch, which now returns `avatarUrl: null` plus the real role to keep the shape consistent with `getComments`).
+- **Files Changed**: `server/src/controllers/commentController.ts`
+- **Pattern**: Response Shape Drift — write endpoints (create/update) must return the same nested user/relation shape that the matching read endpoint returns, so optimistic UI rendering doesn't depend on a follow-up refresh.

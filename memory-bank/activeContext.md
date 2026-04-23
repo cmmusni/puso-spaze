@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 23, 2026 (13th deployment cycle)
+**Last Updated:** April 23, 2026 (14th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,14 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Chat Participants + Comment Author Metadata (April 23, 2026)
+- **CHAT HEADER FIX**: `GET /api/conversations/:id/messages` now returns a `participants` object with both user and coach `displayName` so the chat header renders reliably for either side; `packages/types` `GetMessagesResponse` extended to match
+- **COMMENT AUTHOR METADATA**: `createComment` controller now includes `role` and `avatarUrl` in the returned user payload (anonymous branch keeps avatar null but preserves role) so feeds can badge staff comments immediately
+- **CLIENT SCREENS TOUCHED**: `ChatScreen`, `CoachDashboard`, `PostDetailScreen`, `JournalScreen` updated to consume the new fields
+- **BUG FIX LOG**: `memory-bank/bug-fixes.md` updated with the chat header + comment metadata fixes
+- **API URL RESTORE**: Reverted `apps/mobile/app.json` `extra.apiUrl` from local dev (`http://localhost:4000`) back to `https://api.puso-spaze.org` (dev leftover caught by deploy gate)
+- **DEPLOY CONTEXT**: Client + server + shared types bugfix release
 
 ### Audio + Reactions UX + E2E Scaffold + Comment Min Length (April 23, 2026)
 - **EXPO-AUDIO INTEGRATION**: Added `expo-audio` plugin to `apps/mobile/app.json` and dependency in `apps/mobile/package.json`; new utility `apps/mobile/utils/clickSound.ts` and bundled asset `apps/mobile/assets/sounds/click.wav` for system click feedback

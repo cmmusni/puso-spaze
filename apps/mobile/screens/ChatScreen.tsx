@@ -12,7 +12,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   ActivityIndicator,
@@ -20,7 +19,9 @@ import {
   Animated,
   useWindowDimensions,
   AppState,
+  Keyboard,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useUserStore } from "../context/UserContext";
@@ -88,6 +89,34 @@ export default function ChatScreen({ navigation, route }: any) {
   const isCoach = role === "COACH" || role === "ADMIN";
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 600;
+  const insets = useSafeAreaInsets();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardVisible = keyboardHeight > 0;
+  const bottomInset = Platform.OS === "web" || keyboardVisible ? 0 : insets.bottom;
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const frameEvt =
+      Platform.OS === "ios" ? "keyboardWillChangeFrame" : "keyboardDidChangeFrame";
+    const handleShow = (e: any) => {
+      const h = e.endCoordinates?.height ?? 0;
+      // On Android edge-to-edge, the reported height includes the system nav-bar
+      // area which is already accounted for by safe-area insets, so subtract it
+      // to avoid lifting the input twice.
+      const navInset = Platform.OS === "android" ? insets.bottom : 0;
+      setKeyboardHeight(Math.max(0, h - navInset));
+    };
+    const showSub = Keyboard.addListener(showEvt, handleShow);
+    const frameSub = Keyboard.addListener(frameEvt, handleShow);
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      frameSub.remove();
+      hideSub.remove();
+    };
+  }, [insets.bottom]);
 
   // Coach viewing a conversation they're not a participant in → read-only
   const isReadOnly = isCoach && !!convUserId && !!convCoachId
@@ -96,10 +125,13 @@ export default function ChatScreen({ navigation, route }: any) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [inputHeight, setInputHeight] = useState(20);
   const [otherIsTyping, setOtherIsTyping] = useState(false);
   const [otherLastActiveAt, setOtherLastActiveAt] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<{ userId: string; userDisplayName: string | null; coachId: string; coachDisplayName: string | null } | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,6 +155,15 @@ export default function ChatScreen({ navigation, route }: any) {
       </SafeAreaView>
     );
   }
+
+  // Reset stale notFound state when navigating to a different conversation
+  // (e.g. tapping a different MESSAGE notification while the screen is mounted).
+  useEffect(() => {
+    setNotFound(false);
+    setLoading(true);
+    setMessages([]);
+    setParticipants(null);
+  }, [conversationId]);
 
   // ── Animated dots for typing indicator ───
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -154,8 +195,16 @@ export default function ChatScreen({ navigation, route }: any) {
       const res = await apiFetchMessages(conversationId, userId);
       setMessages(res.messages);
       setOtherLastActiveAt(res.otherLastActiveAt ?? null);
-    } catch (err) {
-      console.error("Failed to fetch messages:", err);
+      if (res.participants) setParticipants(res.participants);
+      setNotFound(false);
+    } catch (err: any) {
+      // Conversation no longer exists (deleted or orphaned notification link).
+      // Stop further polling and surface a friendly message instead of spamming 404s.
+      if (err?.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        console.error("Failed to fetch messages:", err);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -185,6 +234,8 @@ export default function ChatScreen({ navigation, route }: any) {
         if (cancelled) return;
         await fetchMessages();
         if (cancelled) return;
+        // Stop polling if the conversation no longer exists.
+        if (notFound) return;
         const delay = isAppHidden() ? POLL_INTERVAL * 6 : POLL_INTERVAL;
         timer = setTimeout(tick, delay);
       };
@@ -193,7 +244,7 @@ export default function ChatScreen({ navigation, route }: any) {
         cancelled = true;
         if (timer) clearTimeout(timer);
       };
-    }, [fetchMessages, isAppHidden])
+    }, [fetchMessages, isAppHidden, notFound])
   );
 
   // ── Poll for typing status (only while focused + input has content) ──
@@ -202,7 +253,7 @@ export default function ChatScreen({ navigation, route }: any) {
   // traffic for the common "just reading" case.
   useFocusEffect(
     useCallback(() => {
-      if (!userId || !conversationId) return;
+      if (!userId || !conversationId || notFound) return;
       let timer: ReturnType<typeof setTimeout> | null = null;
       let cancelled = false;
       const poll = async () => {
@@ -225,7 +276,7 @@ export default function ChatScreen({ navigation, route }: any) {
         setOtherIsTyping(false);
         if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       };
-    }, [userId, conversationId, isAppHidden])
+    }, [userId, conversationId, isAppHidden, notFound])
   );
 
   // ── Notify server when user types ────────
@@ -254,6 +305,7 @@ export default function ChatScreen({ navigation, route }: any) {
       });
       setMessages((prev) => [...prev, res.message]);
       setText("");
+      setInputHeight(20);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -264,12 +316,17 @@ export default function ChatScreen({ navigation, route }: any) {
     }
   };
 
-  // ── Get header label from first message ───
+  // ── Get header label from conversation participants ───
   const getHeaderLabel = () => {
-    if (messages.length === 0) return coachName ?? "Chat";
+    // Best source: participant data from the API (always available, even with no messages)
+    if (participants) {
+      const name = isCoach ? participants.userDisplayName : participants.coachDisplayName;
+      if (name) return name;
+    }
+    // Fallback: find from messages
     const otherMsg = messages.find((m) => m.senderId !== userId);
     if (otherMsg?.sender?.displayName) return otherMsg.sender.displayName;
-    return messages[0]?.sender?.displayName ?? coachName ?? "Chat";
+    return coachName ?? "Chat";
   };
 
   const getInitial = (name?: string) => {
@@ -397,7 +454,10 @@ export default function ChatScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={["top", "left", "right"]}
+    >
       <StatusBar barStyle="light-content" />
 
       {/* ── Top bar ── */}
@@ -453,12 +513,22 @@ export default function ChatScreen({ navigation, route }: any) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        behavior="padding"
+        keyboardVerticalOffset={0}
       >
         {loading ? (
           <View style={styles.loadingWrap}>
             <ChatMessageSkeleton count={6} />
+          </View>
+        ) : notFound ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <Ionicons name="alert-circle-outline" size={48} color={colors.muted5} />
+            <Text style={{ fontFamily: fonts.displayBold, fontSize: 18, color: colors.onSurface, marginTop: 12, marginBottom: 6 }}>
+              Conversation unavailable
+            </Text>
+            <Text style={{ fontFamily: fonts.bodyRegular, fontSize: 13, color: colors.onSurfaceVariant, textAlign: 'center' }}>
+              This conversation may have been removed. Try opening it again from your messages list.
+            </Text>
           </View>
         ) : (
           <>
@@ -522,7 +592,15 @@ export default function ChatScreen({ navigation, route }: any) {
 
             {/* ── Input bar / Read-only notice ── */}
             {isReadOnly ? (
-              <View style={[styles.readOnlyBar, { backgroundColor: colors.surfaceContainerHigh }]}>
+              <View
+                style={[
+                  styles.readOnlyBar,
+                  {
+                    backgroundColor: colors.surfaceContainerHigh,
+                    paddingBottom: 14 + bottomInset,
+                  },
+                ]}
+              >
                 <Ionicons name="eye-outline" size={16} color={colors.muted5} />
                 <Text style={[styles.readOnlyText, { color: colors.muted5 }]}>
                   View only — this user hasn't messaged you
@@ -544,7 +622,13 @@ export default function ChatScreen({ navigation, route }: any) {
                     ))}
                   </View>
                 )}
-                <View style={[styles.inputBar, isWide && styles.inputBarWide]}>
+                <View
+                  style={[
+                    styles.inputBar,
+                    isWide && styles.inputBarWide,
+                    { paddingBottom: 8 + bottomInset },
+                  ]}
+                >
                   <TouchableOpacity
                     onPress={() => setShowEmojiPicker((v) => !v)}
                     activeOpacity={0.7}
@@ -558,18 +642,21 @@ export default function ChatScreen({ navigation, route }: any) {
                   </TouchableOpacity>
                   <View style={styles.inputWrap}>
                   <TextInput
-                    style={[
-                      styles.textInput,
-                      !text.includes('\n') && { height: 22 },
-                    ]}
+                    style={[styles.textInput, { height: inputHeight }]}
                     placeholder="Message..."
                     placeholderTextColor={colors.placeholder}
                     value={text}
                     onChangeText={handleTextChange}
                     maxLength={2000}
                     multiline
+                    numberOfLines={1}
                     blurOnSubmit={false}
+                    onContentSizeChange={(e) => {
+                      const h = e.nativeEvent.contentSize.height;
+                      setInputHeight(Math.min(Math.max(h, 20), 100));
+                    }}
                     {...(Platform.OS === 'web' ? {
+                      rows: 1,
                       onKeyPress: (e: any) => {
                         const nativeEvent = e.nativeEvent;
                         if (nativeEvent.key === 'Enter' && (nativeEvent.metaKey || nativeEvent.ctrlKey)) {
@@ -577,7 +664,7 @@ export default function ChatScreen({ navigation, route }: any) {
                           handleSend();
                         }
                       },
-                    } : {})}
+                    } as any : {})}
                   />
                 </View>
                 <TouchableOpacity
@@ -625,7 +712,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.sm,
     paddingVertical: 10,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 14) + 10 : 10,
   },
   backBtn: {
     width: 36,
@@ -889,7 +975,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: spacing.sm,
     paddingVertical: 8,
-    paddingBottom: Platform.OS === "ios" ? 24 : 8,
     backgroundColor: colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.muted1,
@@ -904,18 +989,20 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     backgroundColor: colors.surfaceContainerHigh,
     borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    paddingVertical: 10,
     marginRight: 8,
-    minHeight: 44,
     maxHeight: 120,
-    justifyContent: "center",
   },
   textInput: {
     fontSize: 15,
+    lineHeight: 20,
     fontFamily: fonts.bodyRegular,
     color: colors.onSurface,
-    maxHeight: 100,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
+    padding: 0,
+    margin: 0,
+    textAlignVertical: "top",
+    ...(Platform.OS === "android" ? { includeFontPadding: false } : {}),
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any, resize: 'none' as any } : {}),
   },
   sendBtn: {
     width: 44,

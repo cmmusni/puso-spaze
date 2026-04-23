@@ -201,19 +201,18 @@ export default function CoachDashboard() {
     fetchAll(true);
   };
 
-  // ── Moderation actions ────────────────────
+  // ── Moderation actions (optimistic removal) ──
 
   const moderatePost = async (postId: string, action: "approve" | "reject") => {
     if (!userId) return;
-    setActing(postId);
+    const snapshot = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
     try {
       await apiModeratePost(postId, { coachId: userId, action });
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (err: any) {
+      setPosts(snapshot);
       const msg = err?.response?.data?.error ?? "Could not moderate post.";
       showAlert("Error", msg);
-    } finally {
-      setActing(null);
     }
   };
 
@@ -222,43 +221,40 @@ export default function CoachDashboard() {
     action: "approve" | "reject",
   ) => {
     if (!userId) return;
-    setActing(commentId);
+    const snapshot = comments;
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
     try {
       await apiModerateComment(commentId, { coachId: userId, action });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err: any) {
+      setComments(snapshot);
       const msg = err?.response?.data?.error ?? "Could not moderate comment.";
       showAlert("Error", msg);
-    } finally {
-      setActing(null);
     }
   };
 
   const deletePost = async (postId: string) => {
     if (!userId) return;
-    setActing(postId);
+    const snapshot = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
     try {
       await apiDeletePost(postId, userId);
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (err: any) {
+      setPosts(snapshot);
       const msg = err?.response?.data?.error ?? "Could not delete post.";
       showAlert("Error", msg);
-    } finally {
-      setActing(null);
     }
   };
 
   const deleteComment = async (commentId: string, postId: string) => {
     if (!userId) return;
-    setActing(commentId);
+    const snapshot = comments;
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
     try {
       await apiDeleteComment(postId, commentId, userId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err: any) {
+      setComments(snapshot);
       const msg = err?.response?.data?.error ?? "Could not delete comment.";
       showAlert("Error", msg);
-    } finally {
-      setActing(null);
     }
   };
 
@@ -370,7 +366,6 @@ export default function CoachDashboard() {
   );
 
   const renderReviewCard = (item: Post | Comment, type: "post" | "comment") => {
-    const isBusy = acting === item.id;
     const author = item.user?.displayName ?? "Anonymous";
     const isAnonymous = (item as any).isAnonymous;
     const displayAuthor = isAnonymous
@@ -458,69 +453,61 @@ export default function CoachDashboard() {
         <View style={s.reviewActions}>
           {isFlagged ? (
             <>
-              <TouchableOpacity
+              <Pressable
                 onPress={() =>
                   type === "post"
                     ? deletePost(item.id)
                     : deleteComment(item.id, (item as Comment).postId)
                 }
-                disabled={isBusy}
-                style={s.deleteBtn}
+                style={({ pressed }) => [
+                  s.deleteBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
               >
-                {isBusy ? (
-                  <ActivityIndicator size="small" color={colors.danger} />
-                ) : (
-                  <Text style={s.deleteBtnText}>Delete</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
+                <Text style={s.deleteBtnText}>Delete</Text>
+              </Pressable>
+              <Pressable
                 onPress={() =>
                   type === "post"
                     ? moderatePost(item.id, "approve")
                     : moderateComment(item.id, "approve")
                 }
-                disabled={isBusy}
-                style={s.approveBtn}
+                style={({ pressed }) => [
+                  s.approveBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
               >
-                {isBusy ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={s.approveBtnText}>Approve</Text>
-                )}
-              </TouchableOpacity>
+                <Text style={s.approveBtnText}>Approve</Text>
+              </Pressable>
             </>
           ) : (
             <>
-              <TouchableOpacity
+              <Pressable
                 onPress={() =>
                   type === "post"
                     ? moderatePost(item.id, "reject")
                     : moderateComment(item.id, "reject")
                 }
-                disabled={isBusy}
-                style={s.flagBtn}
+                style={({ pressed }) => [
+                  s.flagBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
               >
-                {isBusy ? (
-                  <ActivityIndicator size="small" color={colors.onSurface} />
-                ) : (
-                  <Text style={s.flagBtnText}>Flag</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
+                <Text style={s.flagBtnText}>Flag</Text>
+              </Pressable>
+              <Pressable
                 onPress={() =>
                   type === "post"
                     ? moderatePost(item.id, "approve")
                     : moderateComment(item.id, "approve")
                 }
-                disabled={isBusy}
-                style={s.approveBtn}
+                style={({ pressed }) => [
+                  s.approveBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
               >
-                {isBusy ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={s.approveBtnText}>Approve</Text>
-                )}
-              </TouchableOpacity>
+                <Text style={s.approveBtnText}>Approve</Text>
+              </Pressable>
             </>
           )}
         </View>

@@ -229,6 +229,12 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
     select: { lastActiveAt: true },
   });
 
+  // Fetch both participant names so the client can always display the header
+  const [convUser, convCoach] = await Promise.all([
+    prisma.user.findUnique({ where: { id: conversation.userId }, select: { id: true, displayName: true } }),
+    prisma.user.findUnique({ where: { id: conversation.coachId }, select: { id: true, displayName: true } }),
+  ]);
+
   res.json({
     messages: messages.map((m) => ({
       id: m.id,
@@ -239,6 +245,12 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
       sender: m.sender,
     })),
     otherLastActiveAt: otherUser?.lastActiveAt?.toISOString() ?? null,
+    participants: {
+      userId: conversation.userId,
+      userDisplayName: convUser?.displayName ?? null,
+      coachId: conversation.coachId,
+      coachDisplayName: convCoach?.displayName ?? null,
+    },
   });
 }
 

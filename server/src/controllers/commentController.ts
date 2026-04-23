@@ -73,7 +73,7 @@ export async function createComment(req: Request, res: Response): Promise<void> 
         anonDisplayName,
         ...(parentId ? { parentId } : {}),
       },
-      include: { user: { select: { displayName: true } } },
+      include: { user: { select: { displayName: true, role: true, avatarUrl: true } } },
     });
 
     // Send notification to post author (async, don't await)
@@ -126,7 +126,7 @@ export async function createComment(req: Request, res: Response): Promise<void> 
         isAnonymous: comment.isAnonymous,
         anonDisplayName: comment.anonDisplayName,
         user: comment.isAnonymous
-          ? { displayName: comment.anonDisplayName ?? 'Anonymous' }
+          ? { displayName: comment.anonDisplayName ?? 'Anonymous', role: comment.user.role, avatarUrl: null }
           : comment.user,
       },
       flagged,

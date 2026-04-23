@@ -241,7 +241,7 @@ export interface GetCoachesResponse { coaches: CoachProfile[]; }
 export interface GetConversationsResponse { conversations: Conversation[]; }
 export interface GetOrCreateConversationRequest { userId: string; coachId: string; }
 export interface GetOrCreateConversationResponse { conversation: Conversation; }
-export interface GetMessagesResponse { messages: Message[]; otherLastActiveAt?: string | null; }
+export interface GetMessagesResponse { messages: Message[]; otherLastActiveAt?: string | null; participants?: { userId: string; userDisplayName: string | null; coachId: string; coachDisplayName: string | null; }; }
 export interface SendMessageRequest { senderId: string; content: string; }
 export interface SendMessageResponse { message: Message; }
 

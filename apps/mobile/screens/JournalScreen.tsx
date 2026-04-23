@@ -16,7 +16,6 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   ScrollView,
@@ -47,7 +46,7 @@ import {
 } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import type { Journal } from "../../../packages/types";
-import { showAlert } from "../utils/alertPlatform";
+import { showAlert, showConfirm } from "../utils/alertPlatform";
 import { BarChart } from "react-native-chart-kit";
 import { JournalListSkeleton } from "../components/LoadingSkeletons";
 
@@ -459,14 +458,11 @@ export default function JournalScreen({ navigation }: any) {
         showAlert("Error", "Could not delete journal entry.");
       }
     };
-    if (Platform.OS === "web") {
-      if (confirm("Delete this journal entry?")) doDelete();
-    } else {
-      Alert.alert("Delete Entry", "Are you sure?", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: doDelete },
-      ]);
-    }
+    showConfirm("Delete Entry", "Are you sure you want to delete this journal entry?").then(
+      (confirmed) => {
+        if (confirmed) doDelete();
+      },
+    );
   };
 
   // ── Format date ───────────────────────────
