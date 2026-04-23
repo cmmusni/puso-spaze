@@ -157,21 +157,26 @@ export default function WebRightPanel({ topBarHeight = 54 }: { topBarHeight?: nu
                       })
                     }
                   >
-                    {other?.avatarUrl ? (
-                      <Image
-                        source={{ uri: resolveAvatarUrl(other.avatarUrl) }}
-                        style={styles.coachAvatar}
-                      />
-                    ) : (
-                      <LinearGradient
-                        colors={[colors.secondary, colors.primaryContainer]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.coachAvatar}
-                      >
-                        <Text style={styles.coachAvatarText}>{initial}</Text>
-                      </LinearGradient>
-                    )}
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => navigation.navigate('Profile', { userId: conv.userId })}
+                    >
+                      {other?.avatarUrl ? (
+                        <Image
+                          source={{ uri: resolveAvatarUrl(other.avatarUrl) }}
+                          style={styles.coachAvatar}
+                        />
+                      ) : (
+                        <LinearGradient
+                          colors={[colors.secondary, colors.primaryContainer]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.coachAvatar}
+                        >
+                          <Text style={styles.coachAvatarText}>{initial}</Text>
+                        </LinearGradient>
+                      )}
+                    </TouchableOpacity>
                     <View style={styles.coachInfo}>
                       <Text style={styles.coachName}>{name}</Text>
                       {truncated ? (
@@ -208,21 +213,26 @@ export default function WebRightPanel({ topBarHeight = 54 }: { topBarHeight?: nu
             const initial = coach.displayName.charAt(0).toUpperCase();
             return (
               <View key={coach.id} style={styles.coachRow}>
-                {coach.avatarUrl ? (
-                  <Image
-                    source={{ uri: resolveAvatarUrl(coach.avatarUrl) }}
-                    style={styles.coachAvatar}
-                  />
-                ) : (
-                <LinearGradient
-                  colors={[colors.secondary, colors.primaryContainer]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.coachAvatar}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Profile', { userId: coach.id })}
                 >
-                  <Text style={styles.coachAvatarText}>{initial}</Text>
-                </LinearGradient>
-                )}
+                  {coach.avatarUrl ? (
+                    <Image
+                      source={{ uri: resolveAvatarUrl(coach.avatarUrl) }}
+                      style={styles.coachAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={[colors.secondary, colors.primaryContainer]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.coachAvatar}
+                    >
+                      <Text style={styles.coachAvatarText}>{initial}</Text>
+                    </LinearGradient>
+                  )}
+                </TouchableOpacity>
                 <View style={styles.coachInfo}>
                   <Text style={styles.coachName}>{coach.displayName}</Text>
                   <Text style={styles.coachSpecialty}>Spaze Coach</Text>

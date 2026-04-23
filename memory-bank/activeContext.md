@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 22, 2026 (12th deployment cycle)
+**Last Updated:** April 23, 2026 (13th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,19 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Audio + Reactions UX + E2E Scaffold + Comment Min Length (April 23, 2026)
+- **EXPO-AUDIO INTEGRATION**: Added `expo-audio` plugin to `apps/mobile/app.json` and dependency in `apps/mobile/package.json`; new utility `apps/mobile/utils/clickSound.ts` and bundled asset `apps/mobile/assets/sounds/click.wav` for system click feedback
+- **NATIVE SYSTEM-CLICK MODULE**: Added local Expo native module `apps/mobile/modules/system-click/` (iOS Swift + Android Kotlin) for native click sound on tap interactions
+- **REACTIONS REVAMP**: New `ReactionIcon.tsx`, `ReactionPickerHost.tsx`, `ReactionPickerStore.ts`, `FeelingPickerSheet.tsx`, and `constants/feelings.ts` for unified reaction + feeling picker UX across `PostCard`, `PostDetailScreen`, `HomeScreen`, `ProfileScreen`, and `MainDrawerNavigator`
+- **AVATAR COLORS UTILITY**: New `apps/mobile/utils/avatarColors.ts` consolidates avatar gradient palette logic
+- **TIME FORMAT UTILITY**: New `apps/mobile/utils/formatTime.ts` for shared relative time formatting
+- **COMMENT MIN LENGTH RELAXED**: Server now allows 1-character comments (was 3) — `server/src/api/postRoutes.ts`, `server/src/controllers/commentController.ts`, `server/src/config/postLimits.ts` (`POST_MIN_LENGTH` 2 → 1)
+- **NOTIFICATION PAYLOAD CLEANUP**: Removed redundant `screen: 'PostDetail'` from `notifyCoachesOfNewMemberPost` in `server/src/services/notificationService.ts` (handled by client-side notification routing)
+- **iOS NATIVE PROJECT SYNC**: Updated `apps/mobile/ios/` Xcode project, splash screen storyboard/imagesets, Info.plist, and Podfile.properties.json to reflect new modules + assets
+- **E2E SCAFFOLD**: Added `e2e/` workspace (WebdriverIO + Android config, tests, screenshots) with its own .gitignore for local node_modules/screenshots
+- **GITIGNORE HARDENING**: Added rules for Expo native module build artifacts (`apps/mobile/modules/**/android/build/`), watchman cookies, and e2e local artifacts
+- **DEPLOY CONTEXT**: Mixed feature + server bugfix + infra release
 
 ### VersionCode Rollback to 7 (April 22, 2026)
 - **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` reverted from `8` back to `7` to match the artifact currently being submitted to Play Console (no v8 bundle was uploaded)

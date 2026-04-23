@@ -210,9 +210,10 @@ export default function NotificationsScreen() {
       return;
     }
 
-    // Flagged content or targeted screen notifications → navigate directly
+    // Flagged content or targeted screen notifications → navigate directly.
+    // Skip if a postId is present so we open the actual PostDetail with params.
     const screen = notification.data?.screen;
-    if (screen) {
+    if (screen && !notification.data?.postId) {
       const target = screen === 'Journal' ? 'Home' : screen;
       navigation.navigate(target as any);
       return;

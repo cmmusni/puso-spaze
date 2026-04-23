@@ -222,3 +222,27 @@
 - **Fix**: (1) Added `progressViewOffset={topBarHeight}` to the `RefreshControl` so the Android spinner drops below the topBar. (2) Added a new web-only hook `useWebPullToRefresh` (touch-based, damped, with overscroll-behavior: contain to suppress browser PTR), wired it to the FlatList's `getScrollableNode()` on web, and rendered a themed circular spinner overlay positioned below the topBar. Hook is a no-op on native.
 - **Files Changed**: `apps/mobile/screens/HomeScreen.tsx`, `apps/mobile/hooks/useWebPullToRefresh.ts` (new)
 - **Pattern**: Platform Parity — `RefreshControl` is a no-op on `react-native-web`. For PWA/web PTR, build a touch-based fallback and gate it behind `Platform.OS === 'web'`. Also: when a screen uses an absolute-positioned top bar, always pass `progressViewOffset` to `RefreshControl` so the native spinner clears the bar.
+
+### BUG-019 — Coach "New Member Post" notification not clickable
+- **Severity**: 🟡 Medium
+- **Date**: 2026-04-22
+- **Root Cause**: `notifyCoachesOfNewMemberPost` in `notificationService.ts` set `data.screen = 'PostDetail'` alongside `data.postId`. In `NotificationsScreen.handleNotificationPress`, the `screen` branch is checked before the `postId` branch and returns early, calling `navigation.navigate('PostDetail')` with no params. Without `postId`, `PostDetailScreen` has nothing to load and the tap appears to do nothing.
+- **Fix**: (1) Removed `screen: 'PostDetail'` from the server notification payload so the existing `postId` branch handles routing with proper params. (2) Hardened the client: the `screen` early-return now skips when `data.postId` is also present, so future payloads with both fields still open the actual post.
+- **Files Changed**: `server/src/services/notificationService.ts`, `apps/mobile/screens/NotificationsScreen.tsx`
+- **Pattern**: Notification Routing Conflict — never include a generic `screen` hint in notification data when a more specific identifier (e.g. `postId`, `conversationId`) is already present. Client routers typically check `screen` first and will lose the params needed by the target screen.
+
+### BUG-020 — JournalScreen crashes on Android tablet: "ref.measureLayout must be called with a ref to a native component"
+- **Severity**: 🟡 Medium
+- **Date**: 2026-04-23
+- **Root Cause**: `JournalScreen.tsx` called `entryRef.measureLayout(...)` against the outer ScrollView in three places (highlight scroll, scroll-to-past-entries, and post-save scroll). On Android, `View.measureLayout` requires the relativeTo node to be a direct native ancestor — neither `ScrollView.getInnerViewNode?.()` (returns `undefined`) nor `findNodeHandle(scrollViewRef.current)` (returns the outer wrapper, not the inner content view) satisfies this, so RN throws "must be called with a ref to a native component."
+- **Fix**: Removed `measureLayout` entirely. Added an `entryOffsets` ref and `onLayout` handlers on each past-entry View and on the past-entries section wrapper to capture y-offsets directly. New `scrollToEntry(key)` helper composes the absolute scroll offset (`sectionY + entryY`) and calls `composeScrollRef.current?.scrollTo(...)`. Works identically on Android, iOS, and web.
+- **Files Changed**: `apps/mobile/screens/JournalScreen.tsx`
+- **Pattern**: Avoid measureLayout for in-ScrollView scroll targeting — prefer onLayout y-offset tracking. `measureLayout`'s relativeTo argument is fragile across platforms (especially Android) when the target ancestor is a ScrollView wrapper rather than its inner content view.
+
+### BUG-021 — Home feed scrolls up/up/down after creating a post
+- **Severity**: 🟢 Low
+- **Date**: 2026-04-23
+- **Root Cause**: `HighlightWrap` in `HomeScreen.tsx` scheduled three `setTimeout` calls (300/800/1500ms) that each invoked `scrollIntoView({ block: 'center' })` on web (or `scrollToOffset` on native) for the freshly created post. Because `submitPost` triggers a parallel feed re-fetch, the highlighted card's DOM position shifted between animations — the second/third smooth-scrolls then chased the moved target, producing the visible "up, up, down" jitter. The same path runs after `PostScreen` navigates back with `highlightPostId`.
+- **Fix**: Reduced the highlight scroll to a single `setTimeout(..., 350)` call with a `cancelled` cleanup flag, and switched the web call to `block: 'nearest'` so the viewport doesn't move when the new post is already visible (the common case after composing from the top of the feed).
+- **Files Changed**: `apps/mobile/screens/HomeScreen.tsx`
+- **Pattern**: Animation Race — when a smooth scroll target may re-render due to concurrent data refetch, fire the scroll exactly once after layout settles, and use `block: 'nearest'` to no-op when already in view.

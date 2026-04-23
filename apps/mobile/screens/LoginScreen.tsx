@@ -406,6 +406,8 @@ export default function LoginScreen() {
               <Text
                 style={styles.legalLink}
                 onPress={() => setShowGuidelines(true)}
+                accessibilityRole="link"
+                accessibilityLabel="open-guidelines"
               >
                 Compassion Guidelines
               </Text>
@@ -487,6 +489,8 @@ export default function LoginScreen() {
                     onPress={() => setShowGuidelines(false)}
                     activeOpacity={0.87}
                     style={styles.modalCloseBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="close-guidelines"
                   >
                     <Text style={styles.modalCloseBtnText}>I Understand</Text>
                   </TouchableOpacity>
@@ -496,8 +500,22 @@ export default function LoginScreen() {
 
             {/* ── Footer links ── */}
             <View style={styles.footerLinks}>
-              <Text style={styles.footerLink} onPress={() => setShowAbout(true)}>About the Spaze</Text>
-              <Text style={styles.footerLink} onPress={() => setShowPrivacy(true)}>Privacy</Text>
+              <Text
+                style={styles.footerLink}
+                onPress={() => setShowAbout(true)}
+                accessibilityRole="link"
+                accessibilityLabel="open-about"
+              >
+                About the Spaze
+              </Text>
+              <Text
+                style={styles.footerLink}
+                onPress={() => setShowPrivacy(true)}
+                accessibilityRole="link"
+                accessibilityLabel="open-privacy"
+              >
+                Privacy
+              </Text>
             </View>
 
             {/* ── About the Spaze Modal ── */}
@@ -570,6 +588,8 @@ export default function LoginScreen() {
                     onPress={() => setShowAbout(false)}
                     activeOpacity={0.87}
                     style={styles.modalCloseBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="close-about"
                   >
                     <Text style={styles.modalCloseBtnText}>Close</Text>
                   </TouchableOpacity>
@@ -652,6 +672,8 @@ export default function LoginScreen() {
                     onPress={() => setShowPrivacy(false)}
                     activeOpacity={0.87}
                     style={styles.modalCloseBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="close-privacy"
                   >
                     <Text style={styles.modalCloseBtnText}>Close</Text>
                   </TouchableOpacity>

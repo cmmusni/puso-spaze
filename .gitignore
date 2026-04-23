@@ -82,6 +82,19 @@ apps/mobile/android/app/build/
 *.apk
 *.aab
 
+# Expo native module build artifacts
+apps/mobile/modules/**/android/build/
+apps/mobile/modules/**/android/.gradle/
+apps/mobile/modules/**/ios/build/
+
+# Watchman
+.watchman-cookie-*
+
+# E2E (Detox/WDIO) — local-only
+e2e/node_modules/
+e2e/screenshots/
+e2e/*.png
+
 # Firebase
 google-services.json
 !apps/mobile/google-services.json

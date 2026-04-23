@@ -42,30 +42,15 @@ import {
   replaceTrailingMention,
 } from "../utils/mentions";
 import { PrayIcon } from "../components/ReactionIcons";
+import { getAvatarColors } from "../utils/avatarColors";
+import { FEELING_OPTIONS } from "../constants/feelings";
+import FeelingPickerSheet from "../components/FeelingPickerSheet";
 import type { MentionUser } from "../../../packages/types";
 
-// Gradient avatar (same logic as PostDetailScreen)
+// Gradient avatar — themed via shared util
 function avatarColors(initial: string): [string, string] {
-  const palette: [string, string][] = [
-    [defaultColors.hot, defaultColors.primary],
-    [defaultColors.primary, defaultColors.deep],
-    [defaultColors.fuchsia, defaultColors.ink],
-    [defaultColors.ink, defaultColors.deep],
-    [defaultColors.hot, defaultColors.fuchsia],
-  ];
-  return palette[initial.charCodeAt(0) % palette.length];
+  return getAvatarColors(initial);
 }
-
-const FEELING_OPTIONS: { key: string; emoji: string; label: string }[] = [
-  { key: "grateful", emoji: "\u{1F60A}", label: "Grateful" },
-  { key: "prayerful", emoji: "\u{1F64F}", label: "Prayerful" },
-  { key: "strong", emoji: "\u{1F4AA}", label: "Strong" },
-  { key: "struggling", emoji: "\u{1F622}", label: "Struggling" },
-  { key: "hopeful", emoji: "\u{1F917}", label: "Hopeful" },
-  { key: "heavy-hearted", emoji: "\u{1F614}", label: "Heavy-hearted" },
-  { key: "blessed", emoji: "\u2728", label: "Blessed" },
-  { key: "loved", emoji: "\u2764\uFE0F", label: "Loved" },
-];
 
 const CATEGORY_OPTIONS: {
   key: string;
@@ -566,54 +551,15 @@ export default function PostScreen() {
           activeOpacity={1}
           onPress={() => setFeelingPickerVisible(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={styles.modalSheet}
-          >
-            <Text style={styles.modalTitle}>How are you feeling?</Text>
-            <View style={styles.feelingGrid}>
-              {FEELING_OPTIONS.map((f) => {
-                const isActive = selectedFeeling === f.key;
-                return (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[
-                      styles.feelingOption,
-                      isActive && styles.feelingOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setSelectedFeeling(isActive ? null : f.key);
-                      setFeelingPickerVisible(false);
-                    }}
-                  >
-                    <Text style={styles.feelingEmoji}>{f.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.feelingLabel,
-                        isActive && styles.feelingLabelActive,
-                      ]}
-                    >
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {selectedFeeling && (
-              <TouchableOpacity
-                style={styles.feelingClearBtn}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedFeeling(null);
-                  setFeelingPickerVisible(false);
-                }}
-              >
-                <Text style={styles.feelingClearText}>Clear feeling</Text>
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+          <FeelingPickerSheet
+            variant="comfortable"
+            selected={selectedFeeling}
+            onSelect={(key) => {
+              setSelectedFeeling(key);
+              setFeelingPickerVisible(false);
+            }}
+            style={{ width: "90%", maxWidth: 360 }}
+          />
         </TouchableOpacity>
       </Modal>
 
@@ -1030,44 +976,6 @@ const createStyles = (colors: typeof defaultColors) =>
       fontSize: 18,
       fontFamily: fonts.displayBold,
       marginBottom: 4,
-    },
-
-    // ── Feeling picker ───────────────────────
-    feelingGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 10,
-    },
-    feelingOption: {
-      alignItems: "center",
-      backgroundColor: colors.surfaceContainerLow,
-      borderRadius: radii.lg,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      width: "31%",
-    },
-    feelingOptionActive: {
-      backgroundColor: colors.primaryContainer + "30",
-      borderWidth: 2,
-      borderColor: colors.primary,
-    },
-    feelingEmoji: { fontSize: 24, marginBottom: 4 },
-    feelingLabel: {
-      fontSize: 12,
-      fontFamily: fonts.bodySemiBold,
-      color: colors.onSurfaceVariant,
-    },
-    feelingLabelActive: {
-      color: colors.primary,
-    },
-    feelingClearBtn: {
-      alignSelf: "center",
-      paddingVertical: 10,
-    },
-    feelingClearText: {
-      color: colors.primary,
-      fontSize: 14,
-      fontFamily: fonts.bodySemiBold,
     },
 
     // ── Visibility picker ────────────────────

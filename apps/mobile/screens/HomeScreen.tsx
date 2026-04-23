@@ -1,4 +1,10 @@
-import React, { useCallback, useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -20,19 +26,42 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { colors as defaultColors, fonts, radii, spacing, ambientShadow } from "../constants/theme";
+import {
+  colors as defaultColors,
+  fonts,
+  radii,
+  spacing,
+  ambientShadow,
+} from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
-import { useNavigation, useFocusEffect, useRoute, type RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+  type RouteProp,
+} from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { usePosts } from "../hooks/usePosts";
 import { useUser } from "../hooks/useUser";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNotifications } from "../hooks/useNotifications";
-import { apiGetDashboardStats, apiRecordVisit, resolveAvatarUrl, type DashboardStats } from "../services/api";
+import {
+  apiGetDashboardStats,
+  apiRecordVisit,
+  resolveAvatarUrl,
+  type DashboardStats,
+} from "../services/api";
 import { validatePostContent } from "../utils/validators";
-import { POST_MAX_LENGTH, POST_MIN_LENGTH } from "../../../packages/core/constants";
+import {
+  POST_MAX_LENGTH,
+  POST_MIN_LENGTH,
+} from "../../../packages/core/constants";
 import { showAlert } from "../utils/alertPlatform";
 import PostCard from "../components/PostCard";
+import ReactionPickerHost from "../components/ReactionPickerHost";
 import type { Post } from "../../../packages/types";
 import WebRightPanel from "../components/WebRightPanel";
 import { PostFeedSkeleton } from "../components/LoadingSkeletons";
@@ -41,19 +70,11 @@ import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import { useWebPullToRefresh } from "../hooks/useWebPullToRefresh";
 import { useReactionsStore } from "../context/ReactionsStore";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
+import { FEELING_OPTIONS } from "../constants/feelings";
+import FeelingPickerSheet from "../components/FeelingPickerSheet";
+import { playClick } from "@/utils/clickSound";
 
 type HomeNav = DrawerNavigationProp<MainDrawerParamList, "Home">;
-
-const FEELING_OPTIONS: { key: string; emoji: string; label: string }[] = [
-  { key: "grateful", emoji: "\u{1F60A}", label: "Grateful" },
-  { key: "prayerful", emoji: "\u{1F64F}", label: "Prayerful" },
-  { key: "strong", emoji: "\u{1F4AA}", label: "Strong" },
-  { key: "struggling", emoji: "\u{1F622}", label: "Struggling" },
-  { key: "hopeful", emoji: "\u{1F917}", label: "Hopeful" },
-  { key: "heavy-hearted", emoji: "\u{1F614}", label: "Heavy-hearted" },
-  { key: "blessed", emoji: "\u2728", label: "Blessed" },
-  { key: "loved", emoji: "\u2764\uFE0F", label: "Loved" },
-];
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -63,48 +84,85 @@ function getGreeting(): string {
 }
 
 /** Brief highlight pulse for a newly created post */
-function HighlightWrap({ children, flatListRef }: { children: React.ReactNode; flatListRef: React.RefObject<FlatList<any> | null> }) {
+function HighlightWrap({
+  children,
+  flatListRef,
+  shouldScroll = true,
+}: {
+  children: React.ReactNode;
+  flatListRef: React.RefObject<FlatList<any> | null>;
+  shouldScroll?: boolean;
+}) {
   const anim = useRef(new Animated.Value(1)).current;
   const viewRef = useRef<View>(null);
 
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(anim, { toValue: 1, duration: 0, useNativeDriver: false }),
-      Animated.timing(anim, { toValue: 0, duration: 1500, useNativeDriver: false }),
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 0,
+        useNativeDriver: false,
+      }),
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: 1500,
+        useNativeDriver: false,
+      }),
     ]).start();
   }, []);
 
-  // Scroll the highlighted post into view
+  // Scroll the highlighted post into view (only when explicitly requested,
+  // e.g. for newly created or pinned posts — NOT when returning from
+  // PostDetail, where the post is already at its prior scroll position).
+  // Run exactly once after layout settles to avoid bouncing animations
+  // chasing a re-rendering feed (causes scroll-up/up/down jitter).
   useEffect(() => {
+    if (!shouldScroll) return;
+    let cancelled = false;
     const doScroll = () => {
-      if (Platform.OS === 'web') {
-        // On web, use native scrollIntoView — works with any layout
+      if (cancelled) return;
+      if (Platform.OS === "web") {
         const node = viewRef.current as any;
         if (node?.scrollIntoView) {
-          node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else if (node && typeof node.measure === 'undefined') {
-          // react-native-web: the underlying DOM node
+          // 'nearest' avoids unnecessary motion if the post is already visible
+          node.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else if (node) {
           try {
-            const el = (node as any)._nativeTag ?? (node as any).getNode?.() ?? node;
-            if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const el =
+              (node as any)._nativeTag ?? (node as any).getNode?.() ?? node;
+            if (el?.scrollIntoView)
+              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
           } catch {}
         }
       } else {
-        // On native, measure position relative to the FlatList and scrollToOffset
-        viewRef.current?.measureLayout(
-          flatListRef.current?.getScrollableNode?.() as any,
-          (_x, y) => {
-            flatListRef.current?.scrollToOffset({ offset: Math.max(0, y - 100), animated: true });
-          },
-          () => {},
-        );
+        const viewNode = viewRef.current as any;
+        if (!viewNode || typeof viewNode.measure !== "function") return;
+        try {
+          viewNode.measure(
+            (
+              _x: number,
+              y: number,
+              _w: number,
+              _h: number,
+              _px: number,
+              py: number,
+            ) => {
+              const offset = Math.max(0, py - 100);
+              flatListRef.current?.scrollToOffset({ offset, animated: true });
+            },
+          );
+        } catch {
+          // Layout measurement is best-effort; ignore failures.
+        }
       }
     };
-    // Delay to ensure layout is complete
-    const t1 = setTimeout(doScroll, 300);
-    const t2 = setTimeout(doScroll, 800);
-    const t3 = setTimeout(doScroll, 1500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    // Wait one frame + small delay so the freshly mounted card has laid out
+    // and any in-flight feed re-render from submitPost has flushed.
+    const t = setTimeout(doScroll, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, []);
 
   const bgColor = anim.interpolate({
@@ -118,7 +176,17 @@ function HighlightWrap({ children, flatListRef }: { children: React.ReactNode; f
   });
 
   return (
-    <Animated.View ref={viewRef as any} style={{ backgroundColor: bgColor, borderRadius: radii.lg, marginHorizontal: -2, paddingHorizontal: 2, borderLeftWidth: 2, borderLeftColor: accentColor }}>
+    <Animated.View
+      ref={viewRef as any}
+      style={{
+        backgroundColor: bgColor,
+        borderRadius: radii.lg,
+        marginHorizontal: -2,
+        paddingHorizontal: 2,
+        borderLeftWidth: 2,
+        borderLeftColor: accentColor,
+      }}
+    >
       {children}
     </Animated.View>
   );
@@ -133,10 +201,29 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { username, role, userId, avatarUrl } = useUser();
   const isCoach = role === "COACH" || role === "ADMIN";
-  const { posts, loading, loadingMore, hasMore, error, fetchPosts, loadMore, submitPost } = usePosts();
-  const { unreadCount, refreshUnreadCount, requestWebPushPermission, webPushSubscribed, webPushSupported } = useNotifications(userId);
+  const {
+    posts,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    fetchPosts,
+    loadMore,
+    submitPost,
+  } = usePosts();
+  const {
+    unreadCount,
+    refreshUnreadCount,
+    requestWebPushPermission,
+    webPushSubscribed,
+    webPushSupported,
+  } = useNotifications(userId);
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
-  const showPushBanner = Platform.OS === 'web' && webPushSupported && !webPushSubscribed && !pushBannerDismissed;
+  const showPushBanner =
+    Platform.OS === "web" &&
+    webPushSupported &&
+    !webPushSubscribed &&
+    !pushBannerDismissed;
   const { width, height } = useWindowDimensions();
   const isWide = width >= 900;
   const showRightPanel = width >= 1200;
@@ -146,7 +233,9 @@ export default function HomeScreen() {
 
   // ── Highlight newly posted item ──
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const [highlightShouldScroll, setHighlightShouldScroll] = useState(true);
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
+  const nextHighlightShouldScroll = useRef(true);
   const processedParamId = useRef<string | null>(null);
   const lastViewedPostId = useRef<string | null>(null);
 
@@ -156,7 +245,9 @@ export default function HomeScreen() {
 
   // ── Scroll-direction bar visibility ──
   const setBarsVisible = useScrollBarVisibility((s) => s.setBarsVisible);
-  const scrollToTopTrigger = useScrollBarVisibility((s) => s.scrollToTopTrigger);
+  const scrollToTopTrigger = useScrollBarVisibility(
+    (s) => s.scrollToTopTrigger,
+  );
   const lastScrollY = useRef(0);
   const topBarTranslateY = useRef(new Animated.Value(0)).current;
   const fabTranslateY = useRef(new Animated.Value(0)).current;
@@ -165,46 +256,55 @@ export default function HomeScreen() {
   const SCROLL_DIR_THRESHOLD = 10;
   const [topBarHeight, setTopBarHeight] = useState(54);
 
-  const animateBars = useCallback((visible: boolean) => {
-    if (barsShown.current === visible) return;
-    barsShown.current = visible;
-    setBarsVisible(visible);
-    Animated.parallel([
-      Animated.timing(topBarTranslateY, {
-        toValue: visible ? 0 : -topBarHeight - 10,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fabTranslateY, {
-        toValue: visible ? 0 : BOTTOM_TAB_BAR_HEIGHT,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [setBarsVisible, topBarTranslateY, fabTranslateY, topBarHeight]);
+  const animateBars = useCallback(
+    (visible: boolean) => {
+      if (barsShown.current === visible) return;
+      barsShown.current = visible;
+      setBarsVisible(visible);
+      Animated.parallel([
+        Animated.timing(topBarTranslateY, {
+          toValue: visible ? 0 : -topBarHeight - 10,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fabTranslateY, {
+          toValue: visible ? 0 : BOTTOM_TAB_BAR_HEIGHT,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    },
+    [setBarsVisible, topBarTranslateY, fabTranslateY, topBarHeight],
+  );
 
-  const handleScroll = useCallback((e: { nativeEvent: NativeScrollEvent }) => {
-    const offsetY = e.nativeEvent.contentOffset.y;
-    setShowFab(offsetY > composerBottomY.current);
+  const handleScroll = useCallback(
+    (e: { nativeEvent: NativeScrollEvent }) => {
+      const offsetY = e.nativeEvent.contentOffset.y;
+      setShowFab(offsetY > composerBottomY.current);
 
-    // Only hide/show bars on mobile / narrow web
-    if (isWide) return;
+      // Only hide/show bars on mobile / narrow web
+      if (isWide) return;
 
-    const delta = offsetY - lastScrollY.current;
-    if (offsetY <= 0) {
-      animateBars(true);
-    } else if (delta > SCROLL_DIR_THRESHOLD) {
-      animateBars(false);
-    } else if (delta < -SCROLL_DIR_THRESHOLD) {
-      animateBars(true);
-    }
-    lastScrollY.current = offsetY;
-  }, [animateBars, isWide]);
+      const delta = offsetY - lastScrollY.current;
+      if (offsetY <= 0) {
+        animateBars(true);
+      } else if (delta > SCROLL_DIR_THRESHOLD) {
+        animateBars(false);
+      } else if (delta < -SCROLL_DIR_THRESHOLD) {
+        animateBars(true);
+      }
+      lastScrollY.current = offsetY;
+    },
+    [animateBars, isWide],
+  );
 
   // ── Scroll to top when active tab is re-tapped ──
   const scrollToTopRef = useRef(scrollToTopTrigger);
   useEffect(() => {
-    if (scrollToTopTrigger > 0 && scrollToTopTrigger !== scrollToTopRef.current) {
+    if (
+      scrollToTopTrigger > 0 &&
+      scrollToTopTrigger !== scrollToTopRef.current
+    ) {
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
       animateBars(true);
     }
@@ -239,7 +339,12 @@ export default function HomeScreen() {
   const [composing, setComposing] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState<string | null>(null);
   const [feelingPickerVisible, setFeelingPickerVisible] = useState(false);
-  const [feelingAnchor, setFeelingAnchor] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [feelingAnchor, setFeelingAnchor] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
   const feelingBtnRef = useRef<View>(null);
   const FEELING_SHEET_WIDTH = 280;
   const FEELING_SHEET_EST_HEIGHT = 260;
@@ -285,7 +390,7 @@ export default function HomeScreen() {
   // Clear the highlight param when leaving the screen so it doesn't retrigger on back-navigation
   // Also reset bar visibility so other screens always show bars
   useEffect(() => {
-    const unsubscribe = navigation.addListener('blur', () => {
+    const unsubscribe = navigation.addListener("blur", () => {
       if (route.params?.highlightPostId) {
         navigation.setParams({ highlightPostId: undefined });
         processedParamId.current = null;
@@ -297,7 +402,12 @@ export default function HomeScreen() {
       fabTranslateY.setValue(0);
     });
     return unsubscribe;
-  }, [navigation, route.params?.highlightPostId, setBarsVisible, topBarTranslateY]);
+  }, [
+    navigation,
+    route.params?.highlightPostId,
+    setBarsVisible,
+    topBarTranslateY,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -307,7 +417,7 @@ export default function HomeScreen() {
       // Record HomeScreen visit for streak tracking
       if (userId) {
         apiRecordVisit(userId).catch((err: any) =>
-          console.warn('[HomeScreen] streak record-visit failed:', err)
+          console.warn("[HomeScreen] streak record-visit failed:", err),
         );
       }
     }, [fetchPosts, searchQuery, refreshUnreadCount, loadStats, userId]),
@@ -315,8 +425,11 @@ export default function HomeScreen() {
 
   // Highlight last-viewed post when returning from PostDetailScreen
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       if (lastViewedPostId.current) {
+        // Returning from PostDetail — post is already visible at its prior
+        // scroll position; only highlight, don't scroll (avoids bouncing).
+        nextHighlightShouldScroll.current = false;
         setScrollTargetId(lastViewedPostId.current);
         lastViewedPostId.current = null;
       }
@@ -372,7 +485,11 @@ export default function HomeScreen() {
     setComposing(true);
     try {
       const tags = selectedFeeling ? [selectedFeeling] : undefined;
-      const { flagged, underReview, postId: newPostId } = await submitPost({
+      const {
+        flagged,
+        underReview,
+        postId: newPostId,
+      } = await submitPost({
         userId,
         content: trimmed,
         imageUri: composeImage ?? undefined,
@@ -425,6 +542,8 @@ export default function HomeScreen() {
     scrollTimers.current.forEach(clearTimeout);
     scrollTimers.current = [];
 
+    setHighlightShouldScroll(nextHighlightShouldScroll.current);
+    nextHighlightShouldScroll.current = true; // reset to default for next time
     setHighlightPostId(posts[idx].id);
 
     // HighlightWrap handles scrolling itself via scrollIntoView/measureLayout.
@@ -449,14 +568,35 @@ export default function HomeScreen() {
     ({ item }) => {
       if (item.id === highlightPostId) {
         return (
-          <HighlightWrap flatListRef={flatListRef}>
-            <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} onPostPress={handlePostPress} />
+          <HighlightWrap
+            flatListRef={flatListRef}
+            shouldScroll={highlightShouldScroll}
+          >
+            <PostCard
+              post={item}
+              onDelete={handleDeletePost}
+              onPin={handlePinPost}
+              onPostPress={handlePostPress}
+            />
           </HighlightWrap>
         );
       }
-      return <PostCard post={item} onDelete={handleDeletePost} onPin={handlePinPost} onPostPress={handlePostPress} />;
+      return (
+        <PostCard
+          post={item}
+          onDelete={handleDeletePost}
+          onPin={handlePinPost}
+          onPostPress={handlePostPress}
+        />
+      );
     },
-    [handleDeletePost, handlePinPost, handlePostPress, highlightPostId],
+    [
+      handleDeletePost,
+      handlePinPost,
+      handlePostPress,
+      highlightPostId,
+      highlightShouldScroll,
+    ],
   );
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
@@ -468,7 +608,9 @@ export default function HomeScreen() {
   const initial = displayName.charAt(0).toUpperCase();
 
   const listHeader = (
-    <View style={!isWide && !showRightPanel ? { paddingHorizontal: 20 } : undefined}>
+    <View
+      style={!isWide && !showRightPanel ? { paddingHorizontal: 20 } : undefined}
+    >
       {/* ── Error banner ── */}
       {error && (
         <View style={styles.errorBanner}>
@@ -490,39 +632,50 @@ export default function HomeScreen() {
       {/* ── Push notification permission banner (web only) ── */}
 
       {/* ── Daily Reflection card ── */}
-      {stats.dailyReflection && (
+      {!loading && stats.dailyReflection && (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>DAILY REFLECTION</Text>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => {
-              if (stats.dailyReflection && stats.dailyReflection.content.length > 100) {
+              playClick();
+
+              if (
+                stats.dailyReflection &&
+                stats.dailyReflection.content.length > 100
+              ) {
                 setReflectionExpanded((prev) => !prev);
               }
             }}
           >
-          <LinearGradient
-            colors={[colors.surfaceContainerLow, colors.surfaceVariant]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.reflectionCard}
-          >
-            <View style={styles.reflectionIcon}>
-              <Ionicons name="sparkles" size={24} color={colors.secondary} />
-            </View>
-            <Text style={styles.reflectionQuote}>
-              {!reflectionExpanded && stats.dailyReflection.content.length > SHORT_DAILY_REFLECTION_LENGTH
-                ? stats.dailyReflection.content.slice(0, SHORT_DAILY_REFLECTION_LENGTH) + '...'
-                : stats.dailyReflection.content}
-            </Text>
-            {stats.dailyReflection.content.length > SHORT_DAILY_REFLECTION_LENGTH && (
-              <View style={styles.seeMoreBtn}>
-                <Text style={styles.seeMoreText}>
-                  {reflectionExpanded ? 'See less' : 'See more...'}
-                </Text>
+            <LinearGradient
+              colors={[colors.surfaceContainerLow, colors.surfaceVariant]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.reflectionCard}
+            >
+              <View style={styles.reflectionIcon}>
+                <Ionicons name="sparkles" size={24} color={colors.secondary} />
               </View>
-            )}
-          </LinearGradient>
+              <Text style={styles.reflectionQuote}>
+                {!reflectionExpanded &&
+                stats.dailyReflection.content.length >
+                  SHORT_DAILY_REFLECTION_LENGTH
+                  ? stats.dailyReflection.content.slice(
+                      0,
+                      SHORT_DAILY_REFLECTION_LENGTH,
+                    ) + "..."
+                  : stats.dailyReflection.content}
+              </Text>
+              {stats.dailyReflection.content.length >
+                SHORT_DAILY_REFLECTION_LENGTH && (
+                <View style={styles.seeMoreBtn}>
+                  <Text style={styles.seeMoreText}>
+                    {reflectionExpanded ? "See less" : "See more..."}
+                  </Text>
+                </View>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       )}
@@ -546,7 +699,7 @@ export default function HomeScreen() {
             </View>
             <TextInput
               style={styles.composerInput}
-              placeholder="Share your thoughts, a prayer, or a moment of gratitude..."
+              placeholder="What's on your mind? Share a thought, feeling, or moment..."
               placeholderTextColor={colors.muted4}
               value={composeText}
               onChangeText={setComposeText}
@@ -636,7 +789,9 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={handlePostReflection}
               activeOpacity={0.85}
-              disabled={composing || composeText.trim().length < POST_MIN_LENGTH}
+              disabled={
+                composing || composeText.trim().length < POST_MIN_LENGTH
+              }
               accessibilityRole="button"
               accessibilityLabel="Post"
               style={[
@@ -707,7 +862,7 @@ export default function HomeScreen() {
   const listFooter = useMemo(() => {
     if (loadingMore) {
       return (
-        <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+        <View style={{ paddingVertical: spacing.lg, alignItems: "center" }}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       );
@@ -738,7 +893,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView
       style={[styles.screen, { backgroundColor: colors.background }]}
-      edges={['left', 'right', 'bottom']}
+      edges={["left", "right", "bottom"]}
     >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
@@ -750,11 +905,15 @@ export default function HomeScreen() {
         onLayout={(e) => setTopBarHeight(e.nativeEvent.layout.height)}
         style={[
           styles.topBar,
-          { backgroundColor: colors.surfaceContainerLowest, transform: [{ translateY: topBarTranslateY }], paddingTop: Platform.OS !== 'web' ? insets.top + 6 : 10 },
+          {
+            backgroundColor: colors.surfaceContainerLowest,
+            transform: [{ translateY: topBarTranslateY }],
+            paddingTop: Platform.OS !== "web" ? insets.top + 6 : 10,
+          },
         ]}
       >
         <View style={styles.topBarLeft}>
-          {!isWide && Platform.OS !== 'web' && (
+          {!isWide && Platform.OS !== "web" && (
             <TouchableOpacity
               onPress={() => navigation.openDrawer()}
               activeOpacity={0.7}
@@ -768,7 +927,10 @@ export default function HomeScreen() {
           <TouchableOpacity
             onPress={() => {
               setHighlightPostId(null);
-              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+              flatListRef.current?.scrollToOffset({
+                offset: 0,
+                animated: true,
+              });
               handleRefresh();
             }}
             activeOpacity={0.7}
@@ -852,20 +1014,22 @@ export default function HomeScreen() {
             )}
             {avatarUrl ? (
               <Image
-                source={{ uri: optimizeCloudinaryUrl(resolveAvatarUrl(avatarUrl), 56) }}
+                source={{
+                  uri: optimizeCloudinaryUrl(resolveAvatarUrl(avatarUrl), 56),
+                }}
                 style={styles.topBarAvatar}
                 cachePolicy="memory-disk"
                 transition={200}
               />
             ) : (
-            <LinearGradient
-              colors={[colors.primaryContainer, colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.topBarAvatar}
-            >
-              <Text style={styles.topBarAvatarText}>{initial}</Text>
-            </LinearGradient>
+              <LinearGradient
+                colors={[colors.primaryContainer, colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.topBarAvatar}
+              >
+                <Text style={styles.topBarAvatarText}>{initial}</Text>
+              </LinearGradient>
             )}
           </TouchableOpacity>
         </View>
@@ -877,7 +1041,7 @@ export default function HomeScreen() {
             ref={(node) => {
               (flatListRef as any).current = node;
               // On web, hand the underlying scroll DOM node to the PTR hook
-              if (Platform.OS === 'web' && node) {
+              if (Platform.OS === "web" && node) {
                 const scrollNode = (node as any).getScrollableNode?.();
                 webPtr.attach(scrollNode ?? null);
               } else {
@@ -889,7 +1053,10 @@ export default function HomeScreen() {
             renderItem={renderItem}
             contentContainerStyle={[
               styles.listContent,
-              { paddingHorizontal: isWide || showRightPanel ? 36 : 0, paddingTop: topBarHeight },
+              {
+                paddingHorizontal: isWide || showRightPanel ? 36 : 0,
+                paddingTop: topBarHeight,
+              },
             ]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={listHeader}
@@ -921,40 +1088,45 @@ export default function HomeScreen() {
           )}
 
           {/* Web/PWA pull-to-refresh indicator (no-op on native) */}
-          {Platform.OS === 'web' && (webPtr.pullDistance > 0 || webPtr.refreshing) && (
-            <View
-              pointerEvents="none"
-              style={[
-                styles.webPtrIndicator,
-                {
-                  top: topBarHeight + Math.max(0, webPtr.pullDistance - 28),
-                  opacity: webPtr.refreshing ? 1 : Math.min(1, webPtr.pullDistance / 60),
-                },
-              ]}
-            >
+          {Platform.OS === "web" &&
+            (webPtr.pullDistance > 0 || webPtr.refreshing) && (
               <View
+                pointerEvents="none"
                 style={[
-                  styles.webPtrCircle,
-                  webPtr.willTrigger && styles.webPtrCircleReady,
+                  styles.webPtrIndicator,
+                  {
+                    top: topBarHeight + Math.max(0, webPtr.pullDistance - 28),
+                    opacity: webPtr.refreshing
+                      ? 1
+                      : Math.min(1, webPtr.pullDistance / 60),
+                  },
                 ]}
               >
-                {webPtr.refreshing ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons
-                    name="arrow-down"
-                    size={18}
-                    color={webPtr.willTrigger ? colors.primary : colors.muted4}
-                    style={{
-                      transform: [
-                        { rotate: webPtr.willTrigger ? '180deg' : '0deg' },
-                      ],
-                    }}
-                  />
-                )}
+                <View
+                  style={[
+                    styles.webPtrCircle,
+                    webPtr.willTrigger && styles.webPtrCircleReady,
+                  ]}
+                >
+                  {webPtr.refreshing ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons
+                      name="arrow-down"
+                      size={18}
+                      color={
+                        webPtr.willTrigger ? colors.primary : colors.muted4
+                      }
+                      style={{
+                        transform: [
+                          { rotate: webPtr.willTrigger ? "180deg" : "0deg" },
+                        ],
+                      }}
+                    />
+                  )}
+                </View>
               </View>
-            </View>
-          )}
+            )}
 
           {showFab && (
             <Animated.View
@@ -1010,19 +1182,30 @@ export default function HomeScreen() {
           onPress={() => setFeelingPickerVisible(false)}
         >
           {(() => {
-            const sheetStyle: any[] = [styles.modalSheet, { width: FEELING_SHEET_WIDTH, maxWidth: FEELING_SHEET_WIDTH }];
+            const sheetStyle: any[] = [
+              { width: FEELING_SHEET_WIDTH, maxWidth: FEELING_SHEET_WIDTH },
+            ];
             if (feelingAnchor) {
               const margin = 8;
               // Prefer placing above the button; fall back to below if not enough room
               const spaceAbove = feelingAnchor.y;
               const spaceBelow = height - (feelingAnchor.y + feelingAnchor.h);
-              const placeAbove = spaceAbove >= FEELING_SHEET_EST_HEIGHT + margin || spaceAbove > spaceBelow;
+              const placeAbove =
+                spaceAbove >= FEELING_SHEET_EST_HEIGHT + margin ||
+                spaceAbove > spaceBelow;
               const top = placeAbove
-                ? Math.max(margin, feelingAnchor.y - FEELING_SHEET_EST_HEIGHT - margin)
+                ? Math.max(
+                    margin,
+                    feelingAnchor.y - FEELING_SHEET_EST_HEIGHT - margin,
+                  )
                 : feelingAnchor.y + feelingAnchor.h + margin;
               // Center horizontally on the button, then clamp into viewport\n
-              let left = feelingAnchor.x + feelingAnchor.w / 2 - FEELING_SHEET_WIDTH / 2;
-              left = Math.max(margin, Math.min(left, width - FEELING_SHEET_WIDTH - margin));
+              let left =
+                feelingAnchor.x + feelingAnchor.w / 2 - FEELING_SHEET_WIDTH / 2;
+              left = Math.max(
+                margin,
+                Math.min(left, width - FEELING_SHEET_WIDTH - margin),
+              );
               sheetStyle.push({ position: "absolute" as const, top, left });
             } else {
               // Fallback: center on screen if no anchor was measured
@@ -1033,54 +1216,15 @@ export default function HomeScreen() {
               });
             }
             return (
-              <TouchableOpacity
-                activeOpacity={1}
-                onPress={(e) => e.stopPropagation()}
-                style={sheetStyle}
-              >
-            <Text style={styles.modalTitle}>How are you feeling?</Text>
-            <View style={styles.feelingGrid}>
-              {FEELING_OPTIONS.map((f) => {
-                const isActive = selectedFeeling === f.key;
-                return (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[
-                      styles.feelingOption,
-                      isActive && styles.feelingOptionActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      setSelectedFeeling(isActive ? null : f.key);
-                      setFeelingPickerVisible(false);
-                    }}
-                  >
-                    <Text style={styles.feelingEmoji}>{f.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.feelingLabel,
-                        isActive && styles.feelingLabelActive,
-                      ]}
-                    >
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {selectedFeeling && (
-              <TouchableOpacity
-                style={styles.feelingClearBtn}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedFeeling(null);
+              <FeelingPickerSheet
+                variant="compact"
+                selected={selectedFeeling}
+                onSelect={(key) => {
+                  setSelectedFeeling(key);
                   setFeelingPickerVisible(false);
                 }}
-              >
-                <Text style={styles.feelingClearText}>Clear feeling</Text>
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+                style={sheetStyle}
+              />
             );
           })()}
         </TouchableOpacity>
@@ -1095,7 +1239,12 @@ export default function HomeScreen() {
         onRequestClose={() => setPushBannerDismissed(true)}
       >
         <View style={styles.pushModalBackdrop}>
-          <View style={[styles.pushModalSheet, { backgroundColor: colors.surfaceContainerLowest }]}>
+          <View
+            style={[
+              styles.pushModalSheet,
+              { backgroundColor: colors.surfaceContainerLowest },
+            ]}
+          >
             <View style={styles.pushModalIconWrap}>
               <LinearGradient
                 colors={[colors.secondary, colors.primary]}
@@ -1103,12 +1252,17 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.pushModalIcon}
               >
-                <Ionicons name="notifications" size={32} color={colors.onPrimary} />
+                <Ionicons
+                  name="notifications"
+                  size={32}
+                  color={colors.onPrimary}
+                />
               </LinearGradient>
             </View>
             <Text style={styles.pushModalTitle}>Stay in the Loop</Text>
             <Text style={styles.pushModalText}>
-              Get notified when someone reacts, comments, or sends you a message of encouragement.
+              Get notified when someone reacts, comments, or sends you a message
+              of encouragement.
             </Text>
             <TouchableOpacity
               onPress={async () => {
@@ -1123,8 +1277,14 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.pushModalEnableBtn}
               >
-                <Ionicons name="notifications-outline" size={18} color={colors.onPrimary} />
-                <Text style={styles.pushModalEnableText}>Enable Notifications</Text>
+                <Ionicons
+                  name="notifications-outline"
+                  size={18}
+                  color={colors.onPrimary}
+                />
+                <Text style={styles.pushModalEnableText}>
+                  Enable Notifications
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1137,559 +1297,515 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Global reaction picker overlay — rendered at screen-root so the
+          long-press → drag → release gesture started inside any PostCard
+          (which lives in a FlatList row) survives without being clipped
+          or interrupted by a <Modal>. */}
+      <ReactionPickerHost />
     </SafeAreaView>
   );
 }
 
-const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+const createStyles = (colors: typeof defaultColors) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.background },
 
-  // ── Content row — feed + right panel on wide screens ──
-  contentRow: { flex: 1, flexDirection: "row" },
-  feedColumn: { flex: 1 },
+    // ── Content row — feed + right panel on wide screens ──
+    contentRow: { flex: 1, flexDirection: "row" },
+    feedColumn: { flex: 1 },
 
-  // ── Top bar — glass-like, no hard border ──
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Platform.OS === "web" ? 20 : 12,
-    paddingBottom: 10,
-    backgroundColor: colors.surfaceContainerLowest,
-    gap: Platform.OS === "web" ? 12 : 8,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  hamburger: { padding: 4 },
-  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
-  topBarLogo: { width: 30, height: 30, borderRadius: 7 },
-  searchBar: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radii.full,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "web" ? 10 : 8,
-    gap: 8,
-    minWidth: 0,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-    color: colors.heading,
-    padding: 0,
-    margin: 0,
-    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
-  },
-  topBarRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  topBarIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  notifBadge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    backgroundColor: colors.danger,
-    borderRadius: 6,
-    minWidth: 12,
-    height: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  notifBadgeText: {
-    color: colors.onPrimary,
-    fontSize: 7,
-    fontFamily: fonts.bodyBold,
-  },
-  avatarBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  avatarInfo: {
-    alignItems: "flex-end",
-  },
-  avatarName: {
-    fontSize: 13,
-    fontFamily: fonts.displayBold,
-    color: colors.onSurface,
-    maxWidth: 100,
-  },
-  avatarRole: {
-    fontSize: 9,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 1,
-  },
-  topBarAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topBarAvatarText: {
-    color: colors.onPrimary,
-    fontSize: 13,
-    fontFamily: fonts.displayBold,
-  },
+    // ── Top bar — glass-like, no hard border ──
+    topBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: Platform.OS === "web" ? 20 : 12,
+      paddingBottom: 10,
+      backgroundColor: colors.surfaceContainerLowest,
+      gap: Platform.OS === "web" ? 12 : 8,
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+    },
+    hamburger: { padding: 4 },
+    topBarLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
+    topBarLogo: { width: 30, height: 30, borderRadius: 7 },
+    searchBar: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surfaceContainerHigh,
+      borderRadius: radii.full,
+      paddingHorizontal: 14,
+      paddingVertical: Platform.OS === "web" ? 10 : 8,
+      gap: 8,
+      minWidth: 0,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: fonts.bodyRegular,
+      color: colors.heading,
+      padding: 0,
+      margin: 0,
+      ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
+    },
+    topBarRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    topBarIconBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+      backgroundColor: colors.surfaceContainerLow,
+    },
+    notifBadge: {
+      position: "absolute",
+      top: 2,
+      right: 2,
+      backgroundColor: colors.danger,
+      borderRadius: 6,
+      minWidth: 12,
+      height: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 2,
+    },
+    notifBadgeText: {
+      color: colors.onPrimary,
+      fontSize: 7,
+      fontFamily: fonts.bodyBold,
+    },
+    avatarBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    avatarInfo: {
+      alignItems: "flex-end",
+    },
+    avatarName: {
+      fontSize: 13,
+      fontFamily: fonts.displayBold,
+      color: colors.onSurface,
+      maxWidth: 100,
+    },
+    avatarRole: {
+      fontSize: 9,
+      fontFamily: fonts.bodySemiBold,
+      color: colors.onSurfaceVariant,
+      letterSpacing: 1,
+    },
+    topBarAvatar: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    topBarAvatarText: {
+      color: colors.onPrimary,
+      fontSize: 13,
+      fontFamily: fonts.displayBold,
+    },
 
-  // ── Greeting — display-lg, generous leading ──
-  greetingSection: { paddingTop: 28, paddingBottom: 4 },
-  greetingText: {
-    fontSize: 32,
-    fontFamily: fonts.displayBold,
-    color: colors.onSurface,
-    lineHeight: 42,
-    letterSpacing: -0.5,
-  },
-  greetingSub: {
-    fontSize: 16,
-    fontFamily: fonts.bodyRegular,
-    color: colors.onSurfaceVariant,
-    marginTop: 8,
-    lineHeight: 24,
-  },
+    // ── Greeting — display-lg, generous leading ──
+    greetingSection: { paddingTop: 28, paddingBottom: 4 },
+    greetingText: {
+      fontSize: 32,
+      fontFamily: fonts.displayBold,
+      color: colors.onSurface,
+      lineHeight: 42,
+      letterSpacing: -0.5,
+    },
+    greetingSub: {
+      fontSize: 16,
+      fontFamily: fonts.bodyRegular,
+      color: colors.onSurfaceVariant,
+      marginTop: 8,
+      lineHeight: 24,
+    },
 
-  // ── Push notification modal ──
-  pushModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  pushModalSheet: {
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    maxWidth: 380,
-    width: '100%' as any,
-    alignItems: 'center' as any,
-    ...ambientShadow,
-  },
-  pushModalIconWrap: {
-    marginBottom: spacing.lg,
-  },
-  pushModalIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center' as any,
-    justifyContent: 'center' as any,
-  },
-  pushModalTitle: {
-    fontSize: 22,
-    fontFamily: fonts.displayBold,
-    color: colors.onSurface,
-    textAlign: 'center' as any,
-    marginBottom: spacing.sm,
-  },
-  pushModalText: {
-    fontSize: 14,
-    fontFamily: fonts.bodyRegular,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center' as any,
-    lineHeight: 21,
-    marginBottom: spacing.xl,
-  },
-  pushModalEnableBtn: {
-    flexDirection: 'row' as any,
-    alignItems: 'center' as any,
-    justifyContent: 'center' as any,
-    gap: spacing.sm,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.full,
-    width: '100%' as any,
-  },
-  pushModalEnableText: {
-    fontSize: 15,
-    fontFamily: fonts.displayBold,
-    color: colors.onPrimary,
-  },
-  pushModalDismissBtn: {
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  pushModalDismissText: {
-    fontSize: 14,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.onSurfaceVariant,
-  },
+    // ── Push notification modal ──
+    pushModalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: spacing.lg,
+    },
+    pushModalSheet: {
+      borderRadius: radii.xl,
+      padding: spacing.xl,
+      maxWidth: 380,
+      width: "100%" as any,
+      alignItems: "center" as any,
+      ...ambientShadow,
+    },
+    pushModalIconWrap: {
+      marginBottom: spacing.lg,
+    },
+    pushModalIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: "center" as any,
+      justifyContent: "center" as any,
+    },
+    pushModalTitle: {
+      fontSize: 22,
+      fontFamily: fonts.displayBold,
+      color: colors.onSurface,
+      textAlign: "center" as any,
+      marginBottom: spacing.sm,
+    },
+    pushModalText: {
+      fontSize: 14,
+      fontFamily: fonts.bodyRegular,
+      color: colors.onSurfaceVariant,
+      textAlign: "center" as any,
+      lineHeight: 21,
+      marginBottom: spacing.xl,
+    },
+    pushModalEnableBtn: {
+      flexDirection: "row" as any,
+      alignItems: "center" as any,
+      justifyContent: "center" as any,
+      gap: spacing.sm,
+      paddingVertical: 14,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radii.full,
+      width: "100%" as any,
+    },
+    pushModalEnableText: {
+      fontSize: 15,
+      fontFamily: fonts.displayBold,
+      color: colors.onPrimary,
+    },
+    pushModalDismissBtn: {
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    pushModalDismissText: {
+      fontSize: 14,
+      fontFamily: fonts.bodySemiBold,
+      color: colors.onSurfaceVariant,
+    },
 
-  // ── Inline Composer ──
-  composerSection: { marginTop: 16, marginBottom: spacing.sm },
-  composerCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radii.xl,
-    padding: 18,
-    ...ambientShadow,
-  },
-  composerTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  composerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryContainer + "44",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  composerInput: {
-    flex: 1,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radii.lg,
-    padding: 14,
-    fontSize: 15,
-    fontFamily: fonts.bodyRegular,
-    color: colors.onSurface,
-    minHeight: 80,
-    textAlignVertical: "top",
-    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
-  },
-  composerImageWrap: {
-    marginTop: 12,
-    marginLeft: 56,
-    position: "relative",
-    alignSelf: "flex-start",
-  },
-  composerImagePreview: {
-    width: 120,
-    height: 80,
-    borderRadius: 12,
-  },
-  composerImageRemove: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-  },
-  feelingChipRow: {
-    flexDirection: "row",
-    marginTop: 10,
-  },
-  feelingChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primaryContainer + "25",
-    borderWidth: 1,
-    borderColor: colors.primary + "30",
-    borderRadius: radii.full,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  feelingChipEmoji: {
-    fontSize: 14,
-  },
-  feelingChipText: {
-    fontSize: 12,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.primary,
-  },
-  composerBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 14,
-  },
-  composerActions: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  composerActionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  composerActionText: {
-    fontSize: 14,
-    fontFamily: fonts.bodyMedium,
-    color: colors.onSurface,
-  },
-  composerSubmitBtn: {
-    borderRadius: radii.full,
-    overflow: "hidden",
-  },
-  composerSubmitDisabled: {
-    opacity: 0.5,
-  },
-  composerSubmitGrad: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  composerSubmitText: {
-    fontSize: 14,
-    fontFamily: fonts.displayBold,
-    color: "#FFFFFF",
-  },
+    // ── Inline Composer ──
+    composerSection: { marginTop: 16, marginBottom: spacing.sm },
+    composerCard: {
+      backgroundColor: colors.surfaceContainerLowest,
+      borderRadius: radii.xl,
+      padding: 18,
+      ...ambientShadow,
+    },
+    composerTop: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    composerIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primaryContainer + "44",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    composerInput: {
+      flex: 1,
+      backgroundColor: colors.surfaceContainerLow,
+      borderRadius: radii.lg,
+      padding: 14,
+      fontSize: 15,
+      fontFamily: fonts.bodyRegular,
+      color: colors.onSurface,
+      minHeight: 80,
+      textAlignVertical: "top",
+      ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
+    },
+    composerImageWrap: {
+      marginTop: 12,
+      marginLeft: 56,
+      position: "relative",
+      alignSelf: "flex-start",
+    },
+    composerImagePreview: {
+      width: 120,
+      height: 80,
+      borderRadius: 12,
+    },
+    composerImageRemove: {
+      position: "absolute",
+      top: -6,
+      right: -6,
+    },
+    feelingChipRow: {
+      flexDirection: "row",
+      marginTop: 10,
+    },
+    feelingChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: colors.primaryContainer + "25",
+      borderWidth: 1,
+      borderColor: colors.primary + "30",
+      borderRadius: radii.full,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    feelingChipEmoji: {
+      fontSize: 14,
+    },
+    feelingChipText: {
+      fontSize: 12,
+      fontFamily: fonts.bodySemiBold,
+      color: colors.primary,
+    },
+    composerBottom: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 14,
+    },
+    composerActions: {
+      flexDirection: "row",
+      gap: 16,
+    },
+    composerActionBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    composerActionText: {
+      fontSize: 14,
+      fontFamily: fonts.bodyMedium,
+      color: colors.onSurface,
+    },
+    composerSubmitBtn: {
+      borderRadius: radii.full,
+      overflow: "hidden",
+    },
+    composerSubmitDisabled: {
+      opacity: 0.5,
+    },
+    composerSubmitGrad: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    composerSubmitText: {
+      fontSize: 14,
+      fontFamily: fonts.displayBold,
+      color: "#FFFFFF",
+    },
 
-  // ── Sections ──
-  section: { marginTop: 20 },
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: fonts.displaySemiBold,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 1.5,
-    marginBottom: 12,
-    textTransform: "uppercase" as any,
-  },
+    // ── Sections ──
+    section: { marginTop: 20 },
+    sectionLabel: {
+      fontSize: 11,
+      fontFamily: fonts.displaySemiBold,
+      color: colors.onSurfaceVariant,
+      letterSpacing: 1.5,
+      marginBottom: 12,
+      textTransform: "uppercase" as any,
+    },
 
-  // ── Daily reflection card ──
-  reflectionCard: {
-    borderRadius: radii.xl,
-    padding: 28,
-  },
-  reflectionIcon: {
-    marginBottom: 12,
-  },
-  reflectionQuote: {
-    fontSize: 15,
-    fontFamily: fonts.bodyRegular,
-    color: colors.onSurface,
-    lineHeight: 24,
-    fontStyle: "italic",
-  },
-  seeMoreBtn: {
-    marginTop: 8,
-  },
-  seeMoreText: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.secondary,
-  },
+    // ── Daily reflection card ──
+    reflectionCard: {
+      borderRadius: radii.xl,
+      padding: 28,
+    },
+    reflectionIcon: {
+      marginBottom: 12,
+    },
+    reflectionQuote: {
+      fontSize: 15,
+      fontFamily: fonts.bodyRegular,
+      color: colors.onSurface,
+      lineHeight: 24,
+      fontStyle: "italic",
+    },
+    seeMoreBtn: {
+      marginTop: 8,
+    },
+    seeMoreText: {
+      fontSize: 13,
+      fontFamily: fonts.bodySemiBold,
+      color: colors.secondary,
+    },
 
-  // ── Stats — tonal layering ──
-  statsRow: { flexDirection: "row", gap: 16 },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: radii.xl,
-    padding: 20,
-    alignItems: "center",
-    ...ambientShadow,
-  },
-  statNum: {
-    fontSize: 30,
-    fontFamily: fonts.displayExtraBold,
-    color: colors.primary,
-  },
-  statLbl: {
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-    color: colors.onSurfaceVariant,
-    textAlign: "center",
-    marginTop: 6,
-    lineHeight: 18,
-  },
+    // ── Stats — tonal layering ──
+    statsRow: { flexDirection: "row", gap: 16 },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.surfaceContainerLowest,
+      borderRadius: radii.xl,
+      padding: 20,
+      alignItems: "center",
+      ...ambientShadow,
+    },
+    statNum: {
+      fontSize: 30,
+      fontFamily: fonts.displayExtraBold,
+      color: colors.primary,
+    },
+    statLbl: {
+      fontSize: 13,
+      fontFamily: fonts.bodyRegular,
+      color: colors.onSurfaceVariant,
+      textAlign: "center",
+      marginTop: 6,
+      lineHeight: 18,
+    },
 
-  // ── Tags — reflection chips ──
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tagChip: {
-    backgroundColor: colors.secondaryFixed,
-    borderRadius: radii.full,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  tagText: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.onSecondaryFixed,
-  },
+    // ── Tags — reflection chips ──
+    tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    tagChip: {
+      backgroundColor: colors.secondaryFixed,
+      borderRadius: radii.full,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    tagText: {
+      fontSize: 13,
+      fontFamily: fonts.bodySemiBold,
+      color: colors.onSecondaryFixed,
+    },
 
-  // ── Feed spacer ──
-  feedHeaderSpacer: { height: 16 },
+    // ── Feed spacer ──
+    feedHeaderSpacer: { height: 16 },
 
-  // ── Error ──
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 20,
-    marginTop: 12,
-    backgroundColor: colors.errorLight,
-    borderRadius: radii.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  errorText: {
-    color: colors.errorText,
-    fontSize: 14,
-    fontFamily: fonts.bodyMedium,
-  },
+    // ── Error ──
+    errorBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: 20,
+      marginTop: 12,
+      backgroundColor: colors.errorLight,
+      borderRadius: radii.lg,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    errorText: {
+      color: colors.errorText,
+      fontSize: 14,
+      fontFamily: fonts.bodyMedium,
+    },
 
-  // ── List ──
-  listContent: { paddingBottom: 120 },
+    // ── List ──
+    listContent: { paddingBottom: 120 },
 
-  // ── Loader ──
-  loaderOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "stretch",
-    justifyContent: "flex-start",
-  },
+    // ── Loader ──
+    loaderOverlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+    },
 
-  // ── Web/PWA pull-to-refresh indicator ──
-  webPtrIndicator: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 5,
-  },
-  webPtrCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceContainerHigh,
-    alignItems: "center",
-    justifyContent: "center",
-    ...ambientShadow,
-  },
-  webPtrCircleReady: {
-    backgroundColor: colors.primaryContainer,
-  },
+    // ── Web/PWA pull-to-refresh indicator ──
+    webPtrIndicator: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      alignItems: "center",
+      zIndex: 5,
+    },
+    webPtrCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceContainerHigh,
+      alignItems: "center",
+      justifyContent: "center",
+      ...ambientShadow,
+    },
+    webPtrCircleReady: {
+      backgroundColor: colors.primaryContainer,
+    },
 
-  // ── Empty state ──
-  emptyWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 100,
-    paddingHorizontal: 40,
-  },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontFamily: fonts.displayBold,
-    color: colors.onSurface,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  emptySub: {
-    fontSize: 15,
-    fontFamily: fonts.bodyRegular,
-    color: colors.onSurfaceVariant,
-    textAlign: "center",
-    lineHeight: 24,
-  },
+    // ── Empty state ──
+    emptyWrap: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 100,
+      paddingHorizontal: 40,
+    },
+    emptyIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontFamily: fonts.displayBold,
+      color: colors.onSurface,
+      marginBottom: 10,
+      textAlign: "center",
+    },
+    emptySub: {
+      fontSize: 15,
+      fontFamily: fonts.bodyRegular,
+      color: colors.onSurfaceVariant,
+      textAlign: "center",
+      lineHeight: 24,
+    },
 
-  // ── FAB & Journal button ──
-  fabWrap: {
-    position: "absolute",
-    bottom: Platform.OS === "ios" ? 100 : 90,
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 50,
-  },
-  journalBtn: {
-    borderRadius: radii.full,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    backgroundColor: colors.surfaceContainerLowest,
-    ...ambientShadow,
-  },
-  journalBtnText: {
-    fontSize: 15,
-    fontFamily: fonts.displaySemiBold,
-    color: colors.primary,
-  },
-  fab: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: "hidden",
-    ...ambientShadow,
-    shadowOpacity: 0.12,
-    marginRight: 24,
-  },
-  fabGrad: { flex: 1, alignItems: "center", justifyContent: "center" },
+    // ── FAB & Journal button ──
+    fabWrap: {
+      position: "absolute",
+      bottom: Platform.OS === "ios" ? 100 : 90,
+      left: 16,
+      right: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      zIndex: 50,
+    },
+    journalBtn: {
+      borderRadius: radii.full,
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      backgroundColor: colors.surfaceContainerLowest,
+      ...ambientShadow,
+    },
+    journalBtnText: {
+      fontSize: 15,
+      fontFamily: fonts.displaySemiBold,
+      color: colors.primary,
+    },
+    fab: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      overflow: "hidden",
+      ...ambientShadow,
+      shadowOpacity: 0.12,
+      marginRight: 24,
+    },
+    fabGrad: { flex: 1, alignItems: "center", justifyContent: "center" },
 
-  // ── Feeling picker modal ──
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  modalSheet: {
-    backgroundColor: colors.card,
-    borderRadius: radii.xl,
-    padding: 16,
-    gap: 10,
-    width: "85%",
-    maxWidth: 320,
-    ...ambientShadow,
-  },
-  modalTitle: {
-    color: colors.onSurface,
-    fontSize: 16,
-    fontFamily: fonts.displayBold,
-    marginBottom: 2,
-  },
-  feelingGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  feelingOption: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radii.md,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    width: "30%",
-  },
-  feelingOptionActive: {
-    backgroundColor: colors.primaryContainer + "30",
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  feelingEmoji: { fontSize: 20, marginBottom: 2 },
-  feelingLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.onSurfaceVariant,
-  },
-  feelingLabelActive: {
-    color: colors.primary,
-  },
-  feelingClearBtn: {
-    alignSelf: "center",
-    paddingVertical: 10,
-  },
-  feelingClearText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontFamily: fonts.bodySemiBold,
-  },
-});
+    // ── Feeling picker modal ──
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: "transparent",
+    },
+  });

@@ -420,7 +420,6 @@ export async function notifyCoachesOfNewMemberPost(params: {
       data: {
         postId: params.postId,
         authorId: params.authorId,
-        screen: 'PostDetail',
       },
     });
   } catch (error) {

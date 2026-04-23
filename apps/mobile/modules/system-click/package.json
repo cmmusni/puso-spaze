@@ -1,0 +1,7 @@
+{
+  "name": "system-click",
+  "version": "1.0.0",
+  "description": "Plays the native OS click sound effect.",
+  "main": "index.ts",
+  "private": true
+}

@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Platform,
   useWindowDimensions,
@@ -114,11 +114,10 @@ function CustomDrawerContent({
             ? currentRoute === "Home"
             : currentRoute === item.route;
           return (
-            <TouchableOpacity
+            <Pressable
               key={item.key}
               onPress={() => navigation.navigate(item.route)}
-              style={[styles.navItem, active && styles.navItemActive]}
-              activeOpacity={0.7}
+              style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && { opacity: 0.7 }]}
             >
               <Ionicons
                 name={active ? item.iconActive : item.icon}
@@ -128,21 +127,20 @@ function CustomDrawerContent({
               <Text style={[styles.navItemText, active && styles.navItemTextActive]}>
                 {item.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
 
       {/* ── Sign Out ── */}
       <View style={{ flex: 1 }} />
-      <TouchableOpacity
+      <Pressable
         onPress={logoutUser}
-        style={styles.signOutItem}
-        activeOpacity={0.7}
+        style={({ pressed }) => [styles.signOutItem, pressed && { opacity: 0.7 }]}
       >
         <Ionicons name="log-out-outline" size={18} color="rgba(255,255,255,0.5)" />
         <Text style={styles.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Bottom safe-area padding */}
       <View style={{ height: Platform.OS === "ios" ? 24 : 12 }} />

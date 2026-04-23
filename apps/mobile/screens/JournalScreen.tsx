@@ -167,6 +167,22 @@ export default function JournalScreen({ navigation }: any) {
   // ── Highlight state ───────────────────────
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const entryRefs = useRef<Record<string, View | null>>({});
+  // y-offset of each entry within the compose ScrollView's content. Captured
+  // via onLayout — works reliably on Android/iOS/web without measureLayout.
+  const entryOffsets = useRef<Record<string, number>>({});
+
+  const scrollToEntry = useCallback((key: string) => {
+    // Past entries are nested inside the pastSection, so their onLayout
+    // y-offset is relative to that section. Compose absolute scroll offset
+    // by adding the section's own offset (which lives inside the scroll
+    // container directly).
+    const sectionY = entryOffsets.current['__past_section__'] ?? 0;
+    const isSection = key === '__past_section__';
+    const entryY = entryOffsets.current[key];
+    if (typeof entryY !== "number") return;
+    const targetY = isSection ? entryY : sectionY + entryY;
+    composeScrollRef.current?.scrollTo({ y: Math.max(targetY - 20, 0), animated: true });
+  }, []);
 
   // ── List state ────────────────────────────
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -343,16 +359,7 @@ export default function JournalScreen({ navigation }: any) {
     if (highlightJournalId && journals.length > 0) {
       setHighlightedId(highlightJournalId);
       const timer = setTimeout(() => {
-        const ref = entryRefs.current[highlightJournalId];
-        if (ref && composeScrollRef.current) {
-          ref.measureLayout(
-            composeScrollRef.current.getInnerViewNode?.() as any,
-            (_x: number, y: number) => {
-              composeScrollRef.current?.scrollTo({ y: y - 20, animated: true });
-            },
-            () => {},
-          );
-        }
+        scrollToEntry(highlightJournalId);
       }, 400);
       const clearTimer = setTimeout(() => setHighlightedId(null), 2500);
       return () => {
@@ -360,26 +367,17 @@ export default function JournalScreen({ navigation }: any) {
         clearTimeout(clearTimer);
       };
     }
-  }, [highlightJournalId, journals]);
+  }, [highlightJournalId, journals, scrollToEntry]);
 
   // ── Scroll to Past Entries section ─────────
   useEffect(() => {
     if (scrollToPastEntries && journals.length > 0) {
       const timer = setTimeout(() => {
-        const ref = entryRefs.current['__past_section__'];
-        if (ref && composeScrollRef.current) {
-          ref.measureLayout(
-            composeScrollRef.current.getInnerViewNode?.() as any,
-            (_x: number, y: number) => {
-              composeScrollRef.current?.scrollTo({ y: y - 20, animated: true });
-            },
-            () => {},
-          );
-        }
+        scrollToEntry('__past_section__');
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [scrollToPastEntries, journals]);
+  }, [scrollToPastEntries, journals, scrollToEntry]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -406,16 +404,7 @@ export default function JournalScreen({ navigation }: any) {
       await fetchJournals();
       setHighlightedId(created.id);
       setTimeout(() => {
-        const ref = entryRefs.current[created.id];
-        if (ref && composeScrollRef.current) {
-          ref.measureLayout(
-            composeScrollRef.current.getInnerViewNode?.() as any,
-            (_x: number, y: number) => {
-              composeScrollRef.current?.scrollTo({ y: y - 20, animated: true });
-            },
-            () => {},
-          );
-        }
+        scrollToEntry(created.id);
       }, 400);
       setTimeout(() => setHighlightedId(null), 2500);
     } catch (err) {
@@ -751,6 +740,9 @@ export default function JournalScreen({ navigation }: any) {
       <View
         key={item.id}
         ref={(ref) => { entryRefs.current[item.id] = ref; }}
+        onLayout={(e) => {
+          entryOffsets.current[item.id] = e.nativeEvent.layout.y;
+        }}
       >
         <TouchableOpacity
           onPress={() => openEditEntry(item)}
@@ -960,6 +952,9 @@ export default function JournalScreen({ navigation }: any) {
         <View
           style={st.pastSection}
           ref={(ref) => { entryRefs.current['__past_section__'] = ref; }}
+          onLayout={(e) => {
+            entryOffsets.current['__past_section__'] = e.nativeEvent.layout.y;
+          }}
         >
           <Text style={st.pastTitle}>Past Entries</Text>
           {journals.map((j) => renderJournalCard(j))}

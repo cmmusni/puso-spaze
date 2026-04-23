@@ -86,6 +86,14 @@
 - Reaction writes use optimistic `applyToggle()` snapshots with `rollback()` on API failure to preserve UX speed without stale-clobber regressions
 - Store exposes `refreshTick` + `requestRefresh()` so screen-level pull-to-refresh actions can trigger explicit reaction re-hydration without forcing full remounts
 
+### Shared Post-Surface Primitives (DRY)
+The post composer, feed card, and detail surfaces share these single-source modules — prefer them over re-implementing inline:
+- `apps/mobile/constants/feelings.ts` → `FEELING_OPTIONS` (composer picker) + `FEELING_MAP` (feeling tag rendering on posts). Used by `HomeScreen`, `PostScreen`, `PostCard`, `PostDetailScreen`.
+- `apps/mobile/utils/avatarColors.ts` → `getAvatarColors(initial, colors?)` themed gradient palette for avatar fallbacks. Used by `PostCard`, `PostScreen`, `PostDetailScreen`. Pass the active themed `colors` to honour dark mode.
+- `apps/mobile/utils/formatTime.ts` → `formatRelativeTime(dateStr)` short relative timestamps (`just now`, `12m`, `3h`, `5d`). Used by `PostCard`, `PostDetailScreen`.
+- `apps/mobile/components/ReactionIcon.tsx` → `renderReactionIcon(type, size, color)` + `<ReactionIcon>` wrapper. Single source for picking PrayIcon/SupportIcon/LikeIcon/SadIcon/care icon by `ReactionType`. The color-keyed `key` prop fixes Safari `tintColor` cache bugs — never inline this lookup again.
+- `apps/mobile/components/FeelingPickerSheet.tsx` → reusable inner sheet for the "How are you feeling?" picker, with `compact` (HomeScreen) and `comfortable` (PostScreen) variants. Each consumer wraps it in its own `<Modal>` so screen-specific positioning (anchored vs centered) stays local.
+
 ### Adaptive Polling Pattern
 - Chat polling switched from fixed intervals to adaptive timeout loops
 - Web uses `document.visibilityState`; native uses `AppState.currentState`

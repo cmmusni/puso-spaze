@@ -25,8 +25,8 @@ export async function createComment(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  if (content.trim().length < 3) {
-    res.status(400).json({ error: 'Comment must be at least 3 characters.' });
+  if (content.trim().length < 1) {
+    res.status(400).json({ error: 'Comment must be at least 1 character.' });
     return;
   }
 

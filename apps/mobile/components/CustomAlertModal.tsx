@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   Animated,
   StyleSheet,
@@ -140,23 +140,21 @@ export default function CustomAlertModal() {
           {/* Buttons */}
           <View style={styles.buttonRow}>
             {isConfirm && (
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                activeOpacity={0.7}
+              <Pressable
+                style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.7 }]}
                 onPress={() => dismiss(false)}
               >
                 <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
-              style={[styles.primaryBtn, isConfirm && styles.primaryBtnHalf]}
-              activeOpacity={0.85}
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, isConfirm && styles.primaryBtnHalf, pressed && { opacity: 0.85 }]}
               onPress={() => dismiss(isConfirm ? true : false)}
             >
               <Text style={styles.primaryText}>
                 {isConfirm ? "Confirm" : "OK"}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Animated.View>
       </View>

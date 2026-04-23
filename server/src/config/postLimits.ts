@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────
 
 /** Minimum post content length */
-export const POST_MIN_LENGTH = 2;
+export const POST_MIN_LENGTH = 1;
 
 /** Maximum post content length */
 export const POST_MAX_LENGTH = 500;

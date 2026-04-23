@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["SystemClickModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.systemclick.SystemClickModule"]
+  }
+}

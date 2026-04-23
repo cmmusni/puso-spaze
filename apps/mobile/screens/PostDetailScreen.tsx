@@ -14,7 +14,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   RefreshControl,
   KeyboardAvoidingView,
@@ -26,9 +26,10 @@ import {
   Animated,
   StyleSheet,
   useWindowDimensions,
+  PanResponder,
 } from "react-native";
 import { Image } from "expo-image";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -37,7 +38,11 @@ import {
   RouteProp,
   useFocusEffect,
 } from "@react-navigation/native";
-import { PrayIcon, SupportIcon, LikeIcon, SadIcon } from "../components/ReactionIcons";
+import { PrayIcon } from "../components/ReactionIcons";
+import { renderReactionIcon } from "../components/ReactionIcon";
+import { getAvatarColors } from "../utils/avatarColors";
+import { formatRelativeTime } from "../utils/formatTime";
+import { FEELING_MAP } from "../constants/feelings";
 import {
   apiGetPostById,
   apiGetReactions,
@@ -65,6 +70,11 @@ import {
 } from "../constants/theme";
 import { useThemeStore } from "../context/ThemeContext";
 import { useReactionsStore } from "../context/ReactionsStore";
+import {
+  findBubbleAt,
+  useReactionPickerStore,
+} from "../context/ReactionPickerStore";
+import ReactionPickerHost from "../components/ReactionPickerHost";
 import { tapLight, tapMedium } from "../utils/haptics";
 import { noSelectStyle, suppressWebMenu } from "../utils/suppressWebMenu";
 import { usePressAnimation } from "../hooks/usePressAnimation";
@@ -82,6 +92,7 @@ import type {
   ReactionCounts,
 } from "../../../packages/types";
 import { PostDetailSkeleton } from "../components/LoadingSkeletons";
+import { playClick } from "@/utils/clickSound";
 
 type PostDetailRouteProp = RouteProp<
   {
@@ -104,59 +115,14 @@ function isValidPost(value: unknown): value is Post {
   );
 }
 
-// Gradient avatar (same logic as PostCard)
+// Gradient avatar — themed via shared util
 function avatarColors(initial: string): [string, string] {
-  const palette: [string, string][] = [
-    [defaultColors.hot, defaultColors.primary],
-    [defaultColors.primary, defaultColors.deep],
-    [defaultColors.fuchsia, defaultColors.ink],
-    [defaultColors.ink, defaultColors.deep],
-    [defaultColors.hot, defaultColors.fuchsia],
-  ];
-  return palette[initial.charCodeAt(0) % palette.length];
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  return getAvatarColors(initial);
 }
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE", "SAD"];
 
-const REACTION_LABELS: Record<ReactionType, string> = {
-  PRAY: "Pray",
-  CARE: "Care",
-  SUPPORT: "Support",
-  LIKE: "Like",
-  SAD: "Sad",
-};
-
-// Per-reaction gradient palette (sourced from theme tokens).
-const REACTION_GRADIENTS: Record<
-  ReactionType,
-  (c: typeof defaultColors) => [string, string]
-> = {
-  PRAY: (c) => [c.primary, c.secondary],
-  CARE: (c) => [c.hot, c.fuchsia],
-  SUPPORT: (c) => [c.tertiary, c.primary],
-  LIKE: (c) => [c.secondary, c.primaryContainer],
-  SAD: (c) => [c.tertiary, c.onSurfaceVariant],
-};
 const SYSTEM_USER_ID = "system-encouragement-bot";
-
-const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
-  grateful: { emoji: "\u{1F60A}", label: "Grateful" },
-  prayerful: { emoji: "\u{1F64F}", label: "Prayerful" },
-  strong: { emoji: "\u{1F4AA}", label: "Strong" },
-  struggling: { emoji: "\u{1F622}", label: "Struggling" },
-  hopeful: { emoji: "\u{1F917}", label: "Hopeful" },
-  "heavy-hearted": { emoji: "\u{1F614}", label: "Heavy-hearted" },
-  blessed: { emoji: "\u2728", label: "Blessed" },
-  loved: { emoji: "\u2764\uFE0F", label: "Loved" },
-};
 
 /** Subtle highlight pulse for a newly posted comment */
 function CommentHighlightWrap({
@@ -212,36 +178,164 @@ function CommentHighlightWrap({
   );
 }
 
-const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
-  "heart",
-  "heart-outline",
-  "ellipse",
-];
+// ─────────────────────────────────────────────
+// Shared reaction trigger (Facebook-style)
+// Used by both the post's reaction button and each comment's Like button.
+// Tap → onTap. Long-press (300ms) → opens shared picker overlay (rendered
+// at screen-root by <ReactionPickerHost />); while finger remains down,
+// dragging across the picker bubbles highlights the hovered reaction;
+// releasing fires onPickerSelect (or just closes if released off any
+// bubble). Uses useReactionPickerStore so the gesture survives across
+// surfaces without local <Modal> interruption.
+// ─────────────────────────────────────────────
+type ReactionTriggerProps = {
+  onTap: () => void;
+  onPickerSelect: (type: ReactionType) => void;
+  /** Drives the picker's "your current reaction" border highlight. */
+  userReaction?: ReactionType | null;
+  pressAnim?: ReturnType<typeof usePressAnimation>;
+  longPressMs?: number;
+  style?: any;
+  webProps?: object;
+  children?: React.ReactNode;
+};
 
-function getCareIcon(): keyof typeof Ionicons.glyphMap {
-  const candidates = CARE_ICON_CANDIDATES;
-  return candidates.find((name) => name in Ionicons.glyphMap) ?? "ellipse";
-}
+// Picker pill dimensions used to position above the long-pressed anchor.
+const PICKER_WIDTH = 270;
+const PICKER_HEIGHT = 60;
 
-function renderReactionIcon(type: ReactionType, size: number, color: string) {
-  // The `key` includes both type and color. This forces React to remount the
-  // underlying <Image>/<Ionicons> whenever either changes — Safari otherwise
-  // caches the CSS mask-image (used to implement `tintColor`) inside any
-  // ancestor compositing layer, so the icon's color never updates after a
-  // select/deselect.
-  const k = `${type}-${color}`;
-  if (type === "PRAY") return <PrayIcon key={k} size={size} color={color} />;
-  if (type === "SUPPORT")
-    return <SupportIcon key={k} size={size} color={color} />;
-  if (type === "LIKE") return <LikeIcon key={k} size={size} color={color} />;
-  if (type === "SAD") return <SadIcon key={k} size={size} color={color} />;
-  return <Ionicons key={k} name={getCareIcon()} size={size} color={color} />;
+function ReactionTrigger({
+  onTap,
+  onPickerSelect,
+  userReaction,
+  pressAnim,
+  longPressMs = 300,
+  style,
+  webProps,
+  children,
+}: ReactionTriggerProps) {
+  const anchorRef = useRef<View>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const movedBeyondTapRef = useRef(false);
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Keep latest callbacks/state in a ref so the memoized PanResponder stays
+  // stable while always invoking the freshest props.
+  const callbacksRef = useRef({ onTap, onPickerSelect, userReaction });
+  callbacksRef.current = { onTap, onPickerSelect, userReaction };
+  const screenWidthRef = useRef(screenWidth);
+  screenWidthRef.current = screenWidth;
+
+  const openPickerFromAnchor = () => {
+    const node = anchorRef.current;
+    if (!node || typeof (node as any).measureInWindow !== "function") return;
+    (node as any).measureInWindow(
+      (x: number, y: number, w: number, h: number) => {
+        tapMedium();
+        const sw = screenWidthRef.current;
+        let left = x + w / 2 - PICKER_WIDTH / 2;
+        left = Math.max(8, Math.min(left, sw - PICKER_WIDTH - 8));
+        let top = y - PICKER_HEIGHT - 8;
+        if (top < 8) top = y + h + 8;
+        useReactionPickerStore.getState().open({
+          pickerPos: { top, left },
+          userReaction: callbacksRef.current.userReaction ?? null,
+          onSelect: (type) => callbacksRef.current.onPickerSelect(type),
+        });
+      },
+    );
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => false,
+        // Don't let parent ScrollViews steal the gesture mid-drag.
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+
+        onPanResponderGrant: () => {
+          pressAnim?.onPressIn();
+          movedBeyondTapRef.current = false;
+          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = setTimeout(() => {
+            pressAnim?.onLongPress();
+            openPickerFromAnchor();
+          }, longPressMs);
+        },
+
+        onPanResponderMove: (_e, g) => {
+          const store = useReactionPickerStore.getState();
+          if (Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10) {
+            movedBeyondTapRef.current = true;
+            // Movement before the long-press timer fires cancels the picker
+            // so the gesture remains a tap-or-drag (no accidental open).
+            if (!store.visible && longPressTimerRef.current) {
+              clearTimeout(longPressTimerRef.current);
+              longPressTimerRef.current = null;
+            }
+          }
+          if (!store.visible) return;
+          store.setPressed(findBubbleAt(g.moveX));
+        },
+
+        onPanResponderRelease: (_e, g) => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          pressAnim?.onPressOut();
+
+          const store = useReactionPickerStore.getState();
+          if (store.visible) {
+            const hit = findBubbleAt(g.moveX || g.x0);
+            store.setPressed(null);
+            store.close();
+            if (hit) {
+              callbacksRef.current.onPickerSelect(hit);
+            }
+            return;
+          }
+
+          if (!movedBeyondTapRef.current) {
+            callbacksRef.current.onTap();
+          }
+        },
+
+        onPanResponderTerminate: () => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          pressAnim?.onPressOut();
+          const store = useReactionPickerStore.getState();
+          store.setPressed(null);
+          if (store.visible) store.close();
+        },
+      }),
+    // Stable handlers — closures use refs/store getState for fresh values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  return (
+    <View
+      ref={anchorRef}
+      {...panResponder.panHandlers}
+      {...(webProps ?? {})}
+      style={style}
+    >
+      {children}
+    </View>
+  );
 }
 
 export default function PostDetailScreen() {
   const colors = useThemeStore((s) => s.colors);
   const isDark = useThemeStore((s) => s.isDark);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const navigation = useNavigation();
   const route = useRoute<PostDetailRouteProp>();
   const routePost = route.params?.post;
@@ -320,7 +414,7 @@ export default function PostDetailScreen() {
   const [reactionLoading, setReactionLoading] = useState(false);
 
   const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -348,10 +442,6 @@ export default function PostDetailScreen() {
   // ── Reply state ───────────────────────────────
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
 
-  // ── Comment reaction picker state ─────────────
-  const [commentPickerTarget, setCommentPickerTarget] =
-    useState<Comment | null>(null);
-
   // ── Post menu state ───────────────────────────
   const [postMenuVisible, setPostMenuVisible] = useState(false);
   const [editPostVisible, setEditPostVisible] = useState(false);
@@ -361,60 +451,11 @@ export default function PostDetailScreen() {
   // ── Image viewer state ────────────────────────
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
 
-  // ── Floating reaction picker ──────────────────
-  const [showPicker, setShowPicker] = useState(false);
-  const [pressedReaction, setPressedReaction] = useState<ReactionType | null>(
-    null,
-  );
-  // Picker anchor position (window coords). Set on long-press to place the
-  // picker just above the pressed reaction button.
-  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(
-    null,
-  );
-  const reactionBtnRef = useRef<View>(null);
+  // The reaction picker overlay is rendered globally by
+  // <ReactionPickerHost /> at screen-root (see end of JSX). ReactionTrigger
+  // talks to the global useReactionPickerStore directly, so this screen
+  // only needs the press animation for the post's main reaction button.
   const reactionPress = usePressAnimation();
-  const pickerAnim = useRef(new Animated.Value(0)).current;
-
-  // Estimated picker dimensions (4 bubbles × 44 + gaps + padding).
-  const PICKER_WIDTH = 224;
-  const PICKER_HEIGHT = 60;
-
-  const openPickerAt = (anchor: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }) => {
-    tapMedium();
-    let left = anchor.x + anchor.width / 2 - PICKER_WIDTH / 2;
-    left = Math.max(8, Math.min(left, screenWidth - PICKER_WIDTH - 8));
-    let top = anchor.y - PICKER_HEIGHT - 8;
-    if (top < 8) top = anchor.y + anchor.height + 8;
-    setPickerPos({ top, left });
-    setShowPicker(true);
-    Animated.timing(pickerAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const openPickerFromReactionBtn = () => {
-    const node = reactionBtnRef.current;
-    if (node && typeof (node as any).measureInWindow === "function") {
-      (node as any).measureInWindow(
-        (x: number, y: number, w: number, h: number) =>
-          openPickerAt({ x, y, width: w, height: h }),
-      );
-    } else {
-      openPickerAt({
-        x: screenWidth / 2 - 22,
-        y: screenHeight - 200,
-        width: 44,
-        height: 44,
-      });
-    }
-  };
 
   // ── Reactors modal ────────────────────────────
   type ReactorsTab = "ALL" | ReactionType;
@@ -453,19 +494,6 @@ export default function PostDetailScreen() {
     reactorsTab === "ALL"
       ? reactorsList
       : reactorsList.filter((r) => r.type === reactorsTab);
-
-  const closePicker = () => {
-    Animated.timing(pickerAnim, {
-      toValue: 0,
-      duration: 150,
-      useNativeDriver: true,
-    }).start(() => setShowPicker(false));
-  };
-
-  const handleReactionFromPicker = (type: ReactionType) => {
-    closePicker();
-    handleReaction(type);
-  };
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -535,6 +563,15 @@ export default function PostDetailScreen() {
   }, [route.params?.post, routePostId]);
 
   // ── Load reactions + comments on mount ───────
+  // Reset comments + show loading whenever the active post changes (covers
+  // screen instance reuse via deep links / notifications). Without this, the
+  // previous post's comments remain on screen until the new fetch resolves.
+  useEffect(() => {
+    if (!post?.id) return;
+    setComments([]);
+    setCommentsLoading(true);
+  }, [post?.id]);
+
   const loadData = useCallback(async (force = false) => {
     if (!post?.id) return;
     setCommentsLoading(true);
@@ -660,6 +697,7 @@ export default function PostDetailScreen() {
       Alert.alert("Not logged in");
       return;
     }
+    playClick();
     setReactionLoading(true);
     const snapshot = applyToggle(post.id, type);
     try {
@@ -679,6 +717,7 @@ export default function PostDetailScreen() {
       Alert.alert("Not logged in");
       return;
     }
+    playClick();
     setSubmitting(true);
     try {
       const { comment, flagged, underReview } = await apiCreateComment(
@@ -933,6 +972,7 @@ export default function PostDetailScreen() {
   const handleCommentReaction = useCallback(
     async (comment: Comment, type: ReactionType) => {
       if (!post?.id || !userId) return;
+      playClick();
       // Optimistic update
       const prev = comment.userReaction;
       const newCounts = { ...(comment.reactionCounts ?? {}) };
@@ -990,6 +1030,10 @@ export default function PostDetailScreen() {
         key={item.id}
         style={[styles.commentRow, isReply && styles.commentRowReply]}
       >
+        <Pressable
+          disabled={item.userId === "system-encouragement-bot" || (item.isAnonymous && !isOwnAnonymousComment)}
+          onPress={() => (navigation as any).navigate('Profile', { userId: item.userId })}
+        >
         {item.userId === "system-encouragement-bot" ? (
           <Image
             source={require("../assets/logo.png")}
@@ -1017,13 +1061,19 @@ export default function PostDetailScreen() {
             <Text style={styles.commentAvatarInitial}>{initial}</Text>
           </LinearGradient>
         )}
+        </Pressable>
 
         <View style={styles.commentBody}>
           <View style={styles.commentMeta}>
             <View style={styles.commentMetaLeft}>
+              <Pressable
+                disabled={item.userId === "system-encouragement-bot" || (item.isAnonymous && !isOwnAnonymousComment)}
+                onPress={() => (navigation as any).navigate('Profile', { userId: item.userId })}
+              >
               <Text style={styles.commentAuthor} numberOfLines={1}>
                 {name}
               </Text>
+              </Pressable>
               {isOwnAnonymousComment && (
                 <Text
                   style={[
@@ -1043,10 +1093,9 @@ export default function PostDetailScreen() {
             </View>
             <View style={styles.commentMetaRight}>
               {isOwnComment && (
-                <TouchableOpacity
+                <Pressable
                   onPress={() => openCommentEditor(item)}
-                  activeOpacity={0.75}
-                  style={styles.commentEditBtn}
+                  style={({ pressed }) => [styles.commentEditBtn, pressed && { opacity: 0.75 }]}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
@@ -1054,10 +1103,10 @@ export default function PostDetailScreen() {
                     size={13}
                     color={colors.primary}
                   />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {isOwnComment && (
-                <TouchableOpacity
+                <Pressable
                   onPress={async () => {
                     const confirmed = await showConfirm(
                       "Delete Comment",
@@ -1065,8 +1114,7 @@ export default function PostDetailScreen() {
                     );
                     if (confirmed) performDeleteComment(item);
                   }}
-                  activeOpacity={0.75}
-                  style={styles.commentEditBtn}
+                  style={({ pressed }) => [styles.commentEditBtn, pressed && { opacity: 0.75 }]}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
@@ -1074,10 +1122,10 @@ export default function PostDetailScreen() {
                     size={13}
                     color={colors.primary}
                   />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {canFlagComment && item.moderationStatus !== "FLAGGED" && (
-                <TouchableOpacity
+                <Pressable
                   onPress={async () => {
                     if (!userId) return;
                     const confirmed = await showConfirm(
@@ -1099,8 +1147,7 @@ export default function PostDetailScreen() {
                       );
                     }
                   }}
-                  activeOpacity={0.75}
-                  style={styles.commentEditBtn}
+                  style={({ pressed }) => [styles.commentEditBtn, pressed && { opacity: 0.75 }]}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
@@ -1108,7 +1155,7 @@ export default function PostDetailScreen() {
                     size={13}
                     color={colors.warningText}
                   />
-                </TouchableOpacity>
+                </Pressable>
               )}
               {isUnderReview && (
                 <View style={styles.reviewBadge}>
@@ -1125,15 +1172,15 @@ export default function PostDetailScreen() {
             </View>
           </View>
           {canDeleteComment ? (
-            <TouchableOpacity
+            <Pressable
               onLongPress={() => openCommentMenu(item)}
               disabled={isDeletingThisComment}
-              activeOpacity={0.8}
               {...suppressWebMenu()}
-              style={[
+              style={({ pressed }) => [
                 styles.commentBubble,
                 isOwnComment ? styles.commentBubbleOwn : null,
                 noSelectStyle,
+                pressed && { opacity: 0.8 },
               ]}
             >
               {isDeletingThisComment ? (
@@ -1145,7 +1192,7 @@ export default function PostDetailScreen() {
                   mentionStyle={styles.mentionText}
                 />
               )}
-            </TouchableOpacity>
+            </Pressable>
           ) : (
             <View style={styles.commentBubble}>
               <MentionText
@@ -1157,23 +1204,23 @@ export default function PostDetailScreen() {
           )}
           <View style={styles.commentActions}>
             {!isReply && (
-              <TouchableOpacity
-                activeOpacity={0.7}
+              <Pressable
+                style={({ pressed }) => pressed && { opacity: 0.7 }}
                 onPress={() => {
                   setReplyingTo(item);
                   setCommentText(`@${item.user?.displayName ?? "Anonymous"} `);
                 }}
               >
                 <Text style={styles.commentActionText}>Reply</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() =>
+            <ReactionTrigger
+              onTap={() =>
                 handleCommentReaction(item, commentUserReaction ?? "LIKE")
               }
-              onLongPress={() => setCommentPickerTarget(item)}
-              {...suppressWebMenu()}
+              onPickerSelect={(type) => handleCommentReaction(item, type)}
+              userReaction={commentUserReaction}
+              webProps={suppressWebMenu()}
               style={[styles.commentLikeBtn, noSelectStyle]}
             >
               {commentUserReaction ? (
@@ -1191,13 +1238,15 @@ export default function PostDetailScreen() {
                         ? "Pray"
                         : commentUserReaction === "LIKE"
                           ? "Like"
-                          : "Support"}
+                          : commentUserReaction === "SAD"
+                            ? "Sad"
+                            : "Support"}
                   </Text>
                 </>
               ) : (
                 <Text style={styles.commentActionText}>Like</Text>
               )}
-            </TouchableOpacity>
+            </ReactionTrigger>
             {commentTotalReactions > 0 && (
               <View style={styles.commentReactionBadge}>
                 {renderReactionIcon(
@@ -1271,13 +1320,13 @@ export default function PostDetailScreen() {
             Post not available. Please open it again from the feed or
             notifications.
           </Text>
-          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.8}>
+          <Pressable onPress={handleBackPress} style={({ pressed }) => pressed && { opacity: 0.8 }}>
             <Text style={{ color: colors.primary, fontWeight: "700" }}>
               {openedFromNotifications
                 ? "Back to notifications"
                 : "Back to feed"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -1310,23 +1359,22 @@ export default function PostDetailScreen() {
           : "Spaze Member";
 
   return (
+    <>
     <SafeAreaView style={styles.screen}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <Pressable
           onPress={handleBackPress}
-          activeOpacity={0.7}
-          style={styles.backBtn}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
         >
           <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           onPress={() => {
             setHighlightCommentId(null);
             (navigation as any).navigate("Home");
           }}
-          activeOpacity={0.7}
-          style={styles.headerCenter}
+          style={({ pressed }) => [styles.headerCenter, pressed && { opacity: 0.7 }]}
         >
           <Image
             source={require("../assets/logo.png")}
@@ -1335,9 +1383,9 @@ export default function PostDetailScreen() {
             cachePolicy="memory-disk"
           />
           <Text style={styles.headerTitle}>PUSO Spaze</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.7}
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => pressed && { opacity: 0.7 }}
           onPress={() => {
             setHighlightCommentId(null);
             (navigation as any).navigate("Profile");
@@ -1360,7 +1408,7 @@ export default function PostDetailScreen() {
               <Text style={styles.headerAvatarText}>{userInitial}</Text>
             </LinearGradient>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView
@@ -1385,6 +1433,11 @@ export default function PostDetailScreen() {
                 <View style={styles.postCard}>
                   {/* Author row */}
                   <View style={styles.postAuthorRow}>
+                    <Pressable
+                      style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}
+                      disabled={post.userId === SYSTEM_USER_ID || (post.isAnonymous && !isOwnAnonymousPost)}
+                      onPress={() => (navigation as any).navigate('Profile', { userId: post.userId })}
+                    >
                     {post.userId === SYSTEM_USER_ID ? (
                       <Image
                         source={require("../assets/logo.png")}
@@ -1411,27 +1464,6 @@ export default function PostDetailScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.postNameRow}>
                         <Text style={styles.postAuthorName}>{displayName}</Text>
-                        {(post.userId === userId ||
-                          role === "ADMIN" ||
-                          role === "COACH") && (
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            style={styles.postMenuBtn}
-                            hitSlop={{
-                              top: 10,
-                              bottom: 10,
-                              left: 10,
-                              right: 10,
-                            }}
-                            onPress={() => setPostMenuVisible(true)}
-                          >
-                            <Ionicons
-                              name="ellipsis-horizontal"
-                              size={18}
-                              color={colors.muted5}
-                            />
-                          </TouchableOpacity>
-                        )}
                       </View>
                       <Text style={styles.postSubtitle}>
                         {roleBadgeText} {"\u2022"}{" "}
@@ -1450,6 +1482,27 @@ export default function PostDetailScreen() {
                         )}
                       </Text>
                     </View>
+                    </Pressable>
+                    {(post.userId === userId ||
+                      role === "ADMIN" ||
+                      role === "COACH") && (
+                      <Pressable
+                        style={({ pressed }) => [styles.postMenuBtn, pressed && { opacity: 0.7 }]}
+                        hitSlop={{
+                          top: 10,
+                          bottom: 10,
+                          left: 10,
+                          right: 10,
+                        }}
+                        onPress={() => setPostMenuVisible(true)}
+                      >
+                        <Ionicons
+                          name="ellipsis-horizontal"
+                          size={18}
+                          color={colors.muted5}
+                        />
+                      </Pressable>
+                    )}
                   </View>
 
                   {/* Content */}
@@ -1461,8 +1514,8 @@ export default function PostDetailScreen() {
 
                   {/* Image */}
                   {post.imageUrl && (
-                    <TouchableOpacity
-                      activeOpacity={0.9}
+                    <Pressable
+                      style={({ pressed }) => pressed && { opacity: 0.9 }}
                       onPress={() => setImageViewerVisible(true)}
                     >
                       <Image
@@ -1479,7 +1532,7 @@ export default function PostDetailScreen() {
                           color="#fff"
                         />
                       </View>
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
 
                   {/* Tags */}
@@ -1496,22 +1549,13 @@ export default function PostDetailScreen() {
                   {/* Reaction buttons */}
                   <View style={styles.reactionBar}>
                     <View style={styles.reactionButtons}>
-                      <TouchableOpacity
-                        ref={reactionBtnRef as any}
-                        onPress={() => handleReaction(userReaction ?? "PRAY")}
-                        onPressIn={reactionPress.onPressIn}
-                        onPressOut={reactionPress.onPressOut}
-                        onLongPress={() => {
-                          reactionPress.onLongPress();
-                          openPickerFromReactionBtn();
-                        }}
-                        delayLongPress={300}
-                        activeOpacity={1}
-                        {...suppressWebMenu()}
-                        style={[
-                          styles.reactionBtn,
-                          noSelectStyle,
-                        ]}
+                      <ReactionTrigger
+                        onTap={() => handleReaction(userReaction ?? "PRAY")}
+                        onPickerSelect={(type) => handleReaction(type)}
+                        userReaction={userReaction}
+                        pressAnim={reactionPress}
+                        webProps={suppressWebMenu()}
+                        style={[styles.reactionBtn, noSelectStyle]}
                       >
                         <Animated.View
                           pointerEvents="none"
@@ -1532,7 +1576,7 @@ export default function PostDetailScreen() {
                             <PrayIcon size={18} color={colors.lightPrimary} />
                           )}
                         </Animated.View>
-                      </TouchableOpacity>
+                      </ReactionTrigger>
 
                       <View style={styles.countButton}>
                         <Ionicons
@@ -1550,10 +1594,9 @@ export default function PostDetailScreen() {
 
                     {/* Reaction summary — overlapping icons + total */}
                     {topReactions.length > 0 && (
-                      <TouchableOpacity
-                        activeOpacity={0.75}
+                      <Pressable
+                        style={({ pressed }) => [styles.reactionSummary, pressed && { opacity: 0.75 }]}
                         onPress={openReactors}
-                        style={styles.reactionSummary}
                       >
                         <View style={styles.reactionEmojiStack}>
                           {topReactions.map((type, i) => (
@@ -1574,7 +1617,7 @@ export default function PostDetailScreen() {
                         <Text style={styles.reactionSummaryText}>
                           {totalReactions}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 </View>
@@ -1648,17 +1691,16 @@ export default function PostDetailScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 mentionUsers.map((user) => (
-                  <TouchableOpacity
+                  <Pressable
                     key={user.id}
-                    style={styles.mentionItem}
-                    activeOpacity={0.8}
+                    style={({ pressed }) => [styles.mentionItem, pressed && { opacity: 0.8 }]}
                     onPress={() => handleSelectMention(user.mentionHandle)}
                   >
                     <Text style={styles.mentionHandle}>
                       @{user.mentionHandle}
                     </Text>
                     <Text style={styles.mentionName}>{user.displayName}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))
               )}
             </View>
@@ -1673,16 +1715,16 @@ export default function PostDetailScreen() {
                 {replyingTo.user?.displayName ?? "Anonymous"}
               </Text>
             </Text>
-            <TouchableOpacity
+            <Pressable
               onPress={() => {
                 setReplyingTo(null);
                 setCommentText("");
               }}
-              activeOpacity={0.7}
+              style={({ pressed }) => pressed && { opacity: 0.7 }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="close" size={16} color={colors.muted5} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
         {/* ── Comment input bar ── */}
@@ -1737,11 +1779,10 @@ export default function PostDetailScreen() {
                 }
               : {})}
           />
-          <TouchableOpacity
+          <Pressable
             onPress={handleComment}
             disabled={submitting || !commentText.trim()}
-            activeOpacity={0.85}
-            style={styles.sendBtn}
+            style={({ pressed }) => [styles.sendBtn, pressed && { opacity: 0.85 }]}
           >
             <LinearGradient
               colors={
@@ -1759,7 +1800,7 @@ export default function PostDetailScreen() {
                 <Ionicons name="send" size={16} color="#fff" />
               )}
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
 
@@ -1768,25 +1809,21 @@ export default function PostDetailScreen() {
         visible={commentMenuVisible}
         transparent
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={closeCommentMenu}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.menuBackdrop}
-          activeOpacity={1}
           onPress={closeCommentMenu}
         >
-          <TouchableOpacity
-            activeOpacity={1}
+          <Pressable
             onPress={(e) => e.stopPropagation()}
             style={styles.menuSheet}
           >
             <View style={styles.menuHandle} />
             <Text style={styles.menuTitle}>Comment options</Text>
             {selectedComment?.userId === userId && (
-              <TouchableOpacity
-                style={styles.menuOptionBtn}
-                activeOpacity={0.8}
+              <Pressable
+                style={({ pressed }) => [styles.menuOptionBtn, pressed && { opacity: 0.8 }]}
                 onPress={handleEditFromMenu}
               >
                 <View
@@ -1807,13 +1844,12 @@ export default function PostDetailScreen() {
                     Change what you wrote
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )}
             {!!userId &&
               (selectedComment?.userId === userId || role === "ADMIN") && (
-                <TouchableOpacity
-                  style={styles.menuOptionBtn}
-                  activeOpacity={0.8}
+                <Pressable
+                  style={({ pressed }) => [styles.menuOptionBtn, pressed && { opacity: 0.8 }]}
                   onPress={handleDeleteFromMenu}
                 >
                   <View
@@ -1841,13 +1877,12 @@ export default function PostDetailScreen() {
                       Permanently remove this comment
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               )}
             {(role === "COACH" || role === "ADMIN") &&
               selectedComment?.moderationStatus !== "FLAGGED" && (
-                <TouchableOpacity
-                  style={styles.menuOptionBtn}
-                  activeOpacity={0.8}
+                <Pressable
+                  style={({ pressed }) => [styles.menuOptionBtn, pressed && { opacity: 0.8 }]}
                   onPress={async () => {
                     if (!selectedComment?.id || !userId) return;
                     const commentToFlag = selectedComment;
@@ -1897,17 +1932,16 @@ export default function PostDetailScreen() {
                       Report as inappropriate content
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               )}
-            <TouchableOpacity
-              style={styles.menuCancelBtn}
-              activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [styles.menuCancelBtn, pressed && { opacity: 0.8 }]}
               onPress={closeCommentMenu}
             >
               <Text style={styles.menuCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* ── Edit comment modal ── */}
@@ -1915,24 +1949,21 @@ export default function PostDetailScreen() {
         visible={editCommentVisible}
         transparent
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={() => {
           if (savingCommentEdit) return;
           setEditCommentVisible(false);
           setSelectedComment(null);
         }}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.menuBackdrop}
-          activeOpacity={1}
           onPress={() => {
             if (savingCommentEdit) return;
             setEditCommentVisible(false);
             setSelectedComment(null);
           }}
         >
-          <TouchableOpacity
-            activeOpacity={1}
+          <Pressable
             onPress={(e) => e.stopPropagation()}
             style={styles.menuSheet}
           >
@@ -1949,9 +1980,8 @@ export default function PostDetailScreen() {
               placeholderTextColor={colors.muted4}
             />
             <View style={styles.editCommentActions}>
-              <TouchableOpacity
-                style={[styles.menuCancelBtn]}
-                activeOpacity={0.8}
+              <Pressable
+                style={({ pressed }) => [styles.menuCancelBtn, { flex: 1 }, pressed && { opacity: 0.8 }]}
                 onPress={() => {
                   setEditCommentVisible(false);
                   setSelectedComment(null);
@@ -1959,15 +1989,15 @@ export default function PostDetailScreen() {
                 disabled={savingCommentEdit}
               >
                 <Text style={styles.menuCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
                   styles.editCommentSaveBtn,
                   (savingCommentEdit || !editCommentText.trim()) && {
                     opacity: 0.5,
                   },
+                  pressed && { opacity: 0.85 },
                 ]}
-                activeOpacity={0.85}
                 onPress={handleSaveEditedComment}
                 disabled={savingCommentEdit || !editCommentText.trim()}
               >
@@ -1976,186 +2006,10 @@ export default function PostDetailScreen() {
                 ) : (
                   <Text style={styles.editCommentSaveText}>Save</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* ── Floating Reaction Picker Modal (Facebook-style) ── */}
-      <Modal
-        visible={showPicker}
-        transparent
-        animationType="none"
-        statusBarTranslucent
-        onRequestClose={closePicker}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={closePicker}
-        >
-          <View
-            style={[
-              styles.pickerAnchorLayer,
-              pickerPos
-                ? { top: pickerPos.top, left: pickerPos.left }
-                : styles.modalCenter,
-            ]}
-            pointerEvents="box-none"
-          >
-            <TouchableOpacity activeOpacity={1}>
-              <Animated.View
-                style={[
-                  styles.pickerPill,
-                  {
-                    opacity: pickerAnim,
-                    transform: [
-                      {
-                        scale: pickerAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.85, 1],
-                        }),
-                      },
-                      {
-                        translateY: pickerAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [12, 0],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                {REACTION_TYPES.map((type, i) => {
-                  const active = userReaction === type;
-                  const isPressed = pressedReaction === type;
-                  const itemAnim = pickerAnim.interpolate({
-                    inputRange: [
-                      0,
-                      Math.min(0.15 + i * 0.12, 0.85),
-                      1,
-                    ],
-                    outputRange: [0, 0, 1],
-                  });
-                  const gradient = REACTION_GRADIENTS[type](colors);
-                  return (
-                    <View key={type} style={styles.pickerItemWrap}>
-                      {isPressed && (
-                        <View style={styles.pickerTooltip}>
-                          <Text style={styles.pickerTooltipText}>
-                            {REACTION_LABELS[type]}
-                          </Text>
-                        </View>
-                      )}
-                      <Animated.View
-                        style={{
-                          opacity: itemAnim,
-                          transform: [
-                            {
-                              scale: itemAnim.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0.4, isPressed ? 1.25 : 1],
-                              }),
-                            },
-                            {
-                              translateY: itemAnim.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [16, isPressed ? -6 : 0],
-                              }),
-                            },
-                          ],
-                        }}
-                      >
-                        <TouchableOpacity
-                          onPress={() => handleReactionFromPicker(type)}
-                          onPressIn={() => setPressedReaction(type)}
-                          onPressOut={() => setPressedReaction(null)}
-                          activeOpacity={1}
-                          accessibilityLabel={REACTION_LABELS[type]}
-                        >
-                          <LinearGradient
-                            colors={gradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={[
-                              styles.pickerBubble,
-                              active && styles.pickerBubbleActive,
-                            ]}
-                          >
-                            {renderReactionIcon(type, 24, colors.card)}
-                          </LinearGradient>
-                        </TouchableOpacity>
-                      </Animated.View>
-                    </View>
-                  );
-                })}
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* ── Comment reaction picker modal ── */}
-      <Modal
-        visible={!!commentPickerTarget}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setCommentPickerTarget(null)}
-      >
-        <TouchableOpacity
-          style={styles.commentPickerBackdrop}
-          activeOpacity={1}
-          onPress={() => setCommentPickerTarget(null)}
-        >
-          <View style={styles.commentPickerSheet}>
-            <Text style={styles.menuTitle}>React to comment</Text>
-            <View style={styles.commentPickerRow}>
-              {REACTION_TYPES.map((type) => {
-                const active = commentPickerTarget?.userReaction === type;
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    onPress={() => {
-                      if (commentPickerTarget) {
-                        handleCommentReaction(commentPickerTarget, type);
-                      }
-                      setCommentPickerTarget(null);
-                    }}
-                    activeOpacity={0.75}
-                    style={[
-                      styles.commentPickerOption,
-                      active && styles.pickerOptionActive,
-                    ]}
-                  >
-                    <View style={styles.pickerIconWrap}>
-                      {renderReactionIcon(type, 22, colors.card)}
-                    </View>
-                    <Text
-                      style={[
-                        styles.pickerLabel,
-                        active
-                          ? styles.pickerLabelActive
-                          : styles.pickerLabelDefault,
-                      ]}
-                    >
-                      {type === "PRAY"
-                        ? "Pray"
-                        : type === "CARE"
-                          ? "Care"
-                          : type === "LIKE"
-                            ? "Like"
-                            : type === "SAD"
-                              ? "Sad"
-                              : "Support"}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* ── Post menu modal ── */}
@@ -2163,16 +2017,13 @@ export default function PostDetailScreen() {
         visible={postMenuVisible}
         transparent
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={() => setPostMenuVisible(false)}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.menuBackdrop}
-          activeOpacity={1}
           onPress={() => setPostMenuVisible(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
+          <Pressable
             onPress={(e) => e.stopPropagation()}
             style={styles.menuSheet}
           >
@@ -2180,9 +2031,8 @@ export default function PostDetailScreen() {
             <Text style={styles.menuTitle}>Post options</Text>
 
             {post?.userId === userId && (
-              <TouchableOpacity
-                style={styles.menuOptionBtn}
-                activeOpacity={0.8}
+              <Pressable
+                style={({ pressed }) => [styles.menuOptionBtn, pressed && { opacity: 0.8 }]}
                 onPress={handleOpenEditPost}
               >
                 <View
@@ -2203,14 +2053,13 @@ export default function PostDetailScreen() {
                     Change your post content
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
             {(role === "COACH" || role === "ADMIN") &&
               post?.moderationStatus !== "FLAGGED" && (
-                <TouchableOpacity
-                  style={styles.menuOptionBtn}
-                  activeOpacity={0.8}
+                <Pressable
+                  style={({ pressed }) => [styles.menuOptionBtn, pressed && { opacity: 0.8 }]}
                   onPress={async () => {
                     if (!post?.id || !userId) return;
                     setPostMenuVisible(false);
@@ -2256,13 +2105,12 @@ export default function PostDetailScreen() {
                       Report as inappropriate content
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               )}
 
             {(post?.userId === userId || role === "ADMIN") && (
-              <TouchableOpacity
-                style={styles.menuOptionBtn}
-                activeOpacity={0.8}
+              <Pressable
+                style={({ pressed }) => [styles.menuOptionBtn, pressed && { opacity: 0.8 }]}
                 onPress={handleDeletePost}
               >
                 <View
@@ -2287,17 +2135,16 @@ export default function PostDetailScreen() {
                     Permanently remove this post
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
-              style={styles.menuCancelBtn}
-              activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [styles.menuCancelBtn, pressed && { opacity: 0.8 }]}
               onPress={() => setPostMenuVisible(false)}
             >
               <Text style={styles.menuCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* ── Edit post modal ── */}
@@ -2305,16 +2152,13 @@ export default function PostDetailScreen() {
         visible={editPostVisible}
         transparent
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={() => setEditPostVisible(false)}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.menuBackdrop}
-          activeOpacity={1}
           onPress={() => setEditPostVisible(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
+          <Pressable
             onPress={(e) => e.stopPropagation()}
             style={styles.menuSheet}
           >
@@ -2331,21 +2175,20 @@ export default function PostDetailScreen() {
               editable={!savingPostEdit}
             />
             <View style={styles.editPostActions}>
-              <TouchableOpacity
-                style={styles.menuCancelBtn}
-                activeOpacity={0.8}
+              <Pressable
+                style={({ pressed }) => [styles.menuCancelBtn, { flex: 1 }, pressed && { opacity: 0.8 }]}
                 onPress={() => setEditPostVisible(false)}
               >
                 <Text style={styles.menuCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
                   styles.editPostSaveBtn,
                   (savingPostEdit || editPostText.trim().length < 3) && {
                     opacity: 0.5,
                   },
+                  pressed && { opacity: 0.85 },
                 ]}
-                activeOpacity={0.85}
                 disabled={savingPostEdit || editPostText.trim().length < 3}
                 onPress={handleSavePostEdit}
               >
@@ -2354,10 +2197,10 @@ export default function PostDetailScreen() {
                 ) : (
                   <Text style={styles.editPostSaveText}>Save</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* ── Image viewer modal ── */}
@@ -2370,13 +2213,12 @@ export default function PostDetailScreen() {
           onRequestClose={() => setImageViewerVisible(false)}
         >
           <View style={styles.imageViewerBackdrop}>
-            <TouchableOpacity
-              style={styles.imageViewerClose}
-              activeOpacity={0.8}
+            <Pressable
+              style={({ pressed }) => [styles.imageViewerClose, pressed && { opacity: 0.8 }]}
               onPress={() => setImageViewerVisible(false)}
             >
               <Ionicons name="close" size={28} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
             <Image
               source={{ uri: resolveAvatarUrl(post.imageUrl) }}
               style={styles.imageViewerImage}
@@ -2391,15 +2233,13 @@ export default function PostDetailScreen() {
         visible={showReactors}
         transparent
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={() => setShowReactors(false)}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.menuBackdrop}
-          activeOpacity={1}
           onPress={() => setShowReactors(false)}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.reactorsSheet}>
+          <Pressable onPress={(e) => e.stopPropagation()} style={styles.reactorsSheet}>
             <View style={styles.menuHandle} />
             <Text style={styles.menuTitle}>Reactions</Text>
 
@@ -2414,13 +2254,13 @@ export default function PostDetailScreen() {
                       : reactorsList.filter((r) => r.type === tab).length;
                   if (tabCount <= 0) return null;
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={tab}
-                      activeOpacity={0.8}
                       onPress={() => setReactorsTab(tab)}
-                      style={[
+                      style={({ pressed }) => [
                         styles.reactorsTab,
                         isActive && styles.reactorsTabActive,
+                        pressed && { opacity: 0.8 },
                       ]}
                     >
                       {tab !== "ALL" && (
@@ -2452,7 +2292,7 @@ export default function PostDetailScreen() {
                           {tabCount}
                         </Text>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 },
               )}
@@ -2486,7 +2326,13 @@ export default function PostDetailScreen() {
                     colors.secondary,
                   ];
                   return (
-                    <View style={styles.reactorRow}>
+                    <Pressable
+                      style={styles.reactorRow}
+                      onPress={() => {
+                        setShowReactors(false);
+                        (navigation as any).navigate('Profile', { userId: item.user.id });
+                      }}
+                    >
                       <View style={styles.reactorAvatarWrap}>
                         {item.user.avatarUrl ? (
                           <Image
@@ -2516,19 +2362,28 @@ export default function PostDetailScreen() {
                       <Text style={styles.reactorName} numberOfLines={1}>
                         {item.user.displayName}
                       </Text>
-                    </View>
+                    </Pressable>
                   );
                 }}
               />
             )}
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
+
+      {/* ── Floating Reaction Picker ─────────────────────────────────
+          Rendered as a sibling of SafeAreaView so its absolute coords
+          equal window coordinates from `measureInWindow`, and so it
+          escapes any <Modal> on this screen. ReactionTrigger pushes
+          window-coord position + callbacks to useReactionPickerStore on
+          long-press; the host subscribes and renders. */}
+      <ReactionPickerHost />
+    </>
   );
 }
 // ─────────────────────────────────────────────
-const createStyles = (colors: typeof defaultColors) =>
+const createStyles = (colors: typeof defaultColors, safeBottom = 0) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
 
@@ -3060,7 +2915,7 @@ const createStyles = (colors: typeof defaultColors) =>
       borderTopRightRadius: radii.xl,
       paddingHorizontal: 20,
       paddingTop: 8,
-      paddingBottom: Platform.OS === "ios" ? 34 : 20,
+      paddingBottom: Math.max(safeBottom + 12, Platform.OS === "ios" ? 34 : 20),
       gap: 8,
       ...ambientShadow,
     },
@@ -3121,12 +2976,13 @@ const createStyles = (colors: typeof defaultColors) =>
       fontFamily: fonts.bodySemiBold,
     },
     menuCancelBtn: {
-      flex: 1,
+      alignSelf: "stretch",
       borderRadius: radii.full,
       backgroundColor: colors.surfaceContainerHigh,
       paddingHorizontal: 14,
       paddingVertical: 14,
       alignItems: "center",
+      justifyContent: "center",
       marginTop: 4,
     },
     menuCancelText: {
@@ -3197,106 +3053,6 @@ const createStyles = (colors: typeof defaultColors) =>
       fontFamily: fonts.displaySemiBold,
     },
 
-    // ── Floating Picker Modal ────────────────
-    modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.25)" },
-    modalCenter: { flex: 1, justifyContent: "center", alignItems: "center" },
-    // Anchor layer for the floating picker. When pickerPos is set we override
-    // top/left inline so the picker sits just above the long-pressed button.
-    pickerAnchorLayer: {
-      position: "absolute",
-    },
-    pickerPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.card,
-      borderRadius: radii.full,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      gap: 6,
-      ...ambientShadow,
-      shadowOpacity: 0.18,
-      shadowRadius: 28,
-      elevation: 16,
-    },
-    pickerItemWrap: {
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    pickerBubble: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    pickerBubbleActive: {
-      borderWidth: 2,
-      borderColor: colors.primary,
-    },
-    pickerTooltip: {
-      position: "absolute",
-      top: -34,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: radii.full,
-      backgroundColor: "rgba(28,27,35,0.92)",
-    },
-    pickerTooltipText: {
-      color: "#FFFFFF",
-      fontSize: 11,
-      fontFamily: fonts.bodySemiBold,
-    },
-    // Legacy styles still used by the comment-reaction picker sheet.
-    pickerOptionActive: {
-      backgroundColor: colors.surfaceContainerLow,
-      borderWidth: 2,
-      borderColor: colors.secondary,
-    },
-    pickerIconWrap: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      backgroundColor: colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    pickerLabel: {
-      fontSize: 12,
-      fontFamily: fonts.bodySemiBold,
-      marginTop: 5,
-    },
-    pickerLabelDefault: { color: colors.onSurfaceVariant },
-    pickerLabelActive: { color: colors.secondary },
-
-    // ── Comment reaction picker ──────────────
-    commentPickerBackdrop: {
-      flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.25)",
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 16,
-    },
-    commentPickerSheet: {
-      backgroundColor: colors.card,
-      borderRadius: radii.xl,
-      padding: 18,
-      gap: 12,
-      maxWidth: 400,
-      width: "100%" as any,
-      ...ambientShadow,
-    },
-    commentPickerRow: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-    },
-    commentPickerOption: {
-      alignItems: "center",
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: radii.full,
-      minWidth: 64,
-    },
-
     // ── Reaction row (compact) ────────────────
     countButton: {
       flexDirection: "row",
@@ -3329,7 +3085,7 @@ const createStyles = (colors: typeof defaultColors) =>
       borderTopRightRadius: radii.xl,
       paddingHorizontal: 20,
       paddingTop: 8,
-      paddingBottom: Platform.OS === "ios" ? 34 : 20,
+      paddingBottom: Math.max(safeBottom + 12, Platform.OS === "ios" ? 34 : 20),
       maxHeight: "80%",
       ...ambientShadow,
     },

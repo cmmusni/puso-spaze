@@ -72,6 +72,7 @@ import { useScrollBarVisibility } from "../hooks/useScrollBarVisibility";
 import { useWebPullToRefresh } from "../hooks/useWebPullToRefresh";
 import { useReactionsStore } from "../context/ReactionsStore";
 import PostCard from "../components/PostCard";
+import ReactionPickerHost from "../components/ReactionPickerHost";
 import SkeletonBox from "../components/SkeletonBox";
 import type { MainDrawerParamList } from "../navigation/MainDrawerNavigator";
 import type { Journal, ContactInfo } from "../../../packages/types";
@@ -208,6 +209,11 @@ export default function ProfileScreen() {
   const isWide = width >= 900;
   const isMedium = width < 900 && width >= 600;
   const isSmall = width < 600;
+  // Two-column layout (Reflections + side bio panel) only on truly wide
+  // screens, mirroring HomeScreen's `showRightPanel` threshold. Tablets in
+  // landscape (≈900–1199) get full-width Reflections instead of being
+  // squeezed into ~2/3 width with a sparse bio card on the right.
+  const showSidePanel = width >= 1200;
   // WebSidebar (wide web only) renders its own Sign Out button.
   // On native — even at tablet widths ≥ 900 — there's no sidebar,
   // so we keep the in-page Sign Out visible (with extra top margin
@@ -412,6 +418,19 @@ export default function ProfileScreen() {
       loadData();
     }, [loadData]),
   );
+
+  // ── Reset state when switching between profiles ──
+  useEffect(() => {
+    setLoading(true);
+    setOtherUser(null);
+    setJournals([]);
+    setEncouragementsGiven(0);
+    setTotalReflections(0);
+    setStreak(0);
+    setCreatedAt(null);
+    setActiveTab("TIMELINE");
+    loadData();
+  }, [profileUserId]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -820,8 +839,8 @@ export default function ProfileScreen() {
           </View>
 
           {/* Skeleton Post Cards */}
-          <View style={[s.contentArea, isWide && s.contentAreaWide]}>
-            <View style={[s.mainCol, isWide && s.mainColWide]}>
+          <View style={[s.contentArea, showSidePanel && s.contentAreaWide, !showSidePanel && isWide && s.contentAreaCentered]}>
+            <View style={[s.mainCol, showSidePanel && s.mainColWide]}>
               <SkeletonBox
                 width={90}
                 height={11}
@@ -1429,9 +1448,9 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Tab Content ── */}
-        <View style={[s.contentArea, isWide && s.contentAreaWide]}>
+        <View style={[s.contentArea, showSidePanel && s.contentAreaWide, !showSidePanel && isWide && s.contentAreaCentered]}>
           {/* ── Main Column ── */}
-          <View style={[s.mainCol, isWide && s.mainColWide]}>
+          <View style={[s.mainCol, showSidePanel && s.mainColWide]}>
             {/* TIMELINE Tab */}
             {activeTab === "TIMELINE" && (
               <>
@@ -1455,6 +1474,7 @@ export default function ProfileScreen() {
                         style={[
                           s.journalCard,
                           { backgroundColor: colors.surfaceContainerLowest },
+                          isMedium && { marginHorizontal: 20 },
                         ]}
                         onPress={() =>
                           navigation.navigate("Journal", {
@@ -2341,7 +2361,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* ── Side Panel (wide screens) ── */}
-          {isWide && !["ABOUT", "CONTACT"].includes(activeTab) && (
+          {showSidePanel && !["ABOUT", "CONTACT"].includes(activeTab) && (
             <View
               style={[
                 s.sideCol,
@@ -2512,6 +2532,8 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </Modal>
       )}
+      {/* Global reaction picker overlay (see HomeScreen for rationale). */}
+      <ReactionPickerHost />
     </SafeAreaView>
   );
 }
@@ -2851,6 +2873,13 @@ const createStyles = (colors: typeof defaultColors) =>
       flexDirection: "row",
       paddingHorizontal: spacing.xl,
       gap: spacing.lg,
+    },
+    // Constrain reading width on landscape tablets / wide viewports
+    // when the side panel isn't shown, otherwise cards stretch edge-to-edge.
+    contentAreaCentered: {
+      maxWidth: 760,
+      width: "100%",
+      alignSelf: "center",
     },
     mainCol: { flex: 1 },
     mainColWide: { flex: 2 },

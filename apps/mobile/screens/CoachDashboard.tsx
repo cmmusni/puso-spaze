@@ -9,6 +9,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   RefreshControl,
   ActivityIndicator,
   StyleSheet,
@@ -602,7 +603,12 @@ export default function CoachDashboard() {
       const memberInitial = member.displayName.charAt(0).toUpperCase();
       const memberGrad = avatarColors(memberInitial);
       return (
-        <View style={s.memberRow}>
+        <Pressable
+          style={({ pressed }) => [s.memberRow, pressed && { opacity: 0.7 }]}
+          onPress={() =>
+            (navigation as any).navigate("Profile", { userId: member.id })
+          }
+        >
           {member.avatarUrl ? (
             <Image
               source={{ uri: resolveAvatarUrl(member.avatarUrl) }}
@@ -626,10 +632,10 @@ export default function CoachDashboard() {
               Joined {formatRelativeTime(member.createdAt)}
             </Text>
           </View>
-        </View>
+        </Pressable>
       );
     },
-    [s]
+    [s, navigation]
   );
 
   const renderCoachItem = useCallback(
@@ -637,7 +643,12 @@ export default function CoachDashboard() {
       const coachInitial = coach.displayName.charAt(0).toUpperCase();
       const coachGrad = avatarColors(coachInitial);
       return (
-        <View style={s.coachRow}>
+        <Pressable
+          style={({ pressed }) => [s.coachRow, pressed && { opacity: 0.7 }]}
+          onPress={() =>
+            (navigation as any).navigate("Profile", { userId: coach.id })
+          }
+        >
           {coach.avatarUrl ? (
             <Image
               source={{ uri: resolveAvatarUrl(coach.avatarUrl) }}
@@ -668,10 +679,10 @@ export default function CoachDashboard() {
               Joined {formatRelativeTime(coach.createdAt)}
             </Text>
           </View>
-        </View>
+        </Pressable>
       );
     },
-    [s]
+    [s, navigation]
   );
 
   const membersCardEl = (compact = false) => (
@@ -781,10 +792,16 @@ export default function CoachDashboard() {
               ? formatRelativeTime(conv.lastMessage.createdAt)
               : "";
             return (
-              <TouchableOpacity
+              <Pressable
                 key={conv.id}
-                style={s.chatRow}
-                activeOpacity={0.7}
+                style={({ pressed }) => [s.chatRow, pressed && { opacity: 0.7 }]}
+                onPress={() =>
+                  (navigation as any).navigate("Chat", {
+                    conversationId: conv.id,
+                    convUserId: conv.userId,
+                    convCoachId: conv.coachId,
+                  })
+                }
               >
                 <LinearGradient
                   colors={grad}
@@ -801,7 +818,7 @@ export default function CoachDashboard() {
                   </Text>
                 </View>
                 <Text style={s.chatTime}>{time}</Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })
         ) : (

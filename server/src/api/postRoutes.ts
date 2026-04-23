@@ -155,8 +155,8 @@ router.post(
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('content')
       .trim()
-      .isLength({ min: 2, max: 500 })
-      .withMessage('content must be 2–500 characters'),
+      .isLength({ min: 1, max: 500 })
+      .withMessage('content must be 1–500 characters'),
     validate,
   ],
   createComment
@@ -182,8 +182,8 @@ router.patch(
     body('userId').trim().isUUID().withMessage('userId must be a valid UUID'),
     body('content')
       .trim()
-      .isLength({ min: 2, max: 500 })
-      .withMessage('content must be 2–500 characters'),
+      .isLength({ min: 1, max: 500 })
+      .withMessage('content must be 1–500 characters'),
     validate,
   ],
   updateComment

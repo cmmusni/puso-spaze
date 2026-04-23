@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   Modal,
   Animated,
   StyleSheet,
@@ -17,11 +18,13 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Platform,
+  PanResponder,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type {
   Post,
@@ -29,7 +32,7 @@ import type {
   ReactionCounts,
 } from "../../../packages/types";
 import type { RootStackParamList } from "../navigation/AppNavigator";
-import { PrayIcon, SupportIcon, LikeIcon, SadIcon } from "./ReactionIcons";
+import { renderReactionIcon } from "./ReactionIcon";
 import {
   apiGetReactions,
   apiGetReactors,
@@ -43,7 +46,12 @@ import {
 } from "../services/api";
 import { useUserStore } from "../context/UserContext";
 import { useReactionsStore } from "../context/ReactionsStore";
+import {
+  findBubbleAt,
+  useReactionPickerStore,
+} from "../context/ReactionPickerStore";
 import { tapLight, tapMedium } from "../utils/haptics";
+import { playClick } from "../utils/clickSound";
 import { noSelectStyle, suppressWebMenu } from "../utils/suppressWebMenu";
 import { usePressAnimation } from "../hooks/usePressAnimation";
 import { colors as defaultColors, fonts, radii, ambientShadow } from "../constants/theme";
@@ -51,66 +59,12 @@ import { useThemeStore } from "../context/ThemeContext";
 import { showAlert, showConfirm } from "../utils/alertPlatform";
 import MentionText from "./MentionText";
 import { optimizeCloudinaryUrl } from "../utils/optimizeImage";
+import { FEELING_MAP } from "../constants/feelings";
+import { getAvatarColors } from "../utils/avatarColors";
+import { formatRelativeTime } from "../utils/formatTime";
 
 const REACTION_TYPES: ReactionType[] = ["PRAY", "CARE", "SUPPORT", "LIKE", "SAD"];
 const SYSTEM_USER_ID = "system-encouragement-bot";
-
-const REACTION_LABELS: Record<ReactionType, string> = {
-  PRAY: "Pray",
-  CARE: "Care",
-  SUPPORT: "Support",
-  LIKE: "Like",
-  SAD: "Sad",
-};
-
-// Per-reaction gradient palette (sourced from theme tokens).
-const REACTION_GRADIENTS: Record<
-  ReactionType,
-  (c: typeof defaultColors) => [string, string]
-> = {
-  PRAY: (c) => [c.primary, c.secondary],
-  CARE: (c) => [c.hot, c.fuchsia],
-  SUPPORT: (c) => [c.tertiary, c.primary],
-  LIKE: (c) => [c.secondary, c.primaryContainer],
-  SAD: (c) => [c.tertiary, c.onSurfaceVariant],
-};
-
-const FEELING_MAP: Record<string, { emoji: string; label: string }> = {
-  grateful: { emoji: "\u{1F60A}", label: "Grateful" },
-  prayerful: { emoji: "\u{1F64F}", label: "Prayerful" },
-  strong: { emoji: "\u{1F4AA}", label: "Strong" },
-  struggling: { emoji: "\u{1F622}", label: "Struggling" },
-  hopeful: { emoji: "\u{1F917}", label: "Hopeful" },
-  "heavy-hearted": { emoji: "\u{1F614}", label: "Heavy-hearted" },
-  blessed: { emoji: "\u2728", label: "Blessed" },
-  loved: { emoji: "\u2764\uFE0F", label: "Loved" },
-};
-
-const CARE_ICON_CANDIDATES: Array<keyof typeof Ionicons.glyphMap> = [
-  "heart",
-  "heart-outline",
-  "ellipse",
-];
-
-function getCareIcon(): keyof typeof Ionicons.glyphMap {
-  const candidates = CARE_ICON_CANDIDATES;
-  return candidates.find((name) => name in Ionicons.glyphMap) ?? "ellipse";
-}
-
-function renderReactionIcon(type: ReactionType, size: number, color: string) {
-  // The `key` includes both type and color. This forces React to remount the
-  // underlying <Image>/<Ionicons> whenever either changes — Safari otherwise
-  // caches the CSS mask-image (used to implement `tintColor`) inside any
-  // ancestor compositing layer, so the icon's color never updates after a
-  // select/deselect.
-  const k = `${type}-${color}`;
-  if (type === "PRAY") return <PrayIcon key={k} size={size} color={color} />;
-  if (type === "SUPPORT")
-    return <SupportIcon key={k} size={size} color={color} />;
-  if (type === "LIKE") return <LikeIcon key={k} size={size} color={color} />;
-  if (type === "SAD") return <SadIcon key={k} size={size} color={color} />;
-  return <Ionicons key={k} name={getCareIcon()} size={size} color={color} />;
-}
 
 interface PostCardProps {
   post: Post;
@@ -118,21 +72,6 @@ interface PostCardProps {
   onPin?: (postId: string) => void;
   onPostPress?: (postId: string) => void;
   openedFrom?: string;
-}
-
-/**
- * Formats a UTC ISO date string into a readable relative time
- * e.g. "2 hours ago", "just now"
- */
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = Math.floor((now - then) / 1000); // seconds
-
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
 }
 
 // PostCard is used inside drawer screens, so we use any for navigation type
@@ -148,6 +87,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   const currentUserAvatarUrl = useUserStore((s) => s.avatarUrl);
   const colors = useThemeStore((s) => s.colors);
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isWide = screenWidth >= 900;
   const isMedium = screenWidth < 900 && screenWidth >= 600;
@@ -193,19 +133,18 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   }, [post.id, userId, setReactions, refreshTick]);
 
   // ── Floating picker ───────────────────────────
-  const [showPicker, setShowPicker] = useState(false);
-  const [pressedReaction, setPressedReaction] = useState<ReactionType | null>(
-    null,
-  );
-  // Position of the picker pill in window coordinates. Set on long-press by
-  // measuring the anchor (reaction button or card press location) so the
-  // picker appears just above it instead of being centered on screen.
-  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  // The picker overlay is rendered globally by <ReactionPickerHost />
+  // (mounted at screen-root in HomeScreen, ProfileScreen, PostDetailScreen)
+  // so it escapes FlatList row clipping AND is not a <Modal> — preserving
+  // the long-press → drag → release continuous gesture across surfaces.
   const reactionBtnRef = useRef<View>(null);
   const reactionPress = usePressAnimation();
-  const pickerAnim = useRef(new Animated.Value(0)).current;
+
+  // ── Facebook-style continuous gesture (long-press → drag → release) ──
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const movedBeyondTapRef = useRef(false);
+  const userReactionRef = useRef<ReactionType | null>(null);
+  const handleReactionRef = useRef<(type: ReactionType) => void>(() => {});
 
   // ── Reactors modal ────────────────────────────
   const [showReactors, setShowReactors] = useState(false);
@@ -237,9 +176,9 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   const [editContent, setEditContent] = useState(post.content);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Estimated dimensions of the picker pill (4 bubbles × 44 + gaps + padding).
+  // Estimated dimensions of the picker pill (5 bubbles × 44 + gaps + padding).
   // Used to position the picker above its anchor before measuring on layout.
-  const PICKER_WIDTH = 224;
+  const PICKER_WIDTH = 270;
   const PICKER_HEIGHT = 60;
 
   const openPickerAt = (anchor: {
@@ -254,14 +193,14 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
     // Prefer above the anchor; if not enough room, drop below.
     let top = anchor.y - PICKER_HEIGHT - 8;
     if (top < 8) top = anchor.y + anchor.height + 8;
-    setPickerPos({ top, left });
-    setShowPicker(true);
-    Animated.spring(pickerAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 120,
-      friction: 7,
-    }).start();
+    // Push to the global picker store. The host overlay (mounted at
+    // screen-root) renders at this window-coord position and populates
+    // bubble bounds via measureInWindow for hit testing.
+    useReactionPickerStore.getState().open({
+      pickerPos: { top, left },
+      userReaction: userReactionRef.current,
+      onSelect: (type) => handleReactionRef.current(type),
+    });
   };
 
   const openPickerFromReactionBtn = () => {
@@ -292,22 +231,8 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
     });
   };
 
-  const openPicker = () => {
-    // Legacy entry point — opens centered if anchor unknown.
-    openPickerAt({
-      x: screenWidth / 2 - 22,
-      y: screenHeight / 2 - 22,
-      width: 44,
-      height: 44,
-    });
-  };
-
   const closePicker = () => {
-    Animated.timing(pickerAnim, {
-      toValue: 0,
-      duration: 150,
-      useNativeDriver: true,
-    }).start(() => setShowPicker(false));
+    useReactionPickerStore.getState().close();
   };
 
   const openMenu = (event: GestureResponderEvent) => {
@@ -454,7 +379,8 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   const handleReaction = async (type: ReactionType) => {
     if (!userId) return;
     tapLight();
-    if (showPicker) closePicker();
+    playClick();
+    if (useReactionPickerStore.getState().visible) closePicker();
     const snapshot = applyToggle(post.id, type);
     try {
       await apiUpsertReaction(post.id, { userId, type });
@@ -463,18 +389,94 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
     }
   };
 
+  // Keep gesture refs in sync with latest values so the PanResponder
+  // (built once with empty deps) always sees the current reaction + handler.
+  useEffect(() => {
+    userReactionRef.current = userReaction;
+    handleReactionRef.current = handleReaction;
+  });
+
+  // PanResponder for the reaction button: tap toggles current reaction;
+  // long-press opens the picker; once open, dragging the finger highlights
+  // the bubble whose X aligns with the finger; releasing over a bubble
+  // selects it. The picker overlay is rendered globally by
+  // <ReactionPickerHost /> so the gesture survives across feed surfaces.
+  const reactionPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => false,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+
+        onPanResponderGrant: () => {
+          reactionPress.onPressIn();
+          movedBeyondTapRef.current = false;
+          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = setTimeout(() => {
+            reactionPress.onLongPress();
+            openPickerFromReactionBtn();
+          }, 300);
+        },
+
+        onPanResponderMove: (_e, g) => {
+          const pickerStore = useReactionPickerStore.getState();
+          if (Math.abs(g.dx) > 10 || Math.abs(g.dy) > 10) {
+            movedBeyondTapRef.current = true;
+            // Movement before the long-press fires cancels the picker.
+            if (!pickerStore.visible && longPressTimerRef.current) {
+              clearTimeout(longPressTimerRef.current);
+              longPressTimerRef.current = null;
+            }
+          }
+          if (!pickerStore.visible) return;
+          pickerStore.setPressed(findBubbleAt(g.moveX));
+        },
+
+        onPanResponderRelease: (_e, g) => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          reactionPress.onPressOut();
+
+          const pickerStore = useReactionPickerStore.getState();
+          if (pickerStore.visible) {
+            const hit = findBubbleAt(g.moveX || g.x0);
+            pickerStore.setPressed(null);
+            closePicker();
+            if (hit) {
+              handleReactionRef.current(hit);
+            }
+            return;
+          }
+
+          if (!movedBeyondTapRef.current) {
+            handleReactionRef.current(userReactionRef.current ?? "PRAY");
+          }
+        },
+
+        onPanResponderTerminate: () => {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+          reactionPress.onPressOut();
+          const pickerStore = useReactionPickerStore.getState();
+          pickerStore.setPressed(null);
+          if (pickerStore.visible) closePicker();
+        },
+      }),
+    // Stable handlers — closures use refs/store getState for fresh values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const topReactions = REACTION_TYPES.filter((t) => (counts[t] ?? 0) > 0)
     .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0))
     .slice(0, 3);
 
-  const avatarPalette: [string, string][] = [
-    [colors.secondary, colors.primary],
-    [colors.primaryContainer, colors.gradientStart],
-    [colors.secondary, colors.primaryContainer],
-    [colors.primaryContainer, colors.primary],
-    [colors.secondary, colors.tertiary],
-  ];
-  const colorPair = avatarPalette[initial.charCodeAt(0) % avatarPalette.length];
+  const colorPair = getAvatarColors(initial, colors);
 
   return (
     <>
@@ -518,6 +520,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                 style={[styles.avatar, isMedium && styles.avatarMd, isWide && styles.avatarWide]}
                 cachePolicy="memory-disk"
                 transition={200}
+                recyclingKey={`avatar-${post.id}-${displayAvatarUrl}`}
               />
             ) : (
               <LinearGradient
@@ -621,6 +624,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
             contentFit="cover"
             cachePolicy="memory-disk"
             transition={300}
+            recyclingKey={`post-image-${post.id}-${post.imageUrl}`}
           />
         )}
 
@@ -639,17 +643,9 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
         <View style={[styles.footer, isMedium && !isWide && { marginTop: 20, paddingTop: 16 }, isWide && { marginTop: 24, paddingTop: 18 }]}>
           <View style={styles.footerLeft}>
             {/* Main reaction button — defaults to Pray, shows user's reaction when set */}
-            <TouchableOpacity
-              ref={reactionBtnRef as any}
-              onPress={() => handleReaction(userReaction ?? "PRAY")}
-              onPressIn={reactionPress.onPressIn}
-              onPressOut={reactionPress.onPressOut}
-              onLongPress={() => {
-                reactionPress.onLongPress();
-                openPickerFromReactionBtn();
-              }}
-              delayLongPress={300}
-              activeOpacity={1}
+            <View
+              ref={reactionBtnRef}
+              {...reactionPanResponder.panHandlers}
               {...suppressWebMenu()}
               style={[styles.countButton, noSelectStyle]}
             >
@@ -674,7 +670,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                   userReaction ? colors.primary : colors.lightPrimary,
                 )}
               </Animated.View>
-            </TouchableOpacity>
+            </View>
             {/* Comment button */}
             <TouchableOpacity
               onPress={() => {
@@ -726,7 +722,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
             ? (currentUserDisplayName ?? post.latestComment!.user?.displayName ?? "Member")
             : (post.latestComment!.user?.displayName ?? "Member");
           const cInitial = post.latestComment!.isAnonymous && !isOwnAnonComment ? "?" : cName.charAt(0).toUpperCase();
-          const cColorPair = avatarPalette[cInitial.charCodeAt(0) % avatarPalette.length];
+          const cColorPair = getAvatarColors(cInitial, colors);
           const cTime = formatRelativeTime(post.latestComment!.createdAt);
           const cAvatarUrl = isOwnAnonComment ? currentUserAvatarUrl : (post.latestComment!.isAnonymous ? null : post.latestComment!.user?.avatarUrl);
           return (
@@ -749,6 +745,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                     style={[styles.commentAvatar, isMedium && { width: 26, height: 26, borderRadius: 13 }]}
                     cachePolicy="memory-disk"
                     transition={200}
+                    recyclingKey={`comment-avatar-${post.latestComment!.id}-${cAvatarUrl}`}
                   />
                 ) : (
                 <LinearGradient
@@ -779,121 +776,15 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
         })()}
       </TouchableOpacity>
 
-      {/* ── Floating Reaction Picker Modal (Facebook-style) ── */}
-      <Modal
-        visible={showPicker}
-        transparent
-        animationType="none"
-        statusBarTranslucent
-        backdropColor="transparent"
-        onRequestClose={closePicker}
-      >
-        <View style={styles.modalBackdrop}>
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={closePicker}
-          />
-          <View
-            style={[
-              styles.pickerAnchorLayer,
-              pickerPos
-                ? { top: pickerPos.top, left: pickerPos.left }
-                : styles.modalCenter,
-            ]}
-            pointerEvents="box-none"
-          >
-            <Animated.View
-              style={[
-                styles.pickerPill,
-                {
-                  opacity: pickerAnim,
-                  transform: [
-                    {
-                      scale: pickerAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.85, 1],
-                      }),
-                    },
-                    {
-                      translateY: pickerAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [12, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {REACTION_TYPES.map((type, i) => {
-                const active = userReaction === type;
-                const isPressed = pressedReaction === type;
-                // Stagger each icon's entrance
-                const itemAnim = pickerAnim.interpolate({
-                  inputRange: [
-                    0,
-                    Math.min(0.15 + i * 0.12, 0.85),
-                    1,
-                  ],
-                  outputRange: [0, 0, 1],
-                });
-                const gradient = REACTION_GRADIENTS[type](colors);
-                return (
-                  <View key={type} style={styles.pickerItemWrap}>
-                    {/* Floating label above pressed/active icon */}
-                    {isPressed && (
-                      <View style={styles.pickerTooltip}>
-                        <Text style={styles.pickerTooltipText}>
-                          {REACTION_LABELS[type]}
-                        </Text>
-                      </View>
-                    )}
-                    <Animated.View
-                      style={{
-                        opacity: itemAnim,
-                        transform: [
-                          {
-                            scale: itemAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0.4, isPressed ? 1.25 : 1],
-                            }),
-                          },
-                          {
-                            translateY: itemAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [16, isPressed ? -6 : 0],
-                            }),
-                          },
-                        ],
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={() => handleReaction(type)}
-                        onPressIn={() => setPressedReaction(type)}
-                        onPressOut={() => setPressedReaction(null)}
-                        activeOpacity={1}
-                        accessibilityLabel={REACTION_LABELS[type]}
-                      >
-                        <LinearGradient
-                          colors={gradient}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={[
-                            styles.pickerBubble,
-                            active && styles.pickerBubbleActive,
-                          ]}
-                        >
-                          {renderReactionIcon(type, 24, colors.card)}
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </Animated.View>
-                  </View>
-                );
-              })}
-            </Animated.View>
-          </View>
-        </View>
-      </Modal>
+      {/* ── Floating Reaction Picker ─────────────────────────────────
+          The picker overlay is rendered at screen-root by
+          <ReactionPickerHost /> (mounted in HomeScreen, ProfileScreen,
+          PostDetailScreen). PostCard pushes window-coord position +
+          callbacks to useReactionPickerStore on long-press; the host
+          subscribes and renders. This preserves the long-press → drag →
+          release continuous gesture by keeping the picker out of any
+          <Modal> (which would interrupt touch on Android) and out of the
+          FlatList row (which would clip the overflow). */}
 
       {/* ── 3-Dot Menu Modal ── */}
       <Modal
@@ -1105,7 +996,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
           activeOpacity={1}
           onPress={() => setShowReactors(false)}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.reactorsSheet}>
+          <Pressable onPress={(e) => e.stopPropagation()} style={[styles.reactorsSheet, { paddingBottom: Math.max(insets.bottom + 12, 20) }]}>
             <View style={styles.reactorsHandle} />
             <Text style={styles.reactorsTitle}>Reactions</Text>
 
@@ -1162,7 +1053,13 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                   const initial = item.user.displayName.charAt(0).toUpperCase();
                   const grad: [string, string] = [colors.primary, colors.secondary];
                   return (
-                    <View style={styles.reactorRow}>
+                    <Pressable
+                      onPress={() => {
+                        setShowReactors(false);
+                        navigation.navigate("Profile", { userId: item.user.id });
+                      }}
+                      style={styles.reactorRow}
+                    >
                       <View style={styles.reactorAvatarWrap}>
                         {item.user.avatarUrl ? (
                           <Image
@@ -1187,12 +1084,12 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
                       <Text style={styles.reactorName} numberOfLines={1}>
                         {item.user.displayName}
                       </Text>
-                    </View>
+                    </Pressable>
                   );
                 }}
               />
             )}
-          </TouchableOpacity>
+          </Pressable>
         </TouchableOpacity>
       </Modal>
     </>
@@ -1404,11 +1301,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
-  footerCount: {
-    fontSize: 14,
-    color: colors.primary,
-    fontFamily: fonts.bodySemiBold,
-  },
   footerCountMuted: {
     fontSize: 14,
     color: colors.onSurfaceVariant,
@@ -1549,102 +1441,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     lineHeight: 17,
   },
-  reactBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-  },
-  reactBtnDefault: {
-    backgroundColor: "transparent",
-  },
-  reactBtnEmoji: {
-    fontSize: 14,
-  },
-  reactBtnLabel: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-  },
-  reactBtnLabelDefault: {
-    color: colors.onSurfaceVariant,
-  },
-  reactBtnLabelActive: {
-    color: colors.secondary,
-  },
-  reactBtnHint: {
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
-    fontFamily: fonts.bodyRegular,
-    marginLeft: 2,
-  },
-
-  // ── Modal / Picker ────────────────────────
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCenter: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  // Anchor layer for the floating picker. When pickerPos is set we override
-  // top/left inline so the picker sits just above the long-pressed button.
-  pickerAnchorLayer: {
-    position: "absolute",
-  },
-  pickerPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: radii.full,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    gap: 6,
-    ...ambientShadow,
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
-    elevation: 16,
-  },
-  pickerItemWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pickerBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pickerBubbleActive: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  pickerTooltip: {
-    position: "absolute",
-    top: -34,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
-    backgroundColor: "rgba(28,27,35,0.92)",
-  },
-  pickerTooltipText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-  },
-  dismissHint: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-    marginTop: 24,
-    fontFamily: fonts.bodyMedium,
-  },
 
   // ── 3-Dot Menu ────────────────────────────
   menuBackdrop: {
@@ -1676,9 +1472,6 @@ const createStyles = (colors: typeof defaultColors) => StyleSheet.create({
     height: 1,
     backgroundColor: colors.outline + "15",
     marginHorizontal: 12,
-  },
-  menuOptionIcon: {
-    fontSize: 20,
   },
   menuOptionText: {
     color: colors.primary,
