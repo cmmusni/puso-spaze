@@ -143,6 +143,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
   // ── Facebook-style continuous gesture (long-press → drag → release) ──
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const movedBeyondTapRef = useRef(false);
+  const lastPressedReactionRef = useRef<ReactionType | null>(null);
   const userReactionRef = useRef<ReactionType | null>(null);
   const handleReactionRef = useRef<(type: ReactionType) => void>(() => {});
 
@@ -412,6 +413,7 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
         onPanResponderGrant: () => {
           reactionPress.onPressIn();
           movedBeyondTapRef.current = false;
+          lastPressedReactionRef.current = null;
           if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = setTimeout(() => {
             reactionPress.onLongPress();
@@ -430,7 +432,13 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
             }
           }
           if (!pickerStore.visible) return;
-          pickerStore.setPressed(findBubbleAt(g.moveX));
+          const next = findBubbleAt(g.moveX);
+          if (next !== lastPressedReactionRef.current) {
+            lastPressedReactionRef.current = next;
+            // Tick when the finger sweeps onto a new bubble (skip nulls).
+            if (next) tapLight();
+          }
+          pickerStore.setPressed(next);
         },
 
         onPanResponderRelease: (_e, g) => {
@@ -642,11 +650,20 @@ function PostCardImpl({ post, onDelete, onPin, onPostPress, openedFrom }: PostCa
         {/* ── Footer: reaction + comment counts ── */}
         <View style={[styles.footer, isMedium && !isWide && { marginTop: 20, paddingTop: 16 }, isWide && { marginTop: 24, paddingTop: 18 }]}>
           <View style={styles.footerLeft}>
-            {/* Main reaction button — defaults to Pray, shows user's reaction when set */}
+            {/* Main reaction button — defaults to Pray, shows user's reaction when set.
+                On web, stop click propagation so tapping the reaction button
+                doesn't bubble up to the parent card's TouchableOpacity (which
+                would open PostDetail). On native the PanResponder already
+                claims the touch via onStartShouldSetPanResponder. */}
             <View
               ref={reactionBtnRef}
               {...reactionPanResponder.panHandlers}
               {...suppressWebMenu()}
+              {...(Platform.OS === "web"
+                ? ({
+                    onClick: (e: any) => e?.stopPropagation?.(),
+                  } as any)
+                : {})}
               style={[styles.countButton, noSelectStyle]}
             >
               <Animated.View

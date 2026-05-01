@@ -1716,6 +1716,7 @@ const createStyles = (colors: typeof defaultColors) =>
       bottom: 0,
       alignItems: "stretch",
       justifyContent: "flex-start",
+      backgroundColor: colors.background,
     },
 
     // ── Web/PWA pull-to-refresh indicator ──

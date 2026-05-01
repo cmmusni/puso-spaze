@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────
 
 import { Platform } from "react-native";
+import { tapLight } from "./haptics";
 
 const CLICK_ASSET = require("../assets/sounds/click.wav");
 const VOLUME = 1.0;
@@ -89,6 +90,7 @@ if (Platform.OS === "web") {
 }
 
 export function playClick(): void {
+  tapLight();
   if (Platform.OS === "web") {
     const ctx = getCtx();
     if (!ctx) return;

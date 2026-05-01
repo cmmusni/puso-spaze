@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** April 23, 2026 (14th deployment cycle)
+**Last Updated:** May 1, 2026 (15th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,13 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Web Haptics + Click Sound Haptic Coupling + VersionCode 8 (May 1, 2026)
+- **WEB HAPTICS**: `apps/mobile/utils/haptics.ts` rewritten so `tapLight`/`tapMedium` use `navigator.vibrate` on web (8ms / 15ms) with cached feature detection; native path hardened with try/catch around `Haptics.impactAsync` so devices without a haptic engine silently no-op instead of throwing
+- **CLICK SOUND COUPLES HAPTIC**: `apps/mobile/utils/clickSound.ts` `playClick()` now also fires `tapLight()` so every UI tap that plays a click also vibrates (web + native)
+- **TAP SURFACES TOUCHED**: `apps/mobile/components/BottomTabBar.tsx`, `apps/mobile/components/PostCard.tsx`, `apps/mobile/screens/HomeScreen.tsx` updated to consume the new haptic/click flow
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` bumped 7 → 8 for the next Play submission
+- **DEPLOY CONTEXT**: Client-only UX polish + Android version bump (no server changes)
 
 ### Chat Participants + Comment Author Metadata (April 23, 2026)
 - **CHAT HEADER FIX**: `GET /api/conversations/:id/messages` now returns a `participants` object with both user and coach `displayName` so the chat header renders reliably for either side; `packages/types` `GetMessagesResponse` extended to match
