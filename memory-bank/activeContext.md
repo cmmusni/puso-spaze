@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** May 1, 2026 (15th deployment cycle)
+**Last Updated:** May 1, 2026 (16th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,14 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Android Direct Vibrator + iOS Entitlements Cleanup (May 1, 2026)
+- **ANDROID DIRECT VIBRATOR**: Extended local Expo native module `apps/mobile/modules/system-click/` (Kotlin) with `vibrate(ms)` and `hasVibrator()` functions that call the system `Vibrator` directly using `VibrationEffect.createOneShot` (API 26+) or legacy `vibrate(ms)`. This bypasses Android's "Touch feedback" / "System haptics" global toggle that silently kills `expo-haptics` and RN `Vibration` on some devices. Only requires the existing `VIBRATE` permission.
+- **HAPTICS HOOK**: `apps/mobile/utils/haptics.ts` now lazy-requires the local module and prefers `tryAndroidDirectVibrate()` on Android, falling back to `expo-haptics` if the module isn't linked. iOS keeps Taptic Engine path; web keeps `navigator.vibrate`.
+- **MODULE TS API**: `apps/mobile/modules/system-click/index.ts` exports new `systemVibrate(ms)` and `hasVibrator()` helpers with try/catch guards so non-Android bundles silently no-op.
+- **iOS ENTITLEMENTS**: `apps/mobile/ios/PUSOSpaze/PUSOSpaze.entitlements` cleared `aps-environment=development` (left empty `<dict/>`) — EAS production builds inject the correct `aps-environment` based on the build profile, so the dev value is no longer hard-coded.
+- **iOS PBXPROJ**: Minor xcodeproj sync (8 insertions, 2 deletions) for the new module wiring.
+- **DEPLOY CONTEXT**: Native module enhancement + iOS entitlement cleanup; no server, schema, or web-only changes.
 
 ### Web Haptics + Click Sound Haptic Coupling + VersionCode 8 (May 1, 2026)
 - **WEB HAPTICS**: `apps/mobile/utils/haptics.ts` rewritten so `tapLight`/`tapMedium` use `navigator.vibrate` on web (8ms / 15ms) with cached feature detection; native path hardened with try/catch around `Haptics.impactAsync` so devices without a haptic engine silently no-op instead of throwing
