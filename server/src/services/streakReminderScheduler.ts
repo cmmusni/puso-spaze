@@ -25,30 +25,32 @@ function getRandomPrompt(): string {
 /**
  * Sends streak reminder notifications to users who:
  * 1. Have an active streak (streakCount > 0)
- * 2. Haven't visited the HomeScreen today (lastStreakDate < today)
+ * 2. Last visited exactly yesterday — streak is still alive but will break at midnight
+ *    if they don't check in today. Users who already missed a full day (lastStreakDate
+ *    older than yesterday) are skipped — their streak is effectively broken even if
+ *    streakCount hasn't been reset in the DB yet, so re-nagging them every night is
+ *    misleading.
  * 3. Have notifications enabled and a push token
  */
 async function sendStreakReminders(): Promise<void> {
   try {
     const todayMidnight = new Date();
     todayMidnight.setUTCHours(0, 0, 0, 0);
+    const yesterdayMidnight = new Date(todayMidnight);
+    yesterdayMidnight.setUTCDate(yesterdayMidnight.getUTCDate() - 1);
 
-    // Find users with an active streak who haven't visited today
+    // Find users with an active streak whose last visit was exactly yesterday
     const users = await prisma.user.findMany({
       where: {
         streakCount: { gt: 0 },
         notificationsEnabled: true,
+        lastStreakDate: {
+          gte: yesterdayMidnight,
+          lt: todayMidnight,
+        },
         OR: [
-          { lastStreakDate: { lt: todayMidnight } },
-          { lastStreakDate: null },
-        ],
-        AND: [
-          {
-            OR: [
-              { expoPushToken: { not: null } },
-              { webPushSubscription: { not: Prisma.DbNull } },
-            ],
-          },
+          { expoPushToken: { not: null } },
+          { webPushSubscription: { not: Prisma.DbNull } },
         ],
       },
       select: { id: true, streakCount: true },

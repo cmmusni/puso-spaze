@@ -262,3 +262,13 @@
 - **Fix**: Updated the `prisma.comment.create` include to `{ displayName, role, avatarUrl }` and propagated those fields through the response (including the anonymous branch, which now returns `avatarUrl: null` plus the real role to keep the shape consistent with `getComments`).
 - **Files Changed**: `server/src/controllers/commentController.ts`
 - **Pattern**: Response Shape Drift — write endpoints (create/update) must return the same nested user/relation shape that the matching read endpoint returns, so optimistic UI rendering doesn't depend on a follow-up refresh.
+
+---
+
+### BUG-024 — Streak-at-Risk push fires every night for days after streak is broken
+- **Severity**: 🟡 Medium
+- **Date**: 2026-05-08
+- **Root Cause**: `streakReminderScheduler.ts` selected users with `streakCount > 0` AND `lastStreakDate < todayMidnight`. `streakCount` is only ever reset by `recordVisit` (when the user comes back) or by `getUserStats` (only if the user opens the stats endpoint). A user who skipped a full day would still have `streakCount > 0` and `lastStreakDate` two-or-more days in the past, so the cron re-fired "X-Day Streak at Risk!" every night until the user opened the app — long after the streak was actually dead. The `lastStreakDate: null` branch was also unreachable but added noise.
+- **Fix**: Narrowed the query to `lastStreakDate >= yesterdayMidnight && lastStreakDate < todayMidnight`, so only users whose last visit was *exactly yesterday* (streak still alive, but breaking at midnight without a visit) get notified. Removed the `lastStreakDate: null` branch and collapsed the redundant `AND`/`OR` push-token wrapper.
+- **Files Changed**: `server/src/services/streakReminderScheduler.ts`
+- **Pattern**: Stale Scheduler State — cron jobs that key off "X is true and timestamp is old" must bound the timestamp window, not just check `< today`. Otherwise stale rows in the DB keep producing notifications until something else clears them.

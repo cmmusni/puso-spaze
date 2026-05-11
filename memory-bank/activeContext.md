@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** May 1, 2026 (16th deployment cycle)
+**Last Updated:** May 11, 2026 (17th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,13 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### Streak Reminder Targeting Fix + VersionCode 9 (May 11, 2026)
+- **STREAK REMINDER FIX**: `server/src/services/streakReminderScheduler.ts` now only nags users whose `lastStreakDate` falls within the previous UTC day (`>= yesterdayMidnight && < todayMidnight`). Previously the query picked up anyone with `lastStreakDate < today` (or null), which kept pinging users whose streaks were already broken — misleading and noisy. New filter: streak is still alive but will break at midnight if they don’t check in today.
+- **PUSH TARGET FILTER SIMPLIFIED**: Removed the redundant `AND[{OR:[...]}]` wrapper around the push-token / web-push-subscription check; now a single top-level `OR` paired with the date window.
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` bumped 8 → 9 for the next Play submission.
+- **BUG FIX LOG**: `memory-bank/bug-fixes.md` updated with the streak reminder targeting fix.
+- **DEPLOY CONTEXT**: Server bugfix + Android version bump; no client/UI changes.
 
 ### Android Direct Vibrator + iOS Entitlements Cleanup (May 1, 2026)
 - **ANDROID DIRECT VIBRATOR**: Extended local Expo native module `apps/mobile/modules/system-click/` (Kotlin) with `vibrate(ms)` and `hasVibrator()` functions that call the system `Vibrator` directly using `VibrationEffect.createOneShot` (API 26+) or legacy `vibrate(ms)`. This bypasses Android's "Touch feedback" / "System haptics" global toggle that silently kills `expo-haptics` and RN `Vibration` on some devices. Only requires the existing `VIBRATE` permission.
