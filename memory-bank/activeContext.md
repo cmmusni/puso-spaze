@@ -1,6 +1,6 @@
 # Active Context — PUSO Spaze
 
-**Last Updated:** May 11, 2026 (17th deployment cycle)
+**Last Updated:** May 11, 2026 (18th deployment cycle)
 
 ## Current Work Focus
 - Google Play production release readiness: in-app account deletion, production EAS config, Android assets/screenshots, notification permission
@@ -17,6 +17,10 @@
 - Rate limiting on PIN login and recovery requests (upcoming)
 
 ## Recent Changes
+
+### VersionCode Bump to 10 (May 11, 2026)
+- **ANDROID BUILD NUMBER**: `apps/mobile/app.json` `android.versionCode` bumped 9 → 10 for the next Play submission iteration (previous v9 bundle already produced via EAS).
+- **DEPLOY CONTEXT**: Single config bump only.
 
 ### Streak Reminder Targeting Fix + VersionCode 9 (May 11, 2026)
 - **STREAK REMINDER FIX**: `server/src/services/streakReminderScheduler.ts` now only nags users whose `lastStreakDate` falls within the previous UTC day (`>= yesterdayMidnight && < todayMidnight`). Previously the query picked up anyone with `lastStreakDate < today` (or null), which kept pinging users whose streaks were already broken — misleading and noisy. New filter: streak is still alive but will break at midnight if they don’t check in today.
